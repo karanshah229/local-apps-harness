@@ -1,0 +1,4 @@
+interface:
+  display_name: "Diagnose and Repair"
+  short_description: "Diagnose failures and attempt bounded repairs"
+  default_prompt: "Use $diagnose-and-repair to repair this problem or explain it simply."

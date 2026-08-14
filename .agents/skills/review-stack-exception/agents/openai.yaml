@@ -1,0 +1,4 @@
+interface:
+  display_name: "Review Stack Exception"
+  short_description: "Decide whether requirements justify another stack"
+  default_prompt: "Use $review-stack-exception to assess this technology exception."

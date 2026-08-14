@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Nginx Routing"
+  short_description: "Maintain generated private application routes"
+  default_prompt: "Use $manage-nginx-routing to update and verify this route."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Deploy and Rollback"
+  short_description: "Deploy a checkpoint with automatic recovery"
+  default_prompt: "Use $deploy-and-rollback to publish this validated change safely."

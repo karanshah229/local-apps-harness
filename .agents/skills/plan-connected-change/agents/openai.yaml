@@ -1,0 +1,4 @@
+interface:
+  display_name: "Plan Connected Change"
+  short_description: "Map every technical side effect of a change"
+  default_prompt: "Use $plan-connected-change to map the connected effects of this request."

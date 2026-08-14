@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Fastify Backend"
+  short_description: "Build repository-standard Fastify APIs"
+  default_prompt: "Use $build-fastify-backend to implement the requested API."

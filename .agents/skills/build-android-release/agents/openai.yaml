@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Android Release"
+  short_description: "Produce and verify an installable Android APK"
+  default_prompt: "Use $build-android-release to produce the Android release."

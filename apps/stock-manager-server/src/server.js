@@ -17,7 +17,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
 // Serve uploaded image files
-const uploadsDir = path.join(__dirname, '../uploads');
+const uploadsDir = process.env.UPLOADS_PATH || path.join(__dirname, '../uploads');
 app.use('/uploads', express.static(uploadsDir));
 
 // Serve built frontend client if available
@@ -48,6 +48,15 @@ const dbGet = (sql, params = []) => new Promise((resolve, reject) => {
 });
 const dbRun = (sql, params = []) => new Promise((resolve, reject) => {
   db.run(sql, params, function (err) { err ? reject(err) : resolve(this); });
+});
+
+app.get('/healthz', async (req, res) => {
+  try {
+    await dbGet('SELECT 1 AS healthy');
+    res.json({ status: 'ok' });
+  } catch (err) {
+    res.status(503).json({ status: 'unavailable' });
+  }
 });
 
 // ==================== ROUTES ====================

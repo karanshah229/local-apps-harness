@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Local Git"
+  short_description: "Checkpoint and undo local application changes"
+  default_prompt: "Use $manage-local-git to checkpoint or undo this change safely."

@@ -31,5 +31,10 @@ COPY --from=frontend-builder /app/client/dist /app/stock-manager-client/dist
 # Expose backend server port
 EXPOSE 5001
 
+# Keep mutable database and uploads outside the image.
+RUN mkdir -p /app/data/uploads
+ENV DATABASE_PATH=/app/data/stock.db
+ENV UPLOADS_PATH=/app/data/uploads
+
 # Start the Node.js server
 CMD ["node", "src/server.js"]

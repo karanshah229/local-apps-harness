@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+
+node .agents/scripts/check-secrets.mjs
+node scripts/platform.mjs check

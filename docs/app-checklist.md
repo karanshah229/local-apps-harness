@@ -1,26 +1,7 @@
-# Application Integration Checklist
+# Application integration checklist
 
-Use this checklist when onboarding a new service or migrating existing code into this Turborepo monorepo.
+The executable source of truth is `platform/apps.json`; use `pnpm platform:impact`, the `plan-connected-change` skill, and `.agents/references/app-contract.md` rather than maintaining a second detailed checklist here.
 
-## 1. Directory Structure
-- [ ] Place frontend and backend components under `apps/` with descriptive names (e.g. `apps/new-app-client`, `apps/new-app-server`).
-- [ ] Group non-app configurations, scripts, and deployment YAMLs under `infra/`.
+An application is integrated only when its requested behavior, workspace packages, environment template, deterministic route/ports, data and migrations, Dockerfile, Compose service/volumes, Nginx route, health check, backup handler, tests, and registry entry agree. Include data, API, Android, or iOS surfaces only when the product requires them.
 
-## 2. Package Configuration
-- [ ] Ensure `package.json` has a unique `"name"` field.
-- [ ] Set `"private": true` for apps and packages that shouldn't be published.
-- [ ] Link shared packages as workspace dependencies, e.g.:
-  ```json
-  "dependencies": {
-    "@workspace/shared": "workspace:*"
-  }
-  ```
-
-## 3. Tooling and Linting
-- [ ] Extend root TypeScript configuration from `@workspace/tsconfig`.
-- [ ] Configure ESLint to extend `@workspace/eslint-config`.
-
-## 4. Run Scripts
-- [ ] Add a `"build"` script that compiles the code.
-- [ ] Add a `"dev"` script that runs the application in local watch mode.
-- [ ] Ensure port numbers do not conflict with existing apps (e.g., Todo: `5005`, Sip: `4000`, Stock: `5001`).
+Finish with `pnpm platform:check`, actual-reference scanning, affected builds, and `verify-connected-change`.

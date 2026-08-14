@@ -1,0 +1,4 @@
+interface:
+  display_name: "Change Application"
+  short_description: "Implement a bounded change across affected layers"
+  default_prompt: "Use $change-application to implement this requested product change."

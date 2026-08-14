@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build iOS Release"
+  short_description: "Produce and verify a signed iOS release"
+  default_prompt: "Use $build-ios-release to produce the iOS release."

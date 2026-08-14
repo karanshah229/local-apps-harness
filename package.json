@@ -10,8 +10,20 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
-    "lint": "turbo lint",
-    "test": "turbo test",
+    "lint": "node scripts/lint-workspace.mjs",
+    "test": "pnpm test:platform",
+    "test:platform": "node --test tests/*.test.mjs",
+    "platform:check": "node scripts/platform.mjs check",
+    "platform:list": "node scripts/platform.mjs list",
+    "platform:inspect": "node scripts/platform.mjs inspect",
+    "platform:scan": "node scripts/platform.mjs scan",
+    "platform:impact": "node scripts/platform.mjs impact",
+    "platform:register": "node scripts/register-app.mjs",
+    "platform:nginx": "node scripts/generate-nginx.mjs",
+    "platform:backup": "node scripts/backup-app.mjs",
+    "platform:restore": "node scripts/restore-app.mjs",
+    "platform:tailscale": "node scripts/configure-tailscale.mjs",
+    "platform:deploy": "node scripts/deploy-app.mjs",
     "clean": "rm -rf .turbo && pnpm -r exec rm -rf node_modules dist .turbo .next build"
   },
   "devDependencies": {

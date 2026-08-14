@@ -1,0 +1,4 @@
+interface:
+  display_name: "Backup and Restore"
+  short_description: "Back up or restore local application data"
+  default_prompt: "Use $backup-and-restore to protect or restore this app data."

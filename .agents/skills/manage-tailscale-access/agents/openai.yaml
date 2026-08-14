@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Tailscale Access"
+  short_description: "Maintain private Tailscale application access"
+  default_prompt: "Use $manage-tailscale-access to verify private app access."

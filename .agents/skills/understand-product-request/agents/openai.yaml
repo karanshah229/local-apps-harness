@@ -1,0 +1,4 @@
+interface:
+  display_name: "Understand Product Request"
+  short_description: "Turn a product idea into bounded requirements"
+  default_prompt: "Use $understand-product-request to clarify this product request without adding features."

@@ -22,12 +22,12 @@ module "vpc" {
 
   public_subnet_tags = {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/elb"                      = "1"
+    "kubernetes.io/role/elb"                    = "1"
   }
 
   private_subnet_tags = {
     "kubernetes.io/cluster/${var.cluster_name}" = "shared"
-    "kubernetes.io/role/internal-elb"             = "1"
+    "kubernetes.io/role/internal-elb"           = "1"
   }
 }
 
@@ -53,17 +53,18 @@ resource "aws_security_group" "db" {
 
 # Create PostgreSQL RDS Instance
 resource "aws_db_instance" "postgres" {
-  identifier           = "sip-manager-db"
-  allocated_storage    = 20
-  engine               = "postgres"
-  engine_version       = "15.3"
-  instance_class       = "db.t3.micro"
-  db_name              = "sip_manager"
-  username             = var.db_username
-  password             = var.db_password
-  db_subnet_group_name = module.vpc.database_subnet_group_name
+  identifier             = "sip-manager-db"
+  allocated_storage      = 20
+  engine                 = "postgres"
+  engine_version         = "15.3"
+  instance_class         = "db.t3.micro"
+  db_name                = "sip_manager"
+  username               = var.db_username
+  password               = var.db_password
+  db_subnet_group_name   = module.vpc.database_subnet_group_name
   vpc_security_group_ids = [aws_security_group.db.id]
-  skip_final_snapshot  = true
+  skip_final_snapshot    = false
+  deletion_protection    = true
 }
 
 # Create EKS Cluster

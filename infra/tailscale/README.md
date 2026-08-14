@@ -8,5 +8,6 @@ Tailscale allows accessing our local service stack (like Nginx, APIs, and databa
 ## Basic Setup
 1. **Install Tailscale** on the host machine.
 2. **Authenticate** the host device inside your Tailnet.
-3. Configure the **Nginx Proxy** to listen on the Tailscale IP interface for secure traffic routing.
-4. Set up Tailscale **MagicDNS** or local aliases for easy machine discovery.
+3. Nginx currently listens on `0.0.0.0:80` by explicit local-network access choice; review `docs/networking.md` before changing that boundary.
+4. Run `pnpm platform:tailscale -- --plan`, then use `--confirm-private-access` after approval to add Tailscale Serve.
+5. Use the private HTTPS name reported by Tailscale Serve from authorized tailnet devices.

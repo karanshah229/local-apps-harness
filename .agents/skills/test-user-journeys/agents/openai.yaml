@@ -1,0 +1,4 @@
+interface:
+  display_name: "Test User Journeys"
+  short_description: "Verify requested behavior from the user perspective"
+  default_prompt: "Use $test-user-journeys to verify the requested user journeys."

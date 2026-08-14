@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build React Frontend"
+  short_description: "Build repository-standard React web interfaces"
+  default_prompt: "Use $build-react-frontend to build the requested web interface."

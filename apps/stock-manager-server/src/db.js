@@ -6,8 +6,8 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const dbPath = path.join(__dirname, '../stock.db');
-const uploadsDir = path.join(__dirname, '../uploads');
+const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../stock.db');
+const uploadsDir = process.env.UPLOADS_PATH || path.join(__dirname, '../uploads');
 
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });

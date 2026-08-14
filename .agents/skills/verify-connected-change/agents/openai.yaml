@@ -1,0 +1,4 @@
+interface:
+  display_name: "Verify Connected Change"
+  short_description: "Prove every affected technical surface is current"
+  default_prompt: "Use $verify-connected-change to check this change for stale connections."

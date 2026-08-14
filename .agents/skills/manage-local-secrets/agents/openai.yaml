@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Local Secrets"
+  short_description: "Maintain untracked service environment secrets"
+  default_prompt: "Use $manage-local-secrets to configure this secret locally."

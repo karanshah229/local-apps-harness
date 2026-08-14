@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Postgres Prisma"
+  short_description: "Change PostgreSQL data safely through Prisma"
+  default_prompt: "Use $manage-postgres-prisma to make this database change safely."

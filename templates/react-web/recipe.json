@@ -1,0 +1,11 @@
+{
+  "id": "react-web",
+  "purpose": "A requested browser experience with no server-side data",
+  "stack": ["react", "typescript", "vite", "tailwindcss", "shadcn-ui"],
+  "conditional": {
+    "react-router": "more than one navigable route",
+    "tanstack-query": "remote server state is requested"
+  },
+  "requiredConnections": ["workspace", "basePath", "dockerfile", "compose", "nginx", "health", "tests", "registry"],
+  "forbiddenDefaults": ["authentication", "analytics", "dashboard", "notifications", "sample-pages"]
+}

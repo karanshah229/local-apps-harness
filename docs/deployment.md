@@ -1,31 +1,7 @@
-# Deployment Guide
+# Private deployment contract
 
-This document describes how to deploy the applications in the monorepo locally and in production.
+Applications are built from the repository root, run through `infra/docker-compose.yml`, and enter through Nginx on host port 80. This workspace deliberately exposes that entrypoint to the local network; Tailscale Serve is an optional tailnet entrypoint. A release is identified by its validated local Git checkpoint.
 
-## Prerequisites
-- Node.js >= 18
-- pnpm >= 9
-- Docker & Docker Compose (optional for containerized deployment)
+The deploy workflow must validate connected changes, create and verify the registered local backup, build an immutable checkpoint-tagged image, ask for approval immediately before changing the live service, then verify health and confirmed smoke journeys. Restore the prior image and configuration when verification fails.
 
-## Local Development
-To run all applications concurrently in watch/development mode:
-```bash
-pnpm install
-pnpm dev
-```
-To run a specific application:
-```bash
-pnpm --filter stock-manager-client dev
-```
-
-## Production Build
-To build all applications and packages:
-```bash
-pnpm build
-```
-This runs `turbo build` which automatically caches successful builds and only recompiles modified packages.
-
-## Docker Deployment
-We containerize services using the respective Dockerfiles:
-- **Nginx Proxy**: Located in `infra/nginx/`. Built with `docker build -t app-nginx ./infra/nginx`.
-- **Microsoft To Do App**: Located in `apps/microsoft-todo-server/Dockerfile.whatsapp`.
+AWS, EKS, Kubernetes, and Terraform are outside the default home-server path.

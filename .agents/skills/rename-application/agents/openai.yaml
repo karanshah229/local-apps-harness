@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rename Application"
+  short_description: "Rename an app across code and operations"
+  default_prompt: "Use $rename-application to safely rename this application everywhere."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Create Application"
+  short_description: "Create and integrate a complete new application"
+  default_prompt: "Use $create-application to create this application end to end."

@@ -1,35 +1,15 @@
-# Networking Architecture
+# Local-network access contract
 
-This document describes how the applications in this monorepo communicate with each other, Nginx, and external services (like WhatsApp or databases) securely.
+Nginx is the single application entrypoint. Registered routes and upstreams live in `platform/apps.json`; actual configuration lives in `infra/nginx/nginx.conf`. Each path-hosted app keeps an exact no-slash redirect and a trailing-slash prefix route so browser assets resolve correctly.
 
-## Network Architecture
-```mermaid
-graph TD
-    Client[Web Browser / Client]
-    Nginx[Nginx Reverse Proxy: Port 80/443]
-    TodoSrv[Todo Server: Port 5005]
-    SipSrv[SIP Manager Backend: Port 4000]
-    StockSrv[Stock Manager Backend: Port 5001]
+Current routes:
 
-    Client -->|HTTP / WebSockets| Nginx
-    Nginx -->|Proxy Pass /todo| TodoSrv
-    Nginx -->|Proxy Pass /sip| SipSrv
-    Nginx -->|Proxy Pass /stock| StockSrv
-```
+- `/todo/` → Microsoft To Do service on port 5005.
+- `/stock/` → Stock Manager service on port 5001.
+- `/gold/` → Sip of Gold static service on port 80.
 
-## Internal Service Endpoints
-- **Nginx Proxy**: Serves as the ingress point. It is configured inside `infra/nginx/nginx.conf`.
-- **Microsoft To Do App**:
-  - Client: React/Vite app, built static assets are served by the express server.
-  - Server: Express on port `5005`.
-- **SIP Manager Pro**:
-  - Client: React/Vite, connects to Backend via Apollo Client GraphQL (`http://localhost:4000/graphql`).
-  - Server: NestJS on port `4000`.
-- **Stock Manager App**:
-  - Client: React/Vite, built static assets are served by the backend express server.
-  - Server: Express on port `5001`.
+Nginx binds to `0.0.0.0:80`, an explicit workspace decision that makes every registered app reachable from devices that can reach this Mac. Local URLs remain clean, such as `http://localhost/gold/`; other devices can use `http://macbook-air/todo/` when that hostname resolves, or `http://macbook-air.local/todo/` through macOS Bonjour. These apps have no automatic authentication, so the Mac firewall and trusted network boundary are part of their access control.
 
-## Secure Remote Networking (Tailscale)
-Tailscale is configured to allow secure remote access without exposing ports:
-1. Nginx listens on the host's private IP or the Tailscale interface (`100.x.y.z`).
-2. Remote users connect using the Tailscale DNS/IP directly.
+Tailscale Serve remains available for tailnet access. Use `pnpm platform:tailscale -- --plan` to inspect that separate change, `--status` to diagnose it, and `--confirm-private-access` only after approval. If Tailscale is stopped, the command does not change its configuration.
+
+Tailscale supplies device identity and private reachability; it does not imply application-level users or roles. Add authentication only when requested. Finish route changes with `pnpm platform:check` and end-to-end navigation through Nginx.

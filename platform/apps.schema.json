@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Workspace application registry",
+  "type": "object",
+  "required": ["version", "defaults", "apps"],
+  "properties": {
+    "version": { "type": "integer", "minimum": 1 },
+    "defaults": { "type": "object" },
+    "apps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "displayName", "recipe", "status", "capabilities", "paths", "web", "docker", "nginx"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$" },
+          "displayName": { "type": "string", "minLength": 1 },
+          "recipe": { "type": "string" },
+          "status": { "enum": ["planned", "active", "legacy", "archived"] },
+          "capabilities": { "type": "array", "items": { "type": "string" }, "uniqueItems": true },
+          "paths": {
+            "type": "object",
+            "required": ["web", "api"],
+            "properties": { "web": { "type": ["string", "null"] }, "api": { "type": ["string", "null"] } }
+          },
+          "web": { "type": ["object", "null"] },
+          "api": { "type": ["object", "null"] },
+          "data": { "type": ["object", "null"] },
+          "docker": { "type": "object", "required": ["service", "containerName", "dockerfile", "volumes"] },
+          "nginx": { "type": "object", "required": ["route", "upstream"] },
+          "backup": {
+            "type": ["object", "null"],
+            "properties": {
+              "strategy": { "enum": ["filesystem", "postgresql"] },
+              "container": { "type": "string" },
+              "containerPath": { "type": "string" },
+              "localPaths": { "type": "array", "items": { "type": "string" } }
+            }
+          },
+          "mobile": { "type": ["object", "null"] }
+        }
+      }
+    }
+  }
+}

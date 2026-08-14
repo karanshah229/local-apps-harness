@@ -1,0 +1,11 @@
+{
+  "id": "expo-mobile",
+  "purpose": "Requested Android, iOS, or shared mobile behavior",
+  "stack": ["expo", "react-native", "typescript", "nativewind"],
+  "platforms": {
+    "android": ["package", "permissions", "versionCode", "apk"],
+    "ios": ["bundleIdentifier", "entitlements", "buildNumber", "simulator", "signedIpa", "testflight-after-approval"]
+  },
+  "requiredConnections": ["workspace", "apiEnvironment", "appConfig", "buildProfiles", "deviceTests", "artifacts", "registry"],
+  "forbiddenDefaults": ["authentication", "push-notifications", "deep-links", "background-location", "analytics"]
+}

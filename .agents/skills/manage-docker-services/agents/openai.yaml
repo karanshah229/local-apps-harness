@@ -1,0 +1,4 @@
+interface:
+  display_name: "Manage Docker Services"
+  short_description: "Maintain repository Docker application topology"
+  default_prompt: "Use $manage-docker-services to integrate or repair these containers."

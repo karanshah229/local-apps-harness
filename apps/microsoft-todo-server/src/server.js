@@ -24,6 +24,15 @@ const io = new Server(server, {
 app.use(cors());
 app.use(express.json());
 
+app.get('/healthz', (req, res) => {
+  try {
+    db.prepare('SELECT 1').get();
+    res.json({ status: 'ok' });
+  } catch (err) {
+    res.status(503).json({ status: 'unavailable' });
+  }
+});
+
 // Helper to notify socket clients
 function broadcastSync(event, data) {
   io.emit(event, data);

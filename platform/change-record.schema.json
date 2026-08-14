@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Connected change record",
+  "type": "object",
+  "required": ["appId", "request", "acceptance", "excluded", "surfaces", "risk", "verification", "rollback"],
+  "properties": {
+    "appId": { "type": "string" },
+    "request": { "type": "string" },
+    "acceptance": { "type": "array", "items": { "type": "string" } },
+    "excluded": { "type": "array", "items": { "type": "string" } },
+    "surfaces": {
+      "type": "array",
+      "items": { "enum": ["web", "api", "database", "mobile", "environment", "docker", "nginx", "tailscale", "health", "backup", "tests", "registry"] }
+    },
+    "risk": { "enum": ["automatic", "approval-required"] },
+    "verification": { "type": "array", "items": { "type": "string" } },
+    "rollback": { "type": "string" }
+  }
+}
