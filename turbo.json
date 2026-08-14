@@ -3,17 +3,18 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**", "build/**"]
+      "inputs": ["src/**", "public/**", "vite.config.*", "package.json", "tsconfig.json"],
+      "outputs": ["dist/**", "build/**", "out/**"]
+    },
+    "lint": {
+      "inputs": ["src/**", ".eslintrc*", "package.json"]
+    },
+    "test": {
+      "inputs": ["src/**", "vitest.config.*", "jest.config.*", "package.json"]
     },
     "dev": {
       "cache": false,
       "persistent": true
-    },
-    "lint": {
-      "dependsOn": ["^lint"]
-    },
-    "test": {
-      "dependsOn": ["^build"]
     }
   }
 }

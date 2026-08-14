@@ -1,9 +1,0 @@
-{
-  "name": "@workspace/eslint-config",
-  "version": "1.0.0",
-  "private": true,
-  "main": "base.js",
-  "files": [
-    "base.js"
-  ]
-}
