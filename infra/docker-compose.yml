@@ -1,0 +1,50 @@
+services:
+  # Ingress Nginx Reverse Proxy
+  nginx:
+    build:
+      context: ..
+      dockerfile: infra/nginx/Dockerfile
+    container_name: workspace-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - todo
+      - stock
+      - gold
+
+  # Microsoft To Do Clone (Express API + React static frontend)
+  todo:
+    build:
+      context: ..
+      dockerfile: apps/microsoft-todo-server/Dockerfile
+    container_name: todo-app
+    restart: unless-stopped
+    expose:
+      - "5005"
+    volumes:
+      - todo-data:/app/data
+
+  # Stock Manager App (Express API + React static frontend)
+  stock:
+    build:
+      context: ..
+      dockerfile: apps/stock-manager-server/Dockerfile
+    container_name: stock-app
+    restart: unless-stopped
+    expose:
+      - "5001"
+
+  # Sip of Gold (Static website)
+  gold:
+    build:
+      context: ..
+      dockerfile: apps/sip-of-gold/Dockerfile
+    container_name: gold-app
+    restart: unless-stopped
+    expose:
+      - "80"
+
+volumes:
+  todo-data:
+    driver: local

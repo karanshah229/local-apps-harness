@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+        - name: backend
+          image: backend:latest
+          ports:
+            - containerPort: 4000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://postgres:password@postgres:5432/sip_manager?schema=public"
+            - name: PORT
+              value: "4000"
+          volumeMounts:
+            - name: uploads-storage
+              mountPath: /app/uploads
+      volumes:
+        - name: uploads-storage
+          persistentVolumeClaim:
+            claimName: backend-uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+spec:
+  ports:
+    - port: 4000
+      targetPort: 4000
+  selector:
+    app: backend

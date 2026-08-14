@@ -1,0 +1,11 @@
+node_modules
+client/node_modules
+server/node_modules
+client/dist
+server/todo.db
+server/todo.db-journal
+.git
+.gitignore
+.DS_Store
+.agents
+.gemini

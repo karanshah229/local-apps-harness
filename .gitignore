@@ -1,0 +1,75 @@
+# Dependencies
+node_modules/
+
+# Turborepo
+.turbo/
+
+# Build outputs
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+*.tsbuildinfo
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Diagnostic reports
+report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Local databases / runtime state
+*.db
+*.db-journal
+*.sqlite
+*.sqlite3
+
+# Runtime uploads
+uploads/
+
+# Testing / coverage
+coverage/
+.nyc_output/
+
+# Local environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env.local
+
+# IDEs / Editors
+.idea/
+.project
+.classpath
+.cproject
+.settings/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw*
+
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+ehthumbs.db
+
+# Local AI / IDE state
+.gemini/
