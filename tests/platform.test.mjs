@@ -70,6 +70,62 @@ test("every web recipe includes shadcn/ui", () => {
   }
 });
 
+test("agent build and repair paths reach centralized technical contracts", () => {
+  const expectedPointers = new Map([
+    [".agents/skills/build-react-frontend/SKILL.md", ["references/ui-styling.md", "references/recipe-contracts.md"]],
+    [".agents/skills/build-fastify-backend/SKILL.md", ["references/backend-design.md"]],
+    [".agents/skills/verify-connected-change/SKILL.md", ["references/verification-contract.md"]],
+  ]);
+  for (const [path, pointers] of expectedPointers) {
+    const content = readFileSync(resolve(root, path), "utf8");
+    for (const pointer of pointers) assert.ok(content.includes(pointer), `${path} does not reach ${pointer}`);
+  }
+});
+
+test("observability is one model-invoked skill rather than repeated pointers", () => {
+  const skill = readFileSync(resolve(root, ".agents/skills/observability/SKILL.md"), "utf8");
+  assert.match(skill, /description: .*every application creation or change/);
+  assert.match(skill, /correlation ID crossing client, Nginx, Fastify, and database work/);
+  assert.match(skill, /Force one representative failure/);
+  assert.equal(existsSync(resolve(root, ".agents/references/observability.md")), false);
+  for (const path of [
+    ".agents/skills/build-react-frontend/SKILL.md",
+    ".agents/skills/build-fastify-backend/SKILL.md",
+    ".agents/skills/build-expo-mobile/SKILL.md",
+    ".agents/skills/manage-postgres-prisma/SKILL.md",
+    ".agents/skills/diagnose-and-repair/SKILL.md",
+    ".agents/skills/manage-nginx-routing/SKILL.md",
+    ".agents/skills/manage-docker-services/SKILL.md",
+    ".agents/skills/backup-and-restore/SKILL.md",
+    ".agents/skills/deploy-and-rollback/SKILL.md",
+  ]) {
+    assert.doesNotMatch(readFileSync(resolve(root, path), "utf8"), /observability\.md/);
+  }
+});
+
+test("verification contract names real tools for every application layer", () => {
+  const contract = readFileSync(resolve(root, ".agents/references/verification-contract.md"), "utf8");
+  for (const tool of ["Playwright", "curl", "Prisma migrations", "Maestro", "Espresso", "XCTest/XCUITest"]) {
+    assert.ok(contract.includes(tool), `verification contract is missing ${tool}`);
+  }
+  assert.match(contract, /correlated, redacted diagnostic events/);
+});
+
+test("backend contract guards normalization, service seams, and N+1 queries", () => {
+  const contract = readFileSync(resolve(root, ".agents/references/backend-design.md"), "utf8");
+  assert.match(contract, /deep modules with small interfaces/);
+  assert.match(contract, /third normal form/);
+  assert.match(contract, /N\+1/);
+  assert.match(contract, /query budget/);
+});
+
+test("UI contract rejects the default AI palette unless explicitly requested", () => {
+  const contract = readFileSync(resolve(root, ".agents/references/ui-styling.md"), "utf8");
+  assert.match(contract, /excludes purple, violet, and indigo/);
+  assert.match(contract, /only when the confirmed requirement ledger quotes the user's explicit request/);
+  assert.match(contract, /scan theme tokens, CSS, and utility classes/);
+});
+
 test("PostgreSQL recipe rejects SQLite data", () => {
   const errors = validateRecipePolicy(root, {
     id: "custom-events",

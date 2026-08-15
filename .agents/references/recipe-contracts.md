@@ -12,7 +12,7 @@ Read only when creating an application or reviewing a stack exception.
 
 ## React web
 
-Use React Router when there is more than one route and TanStack Query for server state. Copy only shadcn components used by confirmed screens. Keep the app deployable below its registered base path.
+Prefer the released TanStack OSS project that directly matches a confirmed need: Router for multiple navigable routes, Query for server state, Table for data grids, Virtual for measured long-list rendering cost, Form for complex validated forms, Store for shared client state, and Pacer for rate-controlled interactions. Consider TanStack charting or hotkey packages only after checking their current release maturity and passing `review-stack-exception` when the suitable package is prerelease or unpublished. Install no capability without a confirmed use. Copy only shadcn components used by confirmed screens. Keep the app deployable below its registered base path.
 
 ## Full stack data
 

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Observability"
+  short_description: "Build and verify cross-layer diagnostic observability"
+  default_prompt: "Use $observability to implement or verify safe correlated diagnostics across this application."

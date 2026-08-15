@@ -2,6 +2,8 @@
 
 Read this reference for app creation, rename, base-path, port, API, database, environment, container, route, or mobile identity work.
 
+Apply `verification-contract.md` across every included surface. Apply `backend-design.md` whenever API, business logic, persistence, or database queries are affected.
+
 ## Creation
 
 Account for the chosen source recipe, unique app/package identity, requested capabilities, environment template, deterministic ports, health endpoint, Dockerfile, Compose service and volumes, Nginx route/upstream/redirect, registered access URL, backup handler, tests, and `platform/apps.json`. Include the recipe's database and Prisma only when the app needs server-side data. Include mobile only when requested.

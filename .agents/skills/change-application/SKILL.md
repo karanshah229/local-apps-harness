@@ -7,7 +7,7 @@ description: Implement a confirmed product change across every affected frontend
 
 1. Require a bounded requirement ledger and connected-change record.
 2. Preserve a local Git checkpoint.
-3. Implement only confirmed visible behavior while completing every affected technical surface.
+3. Implement only confirmed visible behavior through the affected frontend, backend, data, or mobile build skills while completing every technical surface.
 4. Couple database, route, environment, container, or mobile identity changes to their specialist skills.
 5. Run affected tests and `verify-connected-change`.
 
