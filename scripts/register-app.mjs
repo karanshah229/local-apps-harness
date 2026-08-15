@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { validateRecipePolicy } from "./recipe-policy.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const registryPath = resolve(root, "platform/apps.json");
@@ -19,6 +20,8 @@ const app = JSON.parse(readFileSync(resolve(process.cwd(), recordFile), "utf8"))
 for (const field of ["id", "displayName", "recipe", "status", "capabilities", "paths", "web", "docker", "nginx"]) {
   if (app[field] === undefined) throw new Error(`Missing required app field: ${field}`);
 }
+const recipeErrors = validateRecipePolicy(root, app);
+if (recipeErrors.length) throw new Error(`Cannot register ${app.id}: ${recipeErrors.join("; ")}`);
 
 const conflicts = [
   ["id", app.id, (item) => item.id],

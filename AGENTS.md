@@ -16,7 +16,7 @@ Before changing an app identity, base path, port, API, environment variable, dat
 
 ## Preferred platform
 
-Use React + TypeScript + Vite + Tailwind + shadcn/ui for web, Fastify + Prisma + PostgreSQL for APIs and data, and Expo + React Native + NativeWind for Android and iOS. Install only components and capabilities required by the confirmed behavior. An exceptional stack must pass `review-stack-exception` and retain the common app contract.
+For app creation or any plan that chooses a stack, read `.agents/references/recipe-contracts.md` before planning and use its repository recipe. A different stack requires `review-stack-exception` and a repository recipe that retains the common app contract.
 
 ## Safety
 
@@ -26,5 +26,4 @@ Keep runtime secrets in untracked service `.env` files and commit only `.env.exa
 
 - Read `platform/apps.json` before app-level work and update it when operational identity changes.
 - Read `.agents/references/app-contract.md` for creation, rename, route, port, database, container, or mobile side effects.
-- Read `.agents/references/recipe-contracts.md` only when creating an app or choosing a stack.
 - Use repository configuration and package scripts as the source for commands; skills document only repository-specific policy and gotchas.

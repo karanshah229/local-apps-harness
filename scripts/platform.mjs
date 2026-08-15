@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { relative, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
+import { loadRecipe, validateRecipePolicy } from "./recipe-policy.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const registryPath = resolve(root, "platform/apps.json");
@@ -86,6 +87,7 @@ function validate() {
   const generatedNginx = spawnSync(process.execPath, ["scripts/generate-nginx.mjs"], { cwd: root, encoding: "utf8" });
   if (generatedNginx.status !== 0 || generatedNginx.stdout !== nginx) errors.push("infra/nginx/nginx.conf is stale; run 'pnpm platform:nginx -- --write'");
   for (const app of data.apps) {
+    errors.push(...validateRecipePolicy(root, app));
     for (const path of Object.values(app.paths).filter(Boolean)) {
       if (!existsSync(resolve(root, path))) errors.push(`${app.id}: missing path ${path}`);
     }
@@ -120,6 +122,8 @@ try {
     print(registry().apps.map(({ id, displayName, status, web, docker }) => ({ id, displayName, status, basePath: web?.basePath, service: docker.service })));
   } else if (command === "inspect") {
     print(appById(args[0]));
+  } else if (command === "recipe") {
+    print(loadRecipe(root, args[0]));
   } else if (command === "scan") {
     const app = appById(args[0]);
     print({ appId: app.id, references: referencesFor(app) });
@@ -133,7 +137,7 @@ try {
     print(result);
     if (result.errors.length) process.exitCode = 1;
   } else {
-    throw new Error("Usage: platform.mjs [list|inspect APP|scan APP|impact APP TYPE|check]");
+    throw new Error("Usage: platform.mjs [list|recipe RECIPE|inspect APP|scan APP|impact APP TYPE|check]");
   }
 } catch (error) {
   process.stderr.write(`${error.message}\n`);

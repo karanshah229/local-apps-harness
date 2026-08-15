@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
+import { validateRecipePolicy } from "../scripts/recipe-policy.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -58,6 +59,79 @@ test("minimal recipes explicitly exclude common feature creep", () => {
   for (const capability of ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]) {
     assert.ok(fullStack.forbiddenDefaults.includes(capability), `recipe may silently add ${capability}`);
   }
+});
+
+test("preferred web recipes include shadcn/ui and full-stack uses PostgreSQL", () => {
+  const web = JSON.parse(readFileSync(resolve(root, "templates/react-web/recipe.json"), "utf8"));
+  const fullStack = JSON.parse(readFileSync(resolve(root, "templates/full-stack/recipe.json"), "utf8"));
+  assert.ok(web.stack.includes("shadcn-ui"));
+  assert.ok(fullStack.stack.includes("shadcn-ui"));
+  assert.ok(fullStack.stack.includes("postgresql"));
+});
+
+test("recipe policy rejects SQLite for a new full-stack app", () => {
+  const errors = validateRecipePolicy(root, {
+    id: "custom-events",
+    status: "planned",
+    recipe: "full-stack",
+    paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
+    api: { internalPort: 5010, healthPath: "/healthz" },
+    data: { engine: "sqlite", database: "events.db" },
+    backup: { strategy: "filesystem" },
+  });
+  assert.ok(errors.some((error) => /requires PostgreSQL data/.test(error)));
+  assert.ok(errors.some((error) => /PostgreSQL backup strategy/.test(error)));
+});
+
+test("recipe policy accepts PostgreSQL for a new full-stack app", () => {
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "custom-events",
+    status: "planned",
+    recipe: "full-stack",
+    paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
+    api: { internalPort: 5010, healthPath: "/healthz" },
+    data: { engine: "postgresql", database: "custom_events" },
+    backup: { strategy: "postgresql" },
+  }), []);
+});
+
+test("registration rejects a new full-stack SQLite app without changing the registry", () => {
+  const directory = mkdtempSync(resolve(tmpdir(), "recipe-policy-"));
+  const record = resolve(directory, "custom-events.json");
+  const registryPath = resolve(root, "platform/apps.json");
+  const before = readFileSync(registryPath, "utf8");
+  writeFileSync(record, JSON.stringify({
+    id: "custom-events-policy-probe",
+    displayName: "Custom Events",
+    recipe: "full-stack",
+    status: "planned",
+    capabilities: ["events", "whatsapp-sharing"],
+    paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
+    web: { basePath: "/events" },
+    api: { internalPort: 5010, healthPath: "/healthz" },
+    data: { engine: "sqlite", database: "events.db" },
+    docker: { service: "custom-events", containerName: "custom-events-app", dockerfile: "apps/custom-events-api/Dockerfile", volumes: ["custom-events-data"] },
+    nginx: { route: "/events/", upstream: "custom-events:5010" },
+    backup: { strategy: "filesystem", container: "custom-events-app", containerPath: "/app/data" },
+    mobile: null,
+  }));
+  try {
+    const result = spawnSync(process.execPath, ["scripts/register-app.mjs", record, "--confirm"], { cwd: root, encoding: "utf8" });
+    assert.notEqual(result.status, 0);
+    assert.match(result.stderr, /full-stack recipe requires PostgreSQL data/);
+    assert.equal(readFileSync(registryPath, "utf8"), before);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("recipe command returns the exact full-stack planning contract", () => {
+  const result = spawnSync(process.execPath, ["scripts/platform.mjs", "recipe", "full-stack"], { cwd: root, encoding: "utf8" });
+  assert.equal(result.status, 0, result.stderr);
+  const recipe = JSON.parse(result.stdout);
+  assert.equal(recipe.id, "full-stack");
+  assert.ok(recipe.stack.includes("shadcn-ui"));
+  assert.ok(recipe.stack.includes("postgresql"));
 });
 
 test("backup planning is deterministic and excludes secrets", () => {

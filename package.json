@@ -15,6 +15,7 @@
     "test:platform": "node --test tests/*.test.mjs",
     "platform:check": "node scripts/platform.mjs check",
     "platform:list": "node scripts/platform.mjs list",
+    "platform:recipe": "node scripts/platform.mjs recipe",
     "platform:inspect": "node scripts/platform.mjs inspect",
     "platform:scan": "node scripts/platform.mjs scan",
     "platform:impact": "node scripts/platform.mjs impact",
