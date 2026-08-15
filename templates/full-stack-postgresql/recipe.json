@@ -1,0 +1,7 @@
+{
+  "id": "full-stack-postgresql",
+  "purpose": "A browser application whose server-side data requires PostgreSQL operations or scale",
+  "stack": ["react", "typescript", "vite", "tailwindcss", "shadcn-ui", "fastify", "prisma", "postgresql", "vitest", "playwright"],
+  "requiredConnections": ["workspace", "basePath", "apiPrefix", "database", "prismaMigrations", "envExample", "dockerfile", "compose", "nginx", "healthz", "postgresqlBackup", "tests", "registry"],
+  "forbiddenDefaults": ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]
+}

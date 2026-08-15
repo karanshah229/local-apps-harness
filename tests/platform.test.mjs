@@ -55,25 +55,26 @@ test("safety hook allows read-only status commands", () => {
 });
 
 test("minimal recipes explicitly exclude common feature creep", () => {
-  const fullStack = JSON.parse(readFileSync(resolve(root, "templates/full-stack/recipe.json"), "utf8"));
-  for (const capability of ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]) {
-    assert.ok(fullStack.forbiddenDefaults.includes(capability), `recipe may silently add ${capability}`);
+  for (const recipeId of ["full-stack-sqlite", "full-stack-postgresql"]) {
+    const recipe = JSON.parse(readFileSync(resolve(root, `templates/${recipeId}/recipe.json`), "utf8"));
+    for (const capability of ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]) {
+      assert.ok(recipe.forbiddenDefaults.includes(capability), `${recipeId} may silently add ${capability}`);
+    }
   }
 });
 
-test("preferred web recipes include shadcn/ui and full-stack uses PostgreSQL", () => {
-  const web = JSON.parse(readFileSync(resolve(root, "templates/react-web/recipe.json"), "utf8"));
-  const fullStack = JSON.parse(readFileSync(resolve(root, "templates/full-stack/recipe.json"), "utf8"));
-  assert.ok(web.stack.includes("shadcn-ui"));
-  assert.ok(fullStack.stack.includes("shadcn-ui"));
-  assert.ok(fullStack.stack.includes("postgresql"));
+test("every web recipe includes shadcn/ui", () => {
+  for (const recipeId of ["react-web", "full-stack-sqlite", "full-stack-postgresql"]) {
+    const recipe = JSON.parse(readFileSync(resolve(root, `templates/${recipeId}/recipe.json`), "utf8"));
+    assert.ok(recipe.stack.includes("shadcn-ui"), `${recipeId} must include shadcn/ui`);
+  }
 });
 
-test("recipe policy rejects SQLite for a new full-stack app", () => {
+test("PostgreSQL recipe rejects SQLite data", () => {
   const errors = validateRecipePolicy(root, {
     id: "custom-events",
     status: "planned",
-    recipe: "full-stack",
+    recipe: "full-stack-postgresql",
     paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
     api: { internalPort: 5010, healthPath: "/healthz" },
     data: { engine: "sqlite", database: "events.db" },
@@ -83,11 +84,11 @@ test("recipe policy rejects SQLite for a new full-stack app", () => {
   assert.ok(errors.some((error) => /PostgreSQL backup strategy/.test(error)));
 });
 
-test("recipe policy accepts PostgreSQL for a new full-stack app", () => {
+test("PostgreSQL recipe accepts PostgreSQL data", () => {
   assert.deepEqual(validateRecipePolicy(root, {
     id: "custom-events",
     status: "planned",
-    recipe: "full-stack",
+    recipe: "full-stack-postgresql",
     paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
     api: { internalPort: 5010, healthPath: "/healthz" },
     data: { engine: "postgresql", database: "custom_events" },
@@ -95,7 +96,20 @@ test("recipe policy accepts PostgreSQL for a new full-stack app", () => {
   }), []);
 });
 
-test("registration rejects a new full-stack SQLite app without changing the registry", () => {
+test("SQLite recipe accepts SQLite data with a persistent volume and filesystem backup", () => {
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "custom-events",
+    status: "planned",
+    recipe: "full-stack-sqlite",
+    paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
+    api: { internalPort: 5010, healthPath: "/healthz" },
+    data: { engine: "sqlite", database: "events.db" },
+    docker: { volumes: ["custom-events-data"] },
+    backup: { strategy: "filesystem" },
+  }), []);
+});
+
+test("registration rejects a database that contradicts its recipe without changing the registry", () => {
   const directory = mkdtempSync(resolve(tmpdir(), "recipe-policy-"));
   const record = resolve(directory, "custom-events.json");
   const registryPath = resolve(root, "platform/apps.json");
@@ -103,7 +117,7 @@ test("registration rejects a new full-stack SQLite app without changing the regi
   writeFileSync(record, JSON.stringify({
     id: "custom-events-policy-probe",
     displayName: "Custom Events",
-    recipe: "full-stack",
+    recipe: "full-stack-postgresql",
     status: "planned",
     capabilities: ["events", "whatsapp-sharing"],
     paths: { web: "apps/custom-events-web", api: "apps/custom-events-api" },
@@ -118,20 +132,22 @@ test("registration rejects a new full-stack SQLite app without changing the regi
   try {
     const result = spawnSync(process.execPath, ["scripts/register-app.mjs", record, "--confirm"], { cwd: root, encoding: "utf8" });
     assert.notEqual(result.status, 0);
-    assert.match(result.stderr, /full-stack recipe requires PostgreSQL data/);
+    assert.match(result.stderr, /full-stack-postgresql recipe requires PostgreSQL data/);
     assert.equal(readFileSync(registryPath, "utf8"), before);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
 });
 
-test("recipe command returns the exact full-stack planning contract", () => {
-  const result = spawnSync(process.execPath, ["scripts/platform.mjs", "recipe", "full-stack"], { cwd: root, encoding: "utf8" });
-  assert.equal(result.status, 0, result.stderr);
-  const recipe = JSON.parse(result.stdout);
-  assert.equal(recipe.id, "full-stack");
-  assert.ok(recipe.stack.includes("shadcn-ui"));
-  assert.ok(recipe.stack.includes("postgresql"));
+test("recipe command returns exact SQLite and PostgreSQL planning contracts", () => {
+  for (const [recipeId, database] of [["full-stack-sqlite", "sqlite"], ["full-stack-postgresql", "postgresql"]]) {
+    const result = spawnSync(process.execPath, ["scripts/platform.mjs", "recipe", recipeId], { cwd: root, encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const recipe = JSON.parse(result.stdout);
+    assert.equal(recipe.id, recipeId);
+    assert.ok(recipe.stack.includes("shadcn-ui"));
+    assert.ok(recipe.stack.includes(database));
+  }
 });
 
 test("backup planning is deterministic and excludes secrets", () => {

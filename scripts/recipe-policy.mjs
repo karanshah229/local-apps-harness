@@ -22,20 +22,30 @@ export function validateRecipePolicy(root, app) {
 
   const errors = [];
   const stack = new Set(recipe.stack ?? []);
-  if (stack.has("shadcn-ui") && !stack.has("tailwindcss")) {
-    errors.push(`${app.id}: recipe '${recipe.id}' must pair shadcn/ui with Tailwind CSS`);
+  if (stack.has("react") && stack.has("vite")) {
+    for (const required of ["tailwindcss", "shadcn-ui"]) {
+      if (!stack.has(required)) errors.push(`${app.id}: web recipe '${recipe.id}' is missing required stack member '${required}'`);
+    }
   }
-  if (recipe.id === "full-stack") {
-    if (!app.paths?.api || !app.api) errors.push(`${app.id}: full-stack recipe requires an API`);
-    if (app.data?.engine !== "postgresql") errors.push(`${app.id}: full-stack recipe requires PostgreSQL data`);
-    if (app.backup?.strategy !== "postgresql") errors.push(`${app.id}: full-stack recipe requires a PostgreSQL backup strategy`);
+  if (recipe.id === "full-stack-postgresql") {
+    if (!app.paths?.api || !app.api) errors.push(`${app.id}: full-stack-postgresql recipe requires an API`);
+    if (app.data?.engine !== "postgresql") errors.push(`${app.id}: full-stack-postgresql recipe requires PostgreSQL data`);
+    if (app.backup?.strategy !== "postgresql") errors.push(`${app.id}: full-stack-postgresql recipe requires a PostgreSQL backup strategy`);
     for (const required of ["shadcn-ui", "fastify", "prisma", "postgresql"]) {
-      if (!stack.has(required)) errors.push(`${app.id}: full-stack recipe is missing required stack member '${required}'`);
+      if (!stack.has(required)) errors.push(`${app.id}: full-stack-postgresql recipe is missing required stack member '${required}'`);
+    }
+  }
+  if (recipe.id === "full-stack-sqlite") {
+    if (!app.paths?.api || !app.api) errors.push(`${app.id}: full-stack-sqlite recipe requires an API`);
+    if (app.data?.engine !== "sqlite") errors.push(`${app.id}: full-stack-sqlite recipe requires SQLite data`);
+    if (app.backup?.strategy !== "filesystem") errors.push(`${app.id}: full-stack-sqlite recipe requires a filesystem backup strategy`);
+    if (!app.docker?.volumes?.length) errors.push(`${app.id}: full-stack-sqlite recipe requires a persistent data volume`);
+    for (const required of ["shadcn-ui", "fastify", "prisma", "sqlite"]) {
+      if (!stack.has(required)) errors.push(`${app.id}: full-stack-sqlite recipe is missing required stack member '${required}'`);
     }
   }
   if (recipe.id === "react-web") {
     if (app.paths?.api || app.api || app.data) errors.push(`${app.id}: react-web recipe cannot register server-side data or an API`);
-    if (!stack.has("shadcn-ui")) errors.push(`${app.id}: react-web recipe is missing required stack member 'shadcn-ui'`);
   }
   return errors;
 }

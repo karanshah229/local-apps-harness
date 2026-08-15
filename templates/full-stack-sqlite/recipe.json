@@ -1,0 +1,7 @@
+{
+  "id": "full-stack-sqlite",
+  "purpose": "A single-instance browser application with server-side data or behavior and modest write concurrency",
+  "stack": ["react", "typescript", "vite", "tailwindcss", "shadcn-ui", "fastify", "prisma", "sqlite", "vitest", "playwright"],
+  "requiredConnections": ["workspace", "basePath", "apiPrefix", "database", "prismaMigrations", "dataVolume", "envExample", "dockerfile", "compose", "nginx", "healthz", "filesystemBackup", "tests", "registry"],
+  "forbiddenDefaults": ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]
+}

@@ -1,6 +1,6 @@
 ---
 name: review-stack-exception
-description: Decide whether a concrete product or scale requirement justifies departing from React, Fastify, Prisma, PostgreSQL, or Expo and define the required operational compatibility.
+description: Decide whether a concrete product or scale requirement justifies departing from a repository recipe and define the required operational compatibility.
 ---
 
 # Review a stack exception

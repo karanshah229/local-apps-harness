@@ -1,7 +1,0 @@
-{
-  "id": "full-stack",
-  "purpose": "A requested browser experience with server-side data or behavior",
-  "stack": ["react", "typescript", "vite", "tailwindcss", "shadcn-ui", "fastify", "prisma", "postgresql", "vitest", "playwright"],
-  "requiredConnections": ["workspace", "basePath", "apiPrefix", "database", "prismaMigrations", "envExample", "dockerfile", "compose", "nginx", "healthz", "backup", "tests", "registry"],
-  "forbiddenDefaults": ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]
-}

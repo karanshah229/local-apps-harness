@@ -4,7 +4,8 @@
   "defaults": {
     "access": "local-network",
     "webStack": "react-vite-tailwind-shadcn",
-    "apiStack": "fastify-prisma-postgresql",
+    "apiStack": "fastify-prisma",
+    "dataStack": "recipe-selected",
     "mobileStack": "expo-react-native-nativewind"
   },
   "apps": [
