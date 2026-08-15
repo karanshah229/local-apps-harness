@@ -18,6 +18,8 @@ Prefer the released TanStack OSS project that directly matches a confirmed need:
 
 Choose the database from confirmed product and operating needs without asking the user to choose technology. Record the reason in the implementation plan. Use Zod-compatible request schemas and `/healthz`. Keep database access server-only. Serve the web build through the application service unless the registry records a separate service.
 
+When using `full-stack-postgresql`, apps must reuse the shared `postgres` service (`workspace-postgres`) in `infra/docker-compose.yml`. Do not spin up separate PostgreSQL containers per app. Allocate a distinct database name for each app on the shared instance. If the service is missing, declare it using image `postgres:15-alpine` and a persistent volume `postgres-data` before running the app.
+
 ## Expo mobile
 
 Use shared design tokens and platform-native components. Support Android APK and iOS simulator/local signed IPA. Upload to TestFlight only after approval.

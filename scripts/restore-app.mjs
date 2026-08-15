@@ -12,7 +12,43 @@ const registry = JSON.parse(readFileSync(resolve(root, "platform/apps.json"), "u
 const app = registry.apps.find((item) => item.id === appId);
 if (!app) throw new Error(`Unknown app '${appId}'`);
 if (!app.backup) throw new Error(`${app.displayName} has no registered data to restore.`);
-if ((app.backup.strategy ?? "filesystem") !== "filesystem") throw new Error(`Restore strategy '${app.backup.strategy}' is not implemented. No data was changed.`);
+
+const strategy = app.backup.strategy ?? "filesystem";
+if (!["filesystem", "postgresql"].includes(strategy)) {
+  throw new Error(`Restore strategy '${strategy}' is not implemented. No data was changed.`);
+}
+
+function getDatabaseConfig(app) {
+  let dbUrl = process.env.DATABASE_URL;
+  if (!dbUrl && app.paths?.api) {
+    const envPath = resolve(root, app.paths.api, ".env");
+    if (existsSync(envPath)) {
+      const content = readFileSync(envPath, "utf8");
+      const match = content.match(/^DATABASE_URL\s*=\s*["']?([^\s"']+)["']?/m);
+      if (match) dbUrl = match[1];
+    }
+  }
+
+  const dbName = app.data?.database ?? app.id;
+  let user = "postgres";
+  let dbPass = "changeme-postgres";
+  let host = "localhost";
+  let port = "5432";
+
+  if (dbUrl) {
+    try {
+      const url = new URL(dbUrl);
+      user = url.username || user;
+      dbPass = url.password || dbPass;
+      host = url.hostname || host;
+      port = url.port || port;
+    } catch {
+      // Fallback
+    }
+  }
+
+  return { dbName, user, password: dbPass, host, port, dbUrl };
+}
 
 const backupRoot = resolve(root, ".local/backups", app.id);
 function within(parent, child) {
@@ -58,9 +94,13 @@ const plan = {
   appId,
   backup: relative(root, backupDirectory),
   createdAt: manifest.createdAt,
-  overwrites: { container: `${app.backup.container}:${app.backup.containerPath}`, localFallbacks: app.backup.localPaths },
-  safety: ["verify checksums and SQLite integrity", "back up current data", "stop only this app", "restore registered paths", "restart and verify health", "put safety backup back on failure"],
-  approval: "Restoring overwrites the app's current database and uploads and requires explicit approval.",
+  overwrites: strategy === "postgresql"
+    ? { postgresqlDatabase: app.data?.database ?? app.id }
+    : { container: `${app.backup.container}:${app.backup.containerPath}`, localFallbacks: app.backup.localPaths },
+  safety: strategy === "postgresql"
+    ? ["verify checksums and SQL format", "back up current database", "stop this app service", "drop and recreate database", "restore SQL dump", "restart app service and verify health", "restore safety database backup on failure"]
+    : ["verify checksums and SQLite integrity", "back up current data", "stop only this app", "restore registered paths", "restart and verify health", "put safety backup back on failure"],
+  approval: "Restoring overwrites the app's current database and requires explicit approval.",
 };
 if (mode === "--plan") {
   process.stdout.write(`${JSON.stringify(plan, null, 2)}\n`);
@@ -90,7 +130,7 @@ function run(command, args) {
 const safety = JSON.parse(run(process.execPath, ["scripts/backup-app.mjs", app.id, "--confirm"]));
 const safetyPayload = resolve(root, safety.destination, "data");
 const compose = ["compose", "-f", "infra/docker-compose.yml"];
-const inspected = spawnSync("docker", ["inspect", "-f", "{{.State.Running}}", app.backup.container], { encoding: "utf8" });
+const inspected = spawnSync("docker", ["inspect", "-f", "{{.State.Running}}", app.backup.container || "workspace-postgres"], { encoding: "utf8" });
 const containerRunning = inspected.status === 0 && inspected.stdout.trim() === "true";
 
 function replaceContainerData(source) {
@@ -111,25 +151,89 @@ function replaceLocalData(source) {
     cpSync(item, target, { recursive: true });
   }
 }
-try {
-  if (containerRunning) {
-    replaceContainerData(payload);
-    let health = "";
-    for (let attempt = 0; attempt < 30; attempt += 1) {
-      const result = spawnSync("docker", ["inspect", "-f", "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}", app.backup.container], { encoding: "utf8" });
-      health = result.stdout.trim();
-      if (health === "healthy") break;
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+function replacePostgresData(source) {
+  const dbConfig = getDatabaseConfig(app);
+  const dbContainer = app.backup.container || "workspace-postgres";
+  const dbInspected = spawnSync("docker", ["inspect", "-f", "{{.State.Running}}", dbContainer], { encoding: "utf8" });
+  const dbContainerRunning = dbInspected.status === 0 && dbInspected.stdout.trim() === "true";
+
+  run("docker", [...compose, "stop", app.docker.service]);
+
+  try {
+    const dumpFile = resolve(source, "backup.sql");
+    const sqlContent = readFileSync(dumpFile, "utf8");
+    const dropAndRecreate = `DROP DATABASE IF EXISTS "${dbConfig.dbName}" WITH (FORCE); CREATE DATABASE "${dbConfig.dbName}";`;
+
+    if (dbContainerRunning) {
+      const recreateResult = spawnSync("docker", [
+        "exec", "-i", "-e", `PGPASSWORD=${dbConfig.password}`,
+        dbContainer, "psql", "-U", dbConfig.user, "-d", "postgres", "-c", dropAndRecreate
+      ], { encoding: "utf8" });
+      if (recreateResult.status !== 0) {
+        throw new Error(`Failed to recreate database in container: ${recreateResult.stderr.trim()}`);
+      }
+
+      const restoreResult = spawnSync("docker", [
+        "exec", "-i", "-e", `PGPASSWORD=${dbConfig.password}`,
+        dbContainer, "psql", "-U", dbConfig.user, "-d", dbConfig.dbName
+      ], { input: sqlContent, encoding: "utf8" });
+      if (restoreResult.status !== 0) {
+        throw new Error(`Failed to restore database in container: ${restoreResult.stderr.trim()}`);
+      }
+    } else {
+      const localEnv = { ...process.env };
+      localEnv["PGPASSWORD"] = dbConfig.password;
+      const recreateResult = spawnSync("psql", [
+        "-U", dbConfig.user, "-h", dbConfig.host, "-p", dbConfig.port, "-d", "postgres", "-c", dropAndRecreate
+      ], { encoding: "utf8", env: localEnv });
+      if (recreateResult.status !== 0) {
+        throw new Error(`Failed to recreate database locally: ${recreateResult.stderr.trim()}`);
+      }
+
+      const restoreResult = spawnSync("psql", [
+        "-U", dbConfig.user, "-h", dbConfig.host, "-p", dbConfig.port, "-d", dbConfig.dbName
+      ], { input: sqlContent, encoding: "utf8", env: localEnv });
+      if (restoreResult.status !== 0) {
+        throw new Error(`Failed to restore database locally: ${restoreResult.stderr.trim()}`);
+      }
     }
-    if (health !== "healthy") throw new Error(`${app.displayName} did not become healthy after restore.`);
+  } finally {
+    run("docker", [...compose, "start", app.docker.service]);
+  }
+}
+
+try {
+  if (strategy === "postgresql") {
+    replacePostgresData(payload);
+  } else if (containerRunning) {
+    replaceContainerData(payload);
   } else {
     replaceLocalData(payload);
   }
+
+  const appContainer = app.docker.containerName;
+  const appInspected = spawnSync("docker", ["inspect", "-f", "{{.State.Running}}", appContainer], { encoding: "utf8" });
+  if (appInspected.status === 0 && appInspected.stdout.trim() === "true") {
+    let health = "";
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const result = spawnSync("docker", ["inspect", "-f", "{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}", appContainer], { encoding: "utf8" });
+      health = result.stdout.trim();
+      if (health === "healthy" || health === "running") break;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 1000);
+    }
+    if (health !== "healthy" && health !== "running") throw new Error(`${app.displayName} did not become healthy after restore.`);
+  }
+
   process.stdout.write(`${JSON.stringify({ appId, status: "restored", backup: relative(root, backupDirectory), safetyBackup: safety.destination }, null, 2)}\n`);
 } catch (error) {
   try {
-    if (containerRunning) replaceContainerData(safetyPayload);
-    else replaceLocalData(safetyPayload);
+    if (strategy === "postgresql") {
+      replacePostgresData(safetyPayload);
+    } else if (containerRunning) {
+      replaceContainerData(safetyPayload);
+    } else {
+      replaceLocalData(safetyPayload);
+    }
   } catch (rollbackError) {
     throw new Error(`${error.message} Automatic rollback also failed: ${rollbackError.message}`);
   }

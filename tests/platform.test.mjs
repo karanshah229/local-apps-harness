@@ -323,3 +323,57 @@ test("deployment defaults to a non-mutating approval plan", () => {
   assert.match(plan.approval, /explicit approval/i);
   assert.ok(plan.sequence.includes("rollback-images-on-failure"));
 });
+
+test("PostgreSQL backup and restore planning formats postgresql strategy and safety details", () => {
+  const directory = mkdtempSync(resolve(tmpdir(), "platform-pg-plan-"));
+  const registryPath = resolve(directory, "platform/apps.json");
+  mkdirSync(resolve(directory, "platform"), { recursive: true });
+  mkdirSync(resolve(directory, "scripts"), { recursive: true });
+  cpSync(resolve(root, "scripts/backup-app.mjs"), resolve(directory, "scripts/backup-app.mjs"));
+  cpSync(resolve(root, "scripts/restore-app.mjs"), resolve(directory, "scripts/restore-app.mjs"));
+
+  const mockApp = {
+    id: "pg-app",
+    displayName: "PG App",
+    recipe: "full-stack-postgresql",
+    status: "active",
+    capabilities: [],
+    paths: { web: "apps/pg-app-web", api: "apps/pg-app-api" },
+    web: { basePath: "/pg" },
+    api: { internalPort: 5099, healthPath: "/health" },
+    data: { engine: "postgresql", database: "pg_app_db" },
+    docker: { service: "pg-app", containerName: "pg-app-container", dockerfile: "apps/pg-app-api/Dockerfile", volumes: [] },
+    nginx: { route: "/pg/", upstream: "pg-app:5099" },
+    backup: { strategy: "postgresql", container: "workspace-postgres" },
+    mobile: null
+  };
+
+  writeFileSync(registryPath, JSON.stringify({ version: 1, defaults: {}, apps: [mockApp] }));
+
+  try {
+    const backupPlan = spawnSync(process.execPath, ["scripts/backup-app.mjs", "pg-app", "--plan"], { cwd: directory, encoding: "utf8" });
+    assert.equal(backupPlan.status, 0, backupPlan.stderr);
+    const bPlan = JSON.parse(backupPlan.stdout);
+    assert.equal(bPlan.appId, "pg-app");
+    assert.equal(bPlan.strategy, "postgresql");
+    assert.equal(bPlan.container, "workspace-postgres");
+
+    const backupDir = resolve(directory, ".local/backups/pg-app/2026-08-15");
+    mkdirSync(resolve(backupDir, "data"), { recursive: true });
+    writeFileSync(resolve(backupDir, "manifest.json"), JSON.stringify({
+      appId: "pg-app",
+      createdAt: "2026-08-15T00:00:00Z",
+      source: "container",
+      files: []
+    }));
+
+    const restorePlan = spawnSync(process.execPath, ["scripts/restore-app.mjs", "pg-app", ".local/backups/pg-app/2026-08-15", "--plan"], { cwd: directory, encoding: "utf8" });
+    assert.equal(restorePlan.status, 0, restorePlan.stderr);
+    const rPlan = JSON.parse(restorePlan.stdout);
+    assert.equal(rPlan.appId, "pg-app");
+    assert.deepEqual(rPlan.overwrites, { postgresqlDatabase: "pg_app_db" });
+    assert.ok(rPlan.safety.includes("drop and recreate database"));
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
