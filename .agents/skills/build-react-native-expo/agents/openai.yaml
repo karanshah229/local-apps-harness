@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build React Native Expo Mobile"
+  short_description: "Build cross-platform mobile apps with React Native and Expo"
+  default_prompt: "Use $build-react-native-expo to build the requested mobile app."

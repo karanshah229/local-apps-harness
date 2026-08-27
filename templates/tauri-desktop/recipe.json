@@ -1,0 +1,11 @@
+{
+  "id": "tauri-desktop",
+  "purpose": "Preferred stack for desktop software (macOS, Windows, and web); not preferred for mobile",
+  "stack": ["tauri", "rust", "react", "typescript", "vite", "tailwindcss", "shadcn-ui"],
+  "platforms": {
+    "desktop": ["macos", "windows", "linux"],
+    "web": ["vite-build"]
+  },
+  "requiredConnections": ["workspace", "tauriConfig", "desktopBuild", "environment", "tests", "registry"],
+  "forbiddenDefaults": ["authentication", "analytics", "push-notifications", "sample-pages"]
+}

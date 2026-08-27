@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Native Android"
+  short_description: "Build native Android applications with Kotlin and Jetpack Compose"
+  default_prompt: "Use $build-native-android to build the requested native Android application."

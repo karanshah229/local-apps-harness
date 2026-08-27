@@ -1,29 +1,76 @@
-# Preferred recipe contracts
+# Preferred recipe contracts and composable stacks
 
-Read only when creating an application or reviewing a stack exception.
+Read when creating an application, selecting a technology stack, or reviewing a stack exception.
 
-## Selection
+## Stack Selection Rules
 
-- Use `react-web` only when the browser experience needs no server-side data or behavior.
-- Use `full-stack-sqlite` for server-side behavior that runs as one application instance, expects modest write concurrency, keeps data on its local private volume, and can use verified file-level backup and restore.
-- Use `full-stack-postgresql` when the confirmed behavior or scale needs multiple application instances, sustained concurrent writes, shared database access from multiple services, replication or high availability, or online/managed recovery such as point-in-time restore.
-- Use `expo-mobile` for a requested mobile app.
-- Treat registered `legacy` recipes as descriptions of existing apps, never as templates for new apps.
+1. **Desktop Software (macOS, Windows, Linux, Web)**:
+   - Use `tauri-desktop` as the preferred stack for desktop software and cross-platform desktop/web delivery.
+   - *Not preferred for mobile targets.*
 
-## React web
+2. **Mobile Development (Android & iOS)**:
+   - Use `react-native-expo` as the preferred stack for cross-platform mobile development (Android and iOS) whenever requested features can be built without writing custom native Kotlin/Swift/C++ code.
 
-Prefer the released TanStack OSS project that directly matches a confirmed need: Router for multiple navigable routes, Query for server state, Table for data grids, Virtual for measured long-list rendering cost, Form for complex validated forms, Store for shared client state, and Pacer for rate-controlled interactions. Consider TanStack charting or hotkey packages only after checking their current release maturity and passing `review-stack-exception` when the suitable package is prerelease or unpublished. Install no capability without a confirmed use. Copy only shadcn components used by confirmed screens. Keep the app deployable below its registered base path.
+3. **Native Android (Kotlin)**:
+   - Use `native-android-kotlin` when a functionality mentioned by the user is achievable **only** by building a native Android app (e.g. low-level OS APIs, custom Android background daemons/services, Android NDK/C++, direct hardware peripheral drivers).
 
-## Full stack data
+4. **Native iOS (Swift)**:
+   - Use `native-ios-swift` when a functionality mentioned by the user is achievable **only** by building a native iOS app (e.g. Metal shaders, Apple Watch/Dynamic Island/Widget extensions, App Clips, Apple-exclusive framework integrations).
 
-Choose the database from confirmed product and operating needs without asking the user to choose technology. Record the reason in the implementation plan. Use Zod-compatible request schemas and `/healthz`. Keep database access server-only. Serve the web build through the application service unless the registry records a separate service.
+5. **Web Browser Only**:
+   - Use `react-web` when the browser experience needs no server-side data or behavior.
 
-When using `full-stack-postgresql`, apps must reuse the shared `postgres` service (`workspace-postgres`) in `infra/docker-compose.yml`. Do not spin up separate PostgreSQL containers per app. Allocate a distinct database name for each app on the shared instance. If the service is missing, declare it using image `postgres:15-alpine` and a persistent volume `postgres-data` before running the app.
+6. **Full-Stack Web (SQLite vs PostgreSQL)**:
+   - Use `full-stack-sqlite` for server-side behavior that runs as a single instance, expects modest write concurrency, keeps data on its local private volume, and uses verified file-level backup.
+   - Use `full-stack-postgresql` when confirmed behavior or scale requires multiple application instances, sustained concurrent writes, shared database access across services, replication, or point-in-time restore. When using PostgreSQL, apps must reuse the shared `postgres` service (`workspace-postgres`) in `infra/docker-compose.yml`.
 
-## Expo mobile
+7. **Multi-Stack / Hybrid Combinations**:
+   - Any combination of any of the stacks is possible (e.g. React Native for mobile + Tauri for desktop; Tauri + Fastify/PostgreSQL; React Web + Native Android + Native iOS + Fastify API).
+   - Stack choice must be based solely on user requirements. If there is ambiguity or uncertainty, ask clarifying questions before deciding.
 
-Use shared design tokens and platform-native components. Support Android APK and iOS simulator/local signed IPA. Upload to TestFlight only after approval.
+---
 
-## Exception
+## Technology Piece Guidelines
+
+| Technology Piece | When to Use | When NOT to Use |
+| :--- | :--- | :--- |
+| **React (Web)** | Browser-based applications accessible via URL over local network / Tailscale. | Offline-first native desktop software or mobile-native hardware integrations. |
+| **Tauri (Desktop)** | Preferred stack for desktop software (macOS, Windows, Linux, Web). Offers lightweight footprint, native windowing, system tray, local filesystem access, and native performance. | Mobile targets (not preferred for mobile). For mobile, use React Native (Expo) or Native Kotlin/Swift. |
+| **React Native (Expo)** | Preferred stack for mobile development (Android & iOS) whenever requested features can be built without writing custom native Kotlin/Swift/C++ code. | Apps strictly requiring deep OS-level background hooks, specialized platform APIs, or custom native SDKs without Expo bindings. |
+| **Native Android (Kotlin)** | Functionality is achievable **only** by building a native Android app (e.g. low-level OS services, custom background daemons, Android NDK/C++, custom hardware peripherals). | Standard cross-platform mobile apps where standard UI and network syncing suffice. |
+| **Native iOS (Swift)** | Functionality is achievable **only** by building a native iOS app (e.g. Metal shaders, Apple Watch / Dynamic Island / Widget extensions, App Clips, Apple-exclusive frameworks). | Standard cross-platform mobile apps where standard UI and network syncing suffice. |
+| **Fastify (API)** | Multi-client data synchronization (e.g. Web + Desktop + Mobile), central business logic, background jobs, server-side secret management. | Standalone local-first desktop or mobile utility operating entirely on-device with local storage. |
+| **SQLite (Database)** | Single-instance applications, modest write concurrency, embedded local storage on desktop/mobile, verified filesystem backup. | High-concurrency multi-user concurrent writes, multi-instance microservices, or distributed multi-node syncing. |
+| **PostgreSQL (Database)** | High-concurrency writes, multi-instance horizontal scaling, shared relational data across multiple services, point-in-time recovery. | Standalone desktop tools where spinning up a separate PostgreSQL container creates unnecessary overhead. |
+
+---
+
+## Holistic Compatibility & Backtracking Protocol
+
+Even if individual technologies make sense in isolation, their combination must form a sound, operable architecture. The AI must evaluate the system combination and backtrack if an invalid pairing is identified:
+
+1. **Direct Mobile-to-Database Connection**: Mobile apps (React Native, Native Android, Native iOS) cannot connect directly over raw TCP to a remote database (Postgres or SQLite). If mobile client + remote DB is requested, the AI **must** introduce a Fastify API layer.
+2. **Tauri on Mobile**: If mobile is requested, Tauri is not preferred; backtrack to React Native (Expo) or Native Kotlin/Swift.
+3. **Redundant Dual-Native**: Selecting both Native Android (Kotlin) AND Native iOS (Swift) for an app that lacks platform-exclusive requirements is an anti-pattern. Backtrack to React Native (Expo) for unified velocity unless explicit platform-exclusive features are required on both.
+4. **Distributed SQLite without Sync**: Using local SQLite across multiple distinct client devices without a centralized API/database for synchronization will cause data silo fragmentation. Backtrack to Fastify + PostgreSQL (or centralized Fastify + SQLite).
+
+---
+
+## Product Ambiguity & Clarification Protocol
+
+When user requirements are incomplete or ambiguous, do not ask technical questions about databases or frameworks. Ask plain-language questions about outcomes:
+
+1. **Access & Target Devices**:
+   - *"Where will you and your team primarily use this app? (On desktop computers [Mac/Windows], on smartphones [iPhone/Android], or in a web browser?)"*
+2. **Data Sharing & Multi-User**:
+   - *"Will information need to be synced across multiple devices in real-time, or will each person use it independently on their own device?"*
+3. **Special Device / OS Features**:
+   - *"Does the app require specialized hardware features (such as continuous background tracking, offline USB/device control, or Apple-specific features) or standard screens and data entry?"*
+
+Translate the user's responses into the optimal layer combination.
+
+---
+
+## Stack Exceptions
 
 Use another stack only for a concrete unmet requirement. Record the evidence, rejected preferred-stack approach, maintenance cost, and how the exception implements the common health, environment, container, test, backup, deployment, and rollback contract. Complete the review only after its recipe exists under `templates/` and passes repository validation.

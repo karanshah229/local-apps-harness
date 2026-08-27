@@ -1,7 +1,7 @@
 {
-  "id": "expo-mobile",
-  "purpose": "Requested Android, iOS, or shared mobile behavior",
-  "stack": ["expo", "react-native", "typescript", "nativewind"],
+  "id": "react-native-expo",
+  "purpose": "Preferred stack for mobile development (Android & iOS) when all features can be built without writing native code",
+  "stack": ["react-native", "expo", "typescript", "nativewind"],
   "platforms": {
     "android": ["package", "permissions", "versionCode", "apk"],
     "ios": ["bundleIdentifier", "entitlements", "buildNumber", "simulator", "signedIpa", "testflight-after-approval"]

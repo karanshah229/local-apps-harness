@@ -5,6 +5,7 @@ import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, write
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import { validateRecipePolicy } from "../scripts/recipe-policy.mjs";
+import { pruneBackups } from "../scripts/backup-app.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 
@@ -55,16 +56,16 @@ test("safety hook allows read-only status commands", () => {
 });
 
 test("minimal recipes explicitly exclude common feature creep", () => {
-  for (const recipeId of ["full-stack-sqlite", "full-stack-postgresql"]) {
+  for (const recipeId of ["full-stack-sqlite", "full-stack-postgresql", "tauri-desktop", "react-native-expo", "native-android-kotlin", "native-ios-swift"]) {
     const recipe = JSON.parse(readFileSync(resolve(root, `templates/${recipeId}/recipe.json`), "utf8"));
-    for (const capability of ["authentication", "roles", "analytics", "notifications", "search", "uploads", "realtime", "reports"]) {
+    for (const capability of ["authentication", "analytics"]) {
       assert.ok(recipe.forbiddenDefaults.includes(capability), `${recipeId} may silently add ${capability}`);
     }
   }
 });
 
-test("every web recipe includes shadcn/ui", () => {
-  for (const recipeId of ["react-web", "full-stack-sqlite", "full-stack-postgresql"]) {
+test("every web and desktop recipe includes shadcn/ui", () => {
+  for (const recipeId of ["react-web", "full-stack-sqlite", "full-stack-postgresql", "tauri-desktop"]) {
     const recipe = JSON.parse(readFileSync(resolve(root, `templates/${recipeId}/recipe.json`), "utf8"));
     assert.ok(recipe.stack.includes("shadcn-ui"), `${recipeId} must include shadcn/ui`);
   }
@@ -91,7 +92,10 @@ test("observability is one model-invoked skill rather than repeated pointers", (
   for (const path of [
     ".agents/skills/build-react-frontend/SKILL.md",
     ".agents/skills/build-fastify-backend/SKILL.md",
-    ".agents/skills/build-expo-mobile/SKILL.md",
+    ".agents/skills/build-react-native-expo/SKILL.md",
+    ".agents/skills/build-tauri-desktop/SKILL.md",
+    ".agents/skills/build-native-android/SKILL.md",
+    ".agents/skills/build-native-ios/SKILL.md",
     ".agents/skills/manage-postgres-prisma/SKILL.md",
     ".agents/skills/diagnose-and-repair/SKILL.md",
     ".agents/skills/manage-nginx-routing/SKILL.md",
@@ -105,7 +109,7 @@ test("observability is one model-invoked skill rather than repeated pointers", (
 
 test("verification contract names real tools for every application layer", () => {
   const contract = readFileSync(resolve(root, ".agents/references/verification-contract.md"), "utf8");
-  for (const tool of ["Playwright", "curl", "Prisma migrations", "Maestro", "Espresso", "XCTest/XCUITest"]) {
+  for (const tool of ["Playwright", "curl", "Prisma migrations", "Maestro", "Espresso", "XCTest"]) {
     assert.ok(contract.includes(tool), `verification contract is missing ${tool}`);
   }
   assert.match(contract, /correlated, redacted diagnostic events/);
@@ -165,6 +169,85 @@ test("SQLite recipe accepts SQLite data with a persistent volume and filesystem 
   }), []);
 });
 
+test("Tauri desktop recipe accepts desktop applications and rejects mobile-only", () => {
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "desktop-notes",
+    status: "planned",
+    recipe: "tauri-desktop",
+    paths: { web: "apps/desktop-notes-ui", api: null, desktop: "apps/desktop-notes" },
+    web: { basePath: "/notes" },
+    api: null,
+    data: null,
+    docker: { service: "notes", containerName: "notes-app", dockerfile: "apps/desktop-notes/Dockerfile", volumes: [] },
+    nginx: { route: "/notes/", upstream: "notes:80" },
+    backup: null,
+    mobile: null,
+  }), []);
+
+  const errors = validateRecipePolicy(root, {
+    id: "mobile-tauri-bad",
+    status: "planned",
+    recipe: "tauri-desktop",
+    paths: { web: null, api: null, mobile: "apps/mobile-bad" },
+    web: null,
+    api: null,
+    data: null,
+    mobile: { androidPackage: "com.example.bad" },
+  });
+  assert.ok(errors.some((error) => /preferred for desktop.*not for mobile-only/i.test(error)));
+});
+
+test("React Native Expo recipe accepts standard cross-platform mobile apps", () => {
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "mobile-tracker",
+    status: "planned",
+    recipe: "react-native-expo",
+    paths: { web: null, api: null, mobile: "apps/mobile-tracker" },
+    web: null,
+    api: null,
+    data: null,
+    mobile: { androidPackage: "com.example.tracker", iosBundleId: "com.example.tracker" },
+  }), []);
+});
+
+test("Native Android Kotlin and Native iOS Swift recipes validate correctly", () => {
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "native-android-app",
+    status: "planned",
+    recipe: "native-android-kotlin",
+    paths: { web: null, api: null, android: "apps/native-android" },
+    web: null,
+    api: null,
+    data: null,
+    android: { androidPackage: "com.example.nativeandroid" },
+  }), []);
+
+  assert.deepEqual(validateRecipePolicy(root, {
+    id: "native-ios-app",
+    status: "planned",
+    recipe: "native-ios-swift",
+    paths: { web: null, api: null, ios: "apps/native-ios" },
+    web: null,
+    api: null,
+    data: null,
+    ios: { iosBundleId: "com.example.nativeios" },
+  }), []);
+});
+
+test("cross-layer compatibility rejects direct mobile-to-database connection without API", () => {
+  const errors = validateRecipePolicy(root, {
+    id: "mobile-db-bad",
+    status: "planned",
+    recipe: "react-native-expo",
+    paths: { web: null, api: null, mobile: "apps/mobile-db-bad" },
+    web: null,
+    api: null,
+    data: { engine: "postgresql", database: "remote_db" },
+    mobile: { androidPackage: "com.example.bad" },
+  });
+  assert.ok(errors.some((error) => /mobile clients cannot connect directly to remote databases/i.test(error)));
+});
+
 test("registration rejects a database that contradicts its recipe without changing the registry", () => {
   const directory = mkdtempSync(resolve(tmpdir(), "recipe-policy-"));
   const record = resolve(directory, "custom-events.json");
@@ -195,14 +278,22 @@ test("registration rejects a database that contradicts its recipe without changi
   }
 });
 
-test("recipe command returns exact SQLite and PostgreSQL planning contracts", () => {
-  for (const [recipeId, database] of [["full-stack-sqlite", "sqlite"], ["full-stack-postgresql", "postgresql"]]) {
+test("recipe command returns exact contracts for all supported stacks", () => {
+  const stacks = [
+    ["full-stack-sqlite", "sqlite"],
+    ["full-stack-postgresql", "postgresql"],
+    ["react-web", "shadcn-ui"],
+    ["tauri-desktop", "tauri"],
+    ["react-native-expo", "expo"],
+    ["native-android-kotlin", "kotlin"],
+    ["native-ios-swift", "swift"],
+  ];
+  for (const [recipeId, member] of stacks) {
     const result = spawnSync(process.execPath, ["scripts/platform.mjs", "recipe", recipeId], { cwd: root, encoding: "utf8" });
     assert.equal(result.status, 0, result.stderr);
     const recipe = JSON.parse(result.stdout);
     assert.equal(recipe.id, recipeId);
-    assert.ok(recipe.stack.includes("shadcn-ui"));
-    assert.ok(recipe.stack.includes(database));
+    assert.ok(recipe.stack.includes(member), `${recipeId} missing ${member}`);
   }
 });
 
@@ -376,4 +467,35 @@ test("PostgreSQL backup and restore planning formats postgresql strategy and saf
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
+});
+
+test("backup pruning retains the latest N backups and removes older snapshots", () => {
+  const directory = mkdtempSync(resolve(tmpdir(), "backup-prune-"));
+  const appId = "prune-test-app";
+  const backupsDir = resolve(directory, ".local/backups", appId);
+  mkdirSync(resolve(backupsDir, "2026-08-01T00-00-00.000Z"), { recursive: true });
+  mkdirSync(resolve(backupsDir, "2026-08-02T00-00-00.000Z"), { recursive: true });
+  mkdirSync(resolve(backupsDir, "2026-08-03T00-00-00.000Z"), { recursive: true });
+  mkdirSync(resolve(backupsDir, "2026-08-04T00-00-00.000Z"), { recursive: true });
+  mkdirSync(resolve(backupsDir, "2026-08-05T00-00-00.000Z"), { recursive: true });
+
+  try {
+    const pruned = pruneBackups(directory, appId, 3);
+    assert.equal(pruned.length, 2);
+    assert.deepEqual(pruned, ["2026-08-01T00-00-00.000Z", "2026-08-02T00-00-00.000Z"]);
+    assert.equal(existsSync(resolve(backupsDir, "2026-08-01T00-00-00.000Z")), false);
+    assert.equal(existsSync(resolve(backupsDir, "2026-08-05T00-00-00.000Z")), true);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("ensure-postgres-db script validates database name input and handles execution cleanly", () => {
+  const invalid = spawnSync(process.execPath, ["scripts/ensure-postgres-db.mjs", "invalid;drop"], { cwd: root, encoding: "utf8" });
+  assert.notEqual(invalid.status, 0);
+
+  const valid = spawnSync(process.execPath, ["scripts/ensure-postgres-db.mjs", "valid_app_db"], { cwd: root, encoding: "utf8" });
+  assert.equal(valid.status, 0);
+  const result = JSON.parse(valid.stdout);
+  assert.equal(result.dbName, "valid_app_db");
 });

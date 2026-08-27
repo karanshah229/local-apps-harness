@@ -3,8 +3,16 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
-      "inputs": ["src/**", "public/**", "vite.config.*", "package.json", "tsconfig.json"],
+      "inputs": ["src/**", "public/**", "vite.config.*", "package.json", "tsconfig.json", "prisma/schema.prisma"],
       "outputs": ["dist/**", "build/**", "out/**"]
+    },
+    "build:desktop": {
+      "inputs": ["src/**", "src-tauri/**", "package.json", "tsconfig.json"],
+      "outputs": ["src-tauri/target/release/**", "dist/**"]
+    },
+    "build:mobile": {
+      "inputs": ["src/**", "app.json", "package.json", "tsconfig.json"],
+      "outputs": ["dist/**"]
     },
     "lint": {
       "inputs": ["src/**", ".eslintrc*", "package.json"]

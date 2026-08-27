@@ -22,7 +22,9 @@
     "platform:register": "node scripts/register-app.mjs",
     "platform:nginx": "node scripts/generate-nginx.mjs",
     "platform:backup": "node scripts/backup-app.mjs",
+    "platform:backup:prune": "node scripts/backup-app.mjs --prune",
     "platform:restore": "node scripts/restore-app.mjs",
+    "platform:db:ensure": "node scripts/ensure-postgres-db.mjs",
     "platform:tailscale": "node scripts/configure-tailscale.mjs",
     "platform:deploy": "node scripts/deploy-app.mjs",
     "clean": "rm -rf .turbo && pnpm -r exec rm -rf node_modules dist .turbo .next build"

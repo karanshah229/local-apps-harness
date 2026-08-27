@@ -16,7 +16,7 @@ Before changing an app identity, base path, port, API, environment variable, dat
 
 ## Preferred platform
 
-For app creation or any plan that chooses a stack, read `.agents/references/recipe-contracts.md` before planning and use its repository recipe. A different stack requires `review-stack-exception` and a repository recipe that retains the common app contract.
+For app creation or any plan that chooses a stack, read `.agents/references/recipe-contracts.md` before planning and select the appropriate composable layers (desktop, mobile, web, API, database) based strictly on user requirements. If requirements are ambiguous, ask clarifying questions focused on user outcomes before deciding. A different stack requires `review-stack-exception` and a repository recipe that retains the common app contract.
 
 ## Safety
 

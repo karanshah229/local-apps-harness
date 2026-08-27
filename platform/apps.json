@@ -4,9 +4,12 @@
   "defaults": {
     "access": "local-network",
     "webStack": "react-vite-tailwind-shadcn",
+    "desktopStack": "tauri-react-vite",
+    "mobileStack": "react-native-expo",
+    "nativeAndroidStack": "native-android-kotlin",
+    "nativeIosStack": "native-ios-swift",
     "apiStack": "fastify-prisma",
-    "dataStack": "recipe-selected",
-    "mobileStack": "expo-react-native-nativewind"
+    "dataStack": "recipe-selected"
   },
   "apps": [
     {

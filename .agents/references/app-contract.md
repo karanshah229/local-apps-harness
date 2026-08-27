@@ -1,12 +1,12 @@
 # Connected application contract
 
-Read this reference for app creation, rename, base-path, port, API, database, environment, container, route, or mobile identity work.
+Read this reference for app creation, rename, base-path, port, API, database, environment, container, route, desktop, or mobile identity work.
 
 Apply `verification-contract.md` across every included surface. Apply `backend-design.md` whenever API, business logic, persistence, or database queries are affected.
 
 ## Creation
 
-Account for the chosen source recipe, unique app/package identity, requested capabilities, environment template, deterministic ports, health endpoint, Dockerfile, Compose service and volumes, Nginx route/upstream/redirect, registered access URL, backup handler, tests, and `platform/apps.json`. Include the recipe's database and Prisma only when the app needs server-side data. Include mobile only when requested.
+Account for the chosen source recipe, unique app/package identity, requested capabilities, environment template, deterministic ports, health endpoint, Dockerfile, Compose service and volumes, Nginx route/upstream/redirect, registered access URL, backup handler, tests, and `platform/apps.json`. Include the recipe's database and Prisma only when the app needs server-side data. Include desktop or mobile only when requested.
 
 ## Identity and rename
 
@@ -14,7 +14,7 @@ Separate display name, stable registry ID, source paths, package names, Docker s
 
 ## Base path and API
 
-Check React router basename, Vite base, asset URLs, API clients, Fastify prefix, CORS, WebSocket paths, Nginx exact redirect and prefix location, mobile API environment, health probes, browser tests, and registry metadata.
+Check React router basename, Vite base, asset URLs, API clients, Fastify prefix, CORS, WebSocket paths, Nginx exact redirect and prefix location, desktop and mobile API environments, health probes, browser tests, and registry metadata.
 
 ## Port and containers
 
@@ -28,12 +28,16 @@ Couple every Prisma migration to a verified backup and disposable-data test. Acc
 
 ## Environment and secrets
 
-Keep values in untracked service `.env` files. Keep names and descriptions in `.env.example`. Check startup validation, web/mobile public-variable rules, Compose `env_file`, tests, deployment preflight, and redaction.
+Keep values in untracked service `.env` files. Keep names and descriptions in `.env.example`. Check startup validation, web/desktop/mobile public-variable rules, Compose `env_file`, tests, deployment preflight, and redaction.
 
-## Mobile
+## Desktop (Tauri)
 
-Check Expo app config, API base URL, permissions, icons/splash, deep links, build/version numbers, Android package, iOS bundle ID, entitlements, EAS profiles, device/simulator tests, and registry artifacts. Test both platforms when a shared app is affected.
+Check Tauri configuration (`tauri.conf.json`), window properties, Rust backend commands/invocations, bundle identifier, capabilities/permissions, system tray, local filesystem security scopes, icons, and platform-specific desktop builds (macOS `.dmg`/`.app`, Windows `.msi`/`.exe`, Linux `.deb`/`.AppImage`).
+
+## Mobile (React Native Expo, Native Android Kotlin, Native iOS Swift)
+
+Check mobile app configuration, API base URL, permissions, icons/splash, deep links, build/version numbers, Android package name, iOS bundle ID, entitlements, build profiles, device/simulator tests, and registry artifacts. Test both platforms when a shared cross-platform app is affected.
 
 ## Completion
 
-Run `pnpm platform:check`, scan old and new identifiers, build affected packages/images, validate Compose and Nginx, execute requested journeys, and confirm the requirement ledger contains no invented visible behavior.
+Run `pnpm platform:check`, scan old and new identifiers, build affected packages/images/binaries, validate Compose and Nginx, execute requested journeys, and confirm the requirement ledger contains no invented visible behavior.

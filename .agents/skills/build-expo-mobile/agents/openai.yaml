@@ -1,4 +1,0 @@
-interface:
-  display_name: "Build Expo Mobile"
-  short_description: "Build shared Expo Android and iOS apps"
-  default_prompt: "Use $build-expo-mobile to build the requested mobile experience."

@@ -1,0 +1,10 @@
+{
+  "id": "native-ios-swift",
+  "purpose": "Used when functionality requested by the user is achievable only by building a native iOS app",
+  "stack": ["ios", "swift", "swiftui", "xcode"],
+  "platforms": {
+    "ios": ["bundleIdentifier", "entitlements", "buildNumber", "simulator", "signedIpa", "testflight-after-approval"]
+  },
+  "requiredConnections": ["workspace", "xcodeProject", "apiEnvironment", "simulatorTests", "artifacts", "registry"],
+  "forbiddenDefaults": ["authentication", "push-notifications", "background-processing", "analytics"]
+}

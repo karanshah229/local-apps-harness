@@ -20,10 +20,18 @@
           "paths": {
             "type": "object",
             "required": ["web", "api"],
-            "properties": { "web": { "type": ["string", "null"] }, "api": { "type": ["string", "null"] } }
+            "properties": {
+              "web": { "type": ["string", "null"] },
+              "api": { "type": ["string", "null"] },
+              "desktop": { "type": ["string", "null"] },
+              "mobile": { "type": ["string", "null"] },
+              "android": { "type": ["string", "null"] },
+              "ios": { "type": ["string", "null"] }
+            }
           },
           "web": { "type": ["object", "null"] },
           "api": { "type": ["object", "null"] },
+          "desktop": { "type": ["object", "null"] },
           "data": { "type": ["object", "null"] },
           "docker": { "type": "object", "required": ["service", "containerName", "dockerfile", "volumes"] },
           "nginx": { "type": "object", "required": ["route", "upstream"] },
@@ -36,7 +44,9 @@
               "localPaths": { "type": "array", "items": { "type": "string" } }
             }
           },
-          "mobile": { "type": ["object", "null"] }
+          "mobile": { "type": ["object", "null"] },
+          "android": { "type": ["object", "null"] },
+          "ios": { "type": ["object", "null"] }
         }
       }
     }

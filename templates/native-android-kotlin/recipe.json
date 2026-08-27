@@ -1,0 +1,10 @@
+{
+  "id": "native-android-kotlin",
+  "purpose": "Used when functionality requested by the user is achievable only by building a native Android app",
+  "stack": ["android", "kotlin", "gradle", "jetpack-compose"],
+  "platforms": {
+    "android": ["package", "permissions", "versionCode", "apk", "gradle-build"]
+  },
+  "requiredConnections": ["workspace", "gradleConfig", "apiEnvironment", "deviceTests", "artifacts", "registry"],
+  "forbiddenDefaults": ["authentication", "push-notifications", "background-services", "analytics"]
+}

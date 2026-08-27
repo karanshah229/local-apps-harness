@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Tauri Desktop"
+  short_description: "Build desktop applications for macOS, Windows, Linux, and Web with Tauri"
+  default_prompt: "Use $build-tauri-desktop to build the requested desktop application."

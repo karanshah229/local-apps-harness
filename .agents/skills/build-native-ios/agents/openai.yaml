@@ -1,0 +1,4 @@
+interface:
+  display_name: "Build Native iOS"
+  short_description: "Build native iOS applications with Swift and SwiftUI"
+  default_prompt: "Use $build-native-ios to build the requested native iOS application."
