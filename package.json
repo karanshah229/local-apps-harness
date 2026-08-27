@@ -10,6 +10,10 @@
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
+    "dev:todo": "turbo dev --filter=microsoft-todo-*",
+    "dev:mobile": "pnpm --filter microsoft-todo-mobile dev",
+    "dev:web": "pnpm --filter microsoft-todo-frontend dev",
+    "dev:server": "pnpm --filter microsoft-todo-backend dev",
     "lint": "node scripts/lint-workspace.mjs",
     "test": "pnpm test:platform",
     "test:platform": "node --test tests/*.test.mjs",
@@ -37,6 +41,14 @@
       "better-sqlite3",
       "esbuild",
       "sqlite3"
-    ]
+    ],
+    "peerDependencyRules": {
+      "allowAny": [
+        "react",
+        "react-dom",
+        "@types/react",
+        "@types/react-dom"
+      ]
+    }
   }
 }

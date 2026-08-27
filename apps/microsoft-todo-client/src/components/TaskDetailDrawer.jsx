@@ -125,7 +125,7 @@ export default function TaskDetailDrawer({
   return (
     <aside className="fixed inset-0 z-50 md:static md:w-[380px] md:z-auto bg-background md:border-l md:border-border flex flex-col h-full shadow-2xl md:shadow-none animate-in md:animate-none slide-in-from-right duration-200">
       {/* Top Mobile App Bar / Header */}
-      <div className="flex items-center justify-between px-4 h-16 border-b border-border bg-card/80 backdrop-blur-md pt-safe">
+      <div className="flex items-center justify-between px-4 h-14 border-b border-border bg-card/80 backdrop-blur-md pt-safe">
         <button
           type="button"
           onClick={onClose}

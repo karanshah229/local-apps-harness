@@ -67,12 +67,12 @@ export default function Sidebar({
 
   const themeColorDot = (c) => {
     switch (c) {
-      case 'purple': return 'bg-purple-500';
-      case 'green': return 'bg-emerald-600';
-      case 'orange': return 'bg-orange-500';
-      case 'red': return 'bg-red-600';
-      case 'dark': return 'bg-zinc-700';
-      default: return 'bg-blue-600';
+      case 'purple': return 'bg-[#742774]';
+      case 'green': return 'bg-[#107c41]';
+      case 'orange': return 'bg-[#d83b01]';
+      case 'red': return 'bg-[#e81123]';
+      case 'dark': return 'bg-[#2b2b2b]';
+      default: return 'bg-[#0078d4]';
     }
   };
 

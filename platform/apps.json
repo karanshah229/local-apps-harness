@@ -20,7 +20,8 @@
       "capabilities": ["tasks", "realtime-sync", "whatsapp-reminders"],
       "paths": {
         "web": "apps/microsoft-todo-client",
-        "api": "apps/microsoft-todo-server"
+        "api": "apps/microsoft-todo-server",
+        "mobile": "apps/microsoft-todo-mobile"
       },
       "web": { "basePath": "/todo" },
       "api": { "internalPort": 5005, "healthPath": "/healthz" },
@@ -28,7 +29,10 @@
       "docker": { "service": "todo", "containerName": "todo-app", "dockerfile": "apps/microsoft-todo-server/Dockerfile", "volumes": ["todo-data"] },
       "nginx": { "route": "/todo/", "upstream": "todo:5005" },
       "backup": { "strategy": "filesystem", "container": "todo-app", "containerPath": "/app/data", "localPaths": ["apps/microsoft-todo-server/todo.db"] },
-      "mobile": null
+      "mobile": {
+        "androidPackage": "com.saileshbhai.microsofttodo",
+        "iosBundleId": "com.saileshbhai.microsofttodo"
+      }
     },
     {
       "id": "stock-manager",

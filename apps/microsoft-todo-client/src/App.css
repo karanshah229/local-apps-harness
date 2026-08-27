@@ -4,18 +4,18 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 210 40% 98%;
+    --foreground: 222.2 47.4% 11.2%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 222.2 47.4% 11.2%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 222.2 47.4% 11.2%;
 
-    --primary: 217.2 91.2% 50.8%;
-    --primary-foreground: 210 40% 98%;
-    --primary-hover: 217.2 91.2% 43%;
+    --primary: 206.5 100% 41.6%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 206.5 100% 35%;
 
     --secondary: 210 40% 96.1%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -27,13 +27,13 @@
     --accent-foreground: 222.2 47.4% 11.2%;
 
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
     --border: 214.3 31.8% 91.4%;
     --input: 214.3 31.8% 91.4%;
-    --ring: 217.2 91.2% 50.8%;
+    --ring: 206.5 100% 41.6%;
 
-    --radius: 0.75rem;
+    --radius: 1.125rem;
 
     --whatsapp-color: #25D366;
     --whatsapp-dark: #128C7E;
@@ -41,34 +41,34 @@
   }
 
   .dark {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    --background: 240 10% 3.9%;
+    --foreground: 240 4.8% 95.9%;
 
-    --card: 224 71% 7%;
-    --card-foreground: 213 31% 91%;
+    --card: 240 5.9% 10%;
+    --card-foreground: 240 4.8% 95.9%;
 
-    --popover: 224 71% 7%;
-    --popover-foreground: 215 20.2% 65.1%;
+    --popover: 240 5.9% 10%;
+    --popover-foreground: 240 4.8% 95.9%;
 
-    --primary: 217.2 91.2% 59.8%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-    --primary-hover: 217.2 91.2% 65%;
+    --primary: 198.6 93.2% 60.6%;
+    --primary-foreground: 240 10% 3.9%;
+    --primary-hover: 198.6 93.2% 70%;
 
-    --secondary: 222.2 47.4% 13.2%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 240 4.8% 95.9%;
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 60%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 240 4.8% 95.9%;
 
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
-    --ring: 224.3 76.3% 48%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 198.6 93.2% 60.6%;
 
     --whatsapp-bubble: 160 30% 12%;
   }
@@ -115,36 +115,36 @@ body {
   background: rgba(150, 150, 150, 0.5);
 }
 
-/* Theme Gradient Banners */
+/* Theme Gradient Banners (Matched 1:1 with React Native Expo) */
 .theme-gradient-blue {
-  background: linear-gradient(135deg, #2564cf 0%, #0045a5 100%);
+  background: linear-gradient(135deg, #0078d4 0%, #005a9e 100%);
 }
 
 .theme-gradient-purple {
-  background: linear-gradient(135deg, #8764b8 0%, #4c268f 100%);
+  background: linear-gradient(135deg, #742774 0%, #5c1b5c 100%);
 }
 
 .theme-gradient-green {
-  background: linear-gradient(135deg, #107c41 0%, #0b4a26 100%);
+  background: linear-gradient(135deg, #107c41 0%, #0b5a2f 100%);
 }
 
 .theme-gradient-orange {
-  background: linear-gradient(135deg, #d83b01 0%, #8e2500 100%);
+  background: linear-gradient(135deg, #d83b01 0%, #a82e00 100%);
 }
 
 .theme-gradient-red {
-  background: linear-gradient(135deg, #a80000 0%, #630000 100%);
+  background: linear-gradient(135deg, #e81123 0%, #a80000 100%);
 }
 
 .theme-gradient-dark {
-  background: linear-gradient(135deg, #2d2d2d 0%, #171717 100%);
+  background: linear-gradient(135deg, #2b2b2b 0%, #1a1a1a 100%);
 }
 
 /* Safe area insets for mobile */
 .pb-safe {
-  padding-bottom: env(safe-area-inset-bottom, 16px);
+  padding-bottom: max(env(safe-area-inset-bottom, 0px), 1rem);
 }
 
 .pt-safe {
-  padding-top: env(safe-area-inset-top, 0px);
+  padding-top: max(env(safe-area-inset-top, 0px), 1rem);
 }
