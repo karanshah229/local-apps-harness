@@ -126,6 +126,15 @@ function initDb() {
     insertSubtask.run(t4, 'Almond milk (unsweetened)', 0, 2);
 
     console.log('Sample data seeded successfully.');
+  } else {
+    // Ensure at least one default list is marked if lists exist
+    const defaultList = db.prepare('SELECT id FROM lists WHERE is_default = 1').get();
+    if (!defaultList) {
+      const firstList = db.prepare('SELECT id FROM lists ORDER BY id ASC LIMIT 1').get();
+      if (firstList) {
+        db.prepare('UPDATE lists SET is_default = 1 WHERE id = ?').run(firstList.id);
+      }
+    }
   }
 }
 

@@ -52,6 +52,86 @@ app.get('/api/users', (req, res) => {
   }
 });
 
+// Batch import contacts from mobile Contact Picker API
+app.post('/api/users/batch', (req, res) => {
+  try {
+    const { contacts } = req.body;
+    if (!Array.isArray(contacts) || contacts.length === 0) {
+      return res.status(400).json({ error: 'Contacts array is required' });
+    }
+
+    const insertStmt = db.prepare('INSERT INTO users (name, email, phone, avatar) VALUES (?, ?, ?, ?)');
+    const updateStmt = db.prepare('UPDATE users SET name = ?, phone = ?, avatar = COALESCE(?, avatar) WHERE id = ?');
+    const findByEmailStmt = db.prepare('SELECT * FROM users WHERE email = ?');
+    const findByPhoneStmt = db.prepare('SELECT * FROM users WHERE phone = ?');
+
+    let importedCount = 0;
+    let updatedCount = 0;
+
+    const importTransaction = db.transaction((items) => {
+      for (const item of items) {
+        let { name, email, phone, avatar } = item;
+        name = (name || '').trim();
+        phone = (phone || '').trim();
+        email = (email || '').trim();
+
+        if (!name && !phone && !email) continue;
+        if (!name) name = phone || email || 'Unnamed Contact';
+        if (!phone) phone = 'N/A';
+
+        // If email is missing, generate deterministic email
+        if (!email) {
+          const cleanPhone = phone.replace(/[^0-9]/g, '');
+          const cleanName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+          email = cleanPhone ? `${cleanPhone}@contacts.local` : `${cleanName || 'contact'}_${Date.now()}@contacts.local`;
+        }
+
+        const avatarUrl = avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(name)}`;
+
+        // Check if user already exists by phone or email
+        const existingByPhone = phone !== 'N/A' ? findByPhoneStmt.get(phone) : null;
+        const existingByEmail = findByEmailStmt.get(email);
+        const existing = existingByPhone || existingByEmail;
+
+        if (existing) {
+          updateStmt.run(name, phone !== 'N/A' ? phone : existing.phone, avatarUrl, existing.id);
+          updatedCount++;
+        } else {
+          try {
+            insertStmt.run(name, email, phone, avatarUrl);
+            importedCount++;
+          } catch (insertErr) {
+            if (insertErr.message.includes('UNIQUE constraint failed')) {
+              // Retry with randomized unique email
+              const uniqueEmail = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}_${email}`;
+              insertStmt.run(name, uniqueEmail, phone, avatarUrl);
+              importedCount++;
+            } else {
+              throw insertErr;
+            }
+          }
+        }
+      }
+    });
+
+    importTransaction(contacts);
+
+    const allUsers = db.prepare('SELECT * FROM users ORDER BY name ASC').all();
+    broadcastSync('users_updated', { batch: true });
+
+    res.json({
+      success: true,
+      importedCount,
+      updatedCount,
+      totalCount: allUsers.length,
+      users: allUsers
+    });
+  } catch (err) {
+    console.error('Error importing batch contacts:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Add contact to persistent library
 app.post('/api/users', (req, res) => {
   try {
@@ -144,8 +224,22 @@ app.get('/api/lists', (req, res) => {
 app.post('/api/lists', (req, res) => {
   try {
     const { title, color_theme, icon, created_by } = req.body;
+    let creatorId = created_by;
+    if (creatorId) {
+      const user = db.prepare('SELECT id FROM users WHERE id = ?').get(creatorId);
+      if (!user) creatorId = null;
+    }
+    if (!creatorId) {
+      const firstUser = db.prepare('SELECT id FROM users ORDER BY id ASC LIMIT 1').get();
+      creatorId = firstUser ? firstUser.id : null;
+    }
+
+    if (!creatorId) {
+      return res.status(400).json({ error: 'A valid user is required to create a list' });
+    }
+
     const stmt = db.prepare('INSERT INTO lists (title, color_theme, icon, created_by) VALUES (?, ?, ?, ?)');
-    const info = stmt.run(title || 'Untitled list', color_theme || 'blue', icon || 'list', created_by || 1);
+    const info = stmt.run(title || 'Untitled list', color_theme || 'blue', icon || 'list', creatorId);
 
     const newList = db.prepare('SELECT * FROM lists WHERE id = ?').get(info.lastInsertRowid);
     broadcastSync('list_created', newList);
@@ -282,17 +376,53 @@ app.get('/api/tasks', (req, res) => {
 // Create Task
 app.post('/api/tasks', (req, res) => {
   try {
-    const { list_id, title, notes, is_important, is_my_day, due_date, reminder_time, assigned_to_user_id, created_by = 1 } = req.body;
+    const { list_id, title, notes, is_important, is_my_day, due_date, reminder_time, assigned_to_user_id, created_by } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({ error: 'Task title is required' });
     }
 
-    // Default list if none provided
+    // Resolve creator ID safely to a valid user in DB
+    let creatorId = created_by;
+    if (creatorId) {
+      const user = db.prepare('SELECT id FROM users WHERE id = ?').get(creatorId);
+      if (!user) creatorId = null;
+    }
+    if (!creatorId) {
+      const firstUser = db.prepare('SELECT id FROM users ORDER BY id ASC LIMIT 1').get();
+      creatorId = firstUser ? firstUser.id : null;
+    }
+
+    // Resolve target list ID safely
     let targetListId = list_id;
+    if (targetListId) {
+      const listExists = db.prepare('SELECT id FROM lists WHERE id = ?').get(targetListId);
+      if (!listExists) targetListId = null;
+    }
+    
     if (!targetListId) {
       const defaultList = db.prepare('SELECT id FROM lists WHERE is_default = 1').get();
-      targetListId = defaultList ? defaultList.id : 1;
+      if (defaultList) {
+        targetListId = defaultList.id;
+      } else {
+        const firstList = db.prepare('SELECT id FROM lists ORDER BY id ASC LIMIT 1').get();
+        if (firstList) {
+          targetListId = firstList.id;
+        } else if (creatorId) {
+          const info = db.prepare('INSERT INTO lists (title, color_theme, icon, created_by, is_default) VALUES (?, ?, ?, ?, ?)')
+            .run('Tasks', 'blue', 'check-square', creatorId, 1);
+          targetListId = info.lastInsertRowid;
+        } else {
+          targetListId = null;
+        }
+      }
+    }
+
+    // Resolve assignee ID safely
+    let assigneeId = assigned_to_user_id;
+    if (assigneeId) {
+      const assigneeExists = db.prepare('SELECT id FROM users WHERE id = ?').get(assigneeId);
+      if (!assigneeExists) assigneeId = null;
     }
 
     const stmt = db.prepare(`
@@ -308,20 +438,24 @@ app.post('/api/tasks', (req, res) => {
       is_my_day ? 1 : 0,
       due_date || null,
       reminder_time || null,
-      assigned_to_user_id || null,
-      created_by
+      assigneeId,
+      creatorId
     );
 
     const newTask = db.prepare(`
-      SELECT t.*, u.name as assignee_name, u.phone as assignee_phone, u.avatar as assignee_avatar
+      SELECT t.*, u.name as assignee_name, u.phone as assignee_phone, u.avatar as assignee_avatar,
+        l.title as list_title, l.color_theme as list_color,
+        0 as subtask_count, 0 as subtask_completed_count
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to_user_id = u.id
+      LEFT JOIN lists l ON t.list_id = l.id
       WHERE t.id = ?
     `).get(info.lastInsertRowid);
 
     broadcastSync('task_created', newTask);
     res.status(201).json(newTask);
   } catch (err) {
+    console.error('Error creating task:', err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -330,45 +464,83 @@ app.post('/api/tasks', (req, res) => {
 app.put('/api/tasks/:id', (req, res) => {
   try {
     const taskId = req.params.id;
+    const existingTask = db.prepare('SELECT * FROM tasks WHERE id = ?').get(taskId);
+    if (!existingTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
     const { title, notes, is_completed, is_important, is_my_day, due_date, reminder_time, assigned_to_user_id, list_id } = req.body;
 
-    db.prepare(`
-      UPDATE tasks SET
-        title = COALESCE(?, title),
-        notes = COALESCE(?, notes),
-        is_completed = COALESCE(?, is_completed),
-        is_important = COALESCE(?, is_important),
-        is_my_day = COALESCE(?, is_my_day),
-        due_date = ?,
-        reminder_time = ?,
-        assigned_to_user_id = ?,
-        list_id = COALESCE(?, list_id)
-      WHERE id = ?
-    `).run(
-      title,
-      notes,
-      is_completed !== undefined ? (is_completed ? 1 : 0) : null,
-      is_important !== undefined ? (is_important ? 1 : 0) : null,
-      is_my_day !== undefined ? (is_my_day ? 1 : 0) : null,
-      due_date !== undefined ? due_date : null,
-      reminder_time !== undefined ? reminder_time : null,
-      assigned_to_user_id !== undefined ? assigned_to_user_id : null,
-      list_id,
-      taskId
-    );
+    const updates = [];
+    const params = [];
+
+    if (title !== undefined) {
+      updates.push('title = ?');
+      params.push(title.trim());
+    }
+    if (notes !== undefined) {
+      updates.push('notes = ?');
+      params.push(notes || null);
+    }
+    if (is_completed !== undefined) {
+      updates.push('is_completed = ?');
+      params.push(is_completed ? 1 : 0);
+    }
+    if (is_important !== undefined) {
+      updates.push('is_important = ?');
+      params.push(is_important ? 1 : 0);
+    }
+    if (is_my_day !== undefined) {
+      updates.push('is_my_day = ?');
+      params.push(is_my_day ? 1 : 0);
+    }
+    if (due_date !== undefined) {
+      updates.push('due_date = ?');
+      params.push(due_date || null);
+    }
+    if (reminder_time !== undefined) {
+      updates.push('reminder_time = ?');
+      params.push(reminder_time || null);
+    }
+    if (assigned_to_user_id !== undefined) {
+      let validAssignee = assigned_to_user_id;
+      if (validAssignee) {
+        const u = db.prepare('SELECT id FROM users WHERE id = ?').get(validAssignee);
+        if (!u) validAssignee = null;
+      }
+      updates.push('assigned_to_user_id = ?');
+      params.push(validAssignee);
+    }
+    if (list_id !== undefined) {
+      let validListId = list_id;
+      if (validListId) {
+        const l = db.prepare('SELECT id FROM lists WHERE id = ?').get(validListId);
+        if (!l) validListId = null;
+      }
+      updates.push('list_id = ?');
+      params.push(validListId);
+    }
+
+    if (updates.length > 0) {
+      params.push(taskId);
+      db.prepare(`UPDATE tasks SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    }
 
     const updatedTask = db.prepare(`
       SELECT t.*, u.name as assignee_name, u.phone as assignee_phone, u.avatar as assignee_avatar,
+        l.title as list_title, l.color_theme as list_color,
         (SELECT COUNT(*) FROM subtasks st WHERE st.task_id = t.id) as subtask_count,
         (SELECT COUNT(*) FROM subtasks st WHERE st.task_id = t.id AND st.is_completed = 1) as subtask_completed_count
       FROM tasks t
       LEFT JOIN users u ON t.assigned_to_user_id = u.id
+      LEFT JOIN lists l ON t.list_id = l.id
       WHERE t.id = ?
     `).get(taskId);
 
     broadcastSync('task_updated', updatedTask);
     res.json(updatedTask);
   } catch (err) {
+    console.error('Error updating task:', err);
     res.status(500).json({ error: err.message });
   }
 });

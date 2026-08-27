@@ -1,5 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, Copy, Check, ExternalLink, Phone } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription
+} from './ui/sheet';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import {
+  Send,
+  Copy,
+  Check,
+  ExternalLink,
+  Phone,
+  MessageSquare,
+  Sparkles
+} from 'lucide-react';
+import { cn } from '../lib/utils';
 
 export default function WhatsAppShareModal({ isOpen, onClose, config, users }) {
   const [waLink, setWaLink] = useState('');
@@ -52,7 +70,7 @@ export default function WhatsAppShareModal({ isOpen, onClose, config, users }) {
 
   const handleUserSelect = (userId) => {
     setSelectedUserId(userId);
-    const u = users.find(x => x.id === parseInt(userId));
+    const u = users.find((x) => x.id === parseInt(userId));
     fetchWhatsAppPayload(userId, u ? u.phone : '');
   };
 
@@ -73,80 +91,115 @@ export default function WhatsAppShareModal({ isOpen, onClose, config, users }) {
     }
   };
 
-  if (!isOpen || !config) return null;
+  if (!config) return null;
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 16, color: 'var(--whatsapp-dark)' }}>
-            <Send size={20} color="var(--whatsapp-color)" />
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" className="max-h-[90vh] rounded-t-3xl p-5 pt-3">
+        <SheetHeader className="pb-3 border-b border-border">
+          <SheetTitle className="flex items-center gap-2 text-lg font-bold text-[#128C7E] dark:text-[#25D366]">
+            <Send className="w-5 h-5 text-[#25D366]" />
             <span>
-              {config.type === 'single' && 'Send Single Task WhatsApp Reminder'}
-              {config.type === 'batch' && 'Send Batch Tasks WhatsApp Digest'}
+              {config.type === 'single' && 'WhatsApp Task Reminder'}
+              {config.type === 'batch' && 'WhatsApp Batch Digest'}
               {config.type === 'list' && 'Share Whole List via WhatsApp'}
             </span>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <X size={20} />
-          </button>
-        </div>
+          </SheetTitle>
+          <SheetDescription className="text-xs">
+            Format task details into a clean WhatsApp template and send directly to any contact.
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="modal-body">
-          {/* Recipient Selector */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+        <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+          {/* Recipient Selection */}
+          <div className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
               Select Contact from User Library
             </label>
             <select
               value={selectedUserId}
               onChange={(e) => handleUserSelect(e.target.value)}
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color)', fontSize: 13, marginBottom: 8 }}
+              className="w-full h-12 px-3 rounded-xl bg-background border border-border text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-[#25D366] shadow-sm"
             >
-              <option value="">Choose contact...</option>
-              {users.map(u => (
+              <option value="">Choose contact from library...</option>
+              {users.map((u) => (
                 <option key={u.id} value={u.id}>
                   👤 {u.name} ({u.phone})
                 </option>
               ))}
             </select>
 
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Phone size={16} color="var(--whatsapp-color)" />
-              <input
-                type="text"
-                placeholder="Or enter custom WhatsApp phone number (with country code)"
+            <div className="relative">
+              <Phone className="w-4 h-4 text-[#25D366] absolute left-3 top-4" />
+              <Input
+                type="tel"
+                placeholder="Or custom WhatsApp phone (with country code)"
                 value={recipientPhone}
                 onChange={(e) => handleCustomPhoneChange(e.target.value)}
-                style={{ flex: 1, padding: '6px 10px', borderRadius: 4, border: '1px solid var(--border-color)', fontSize: 13 }}
+                className="pl-9 h-12"
               />
             </div>
           </div>
 
-          {/* Formatted Message Preview */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' }}>Message Preview</span>
-            <button
-              onClick={handleCopyMessage}
-              style={{ background: 'none', border: 'none', color: 'var(--primary-blue)', fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-            >
-              {copied ? <Check size={14} color="#107c41" /> : <Copy size={14} />}
-              {copied ? 'Copied!' : 'Copy Text'}
-            </button>
-          </div>
+          {/* Formatted Message Bubble Preview */}
+          <div className="space-y-2 pt-1">
+            <div className="flex items-center justify-between px-1">
+              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+                <MessageSquare className="w-3.5 h-3.5" /> Formatted Message Preview
+              </span>
+              <button
+                type="button"
+                onClick={handleCopyMessage}
+                className="text-xs font-semibold text-primary hover:underline flex items-center gap-1 px-2 py-1 rounded min-h-[36px] touch-manipulation"
+              >
+                {copied ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600" />
+                    <span className="text-emerald-600 font-bold">Copied!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy Text</span>
+                  </>
+                )}
+              </button>
+            </div>
 
-          <div className="whatsapp-preview-box">
-            {loading ? 'Generating formatted message...' : message}
+            <div className="p-4 rounded-2xl bg-[#e5ddd5] dark:bg-[#111b21] border border-[#d1c7bd] dark:border-zinc-800 font-mono text-xs text-[#111b21] dark:text-zinc-100 whitespace-pre-wrap shadow-inner leading-relaxed select-text min-h-[120px] max-h-[220px] overflow-y-auto">
+              {loading ? (
+                <span className="text-muted-foreground italic">Generating formatted message...</span>
+              ) : (
+                message || 'No task content to format.'
+              )}
+            </div>
           </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>Cancel</button>
-          <button className="btn-whatsapp" onClick={handleOpenWhatsApp} disabled={!waLink}>
-            <ExternalLink size={16} /> Open in WhatsApp
-          </button>
+        <div className="pt-3 border-t border-border mt-2 space-y-2">
+          <Button
+            type="button"
+            variant="whatsapp"
+            size="lg"
+            className="w-full h-12 text-base font-bold gap-2 shadow-md"
+            onClick={handleOpenWhatsApp}
+            disabled={!waLink || loading}
+          >
+            <ExternalLink className="w-5 h-5" />
+            <span>Open in WhatsApp</span>
+          </Button>
+
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="w-full h-11 font-semibold"
+            onClick={onClose}
+          >
+            Cancel
+          </Button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

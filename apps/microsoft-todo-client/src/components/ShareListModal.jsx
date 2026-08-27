@@ -1,14 +1,32 @@
 import React, { useState } from 'react';
-import { X, Share2, UserPlus, UserCheck, Trash2 } from 'lucide-react';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription
+} from './ui/sheet';
+import { Button } from './ui/button';
+import { Share2, UserPlus, Trash2, Users } from 'lucide-react';
+import { cn } from '../lib/utils';
 
-export default function ShareListModal({ isOpen, onClose, list, users, onShareList, onRemoveShare }) {
+export default function ShareListModal({
+  isOpen,
+  onClose,
+  list,
+  users,
+  onShareList,
+  onRemoveShare
+}) {
   const [selectedUserId, setSelectedUserId] = useState('');
 
-  if (!isOpen || !list) return null;
+  if (!list) return null;
 
   const members = list.members || [];
-  const memberIds = members.map(m => m.id);
-  const availableUsers = users.filter(u => u.id !== list.created_by && !memberIds.includes(u.id));
+  const memberIds = members.map((m) => m.id);
+  const availableUsers = users.filter(
+    (u) => u.id !== list.created_by && !memberIds.includes(u.id)
+  );
 
   const handleAddMember = (e) => {
     e.preventDefault();
@@ -18,76 +36,108 @@ export default function ShareListModal({ isOpen, onClose, list, users, onShareLi
   };
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 16 }}>
-            <Share2 size={20} color="var(--primary-blue)" />
+    <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <SheetContent side="bottom" className="max-h-[85vh] rounded-t-3xl p-5 pt-3">
+        <SheetHeader className="pb-3 border-b border-border">
+          <SheetTitle className="flex items-center gap-2 text-lg font-bold">
+            <Share2 className="w-5 h-5 text-primary" />
             <span>Share List: "{list.title}"</span>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-            <X size={20} />
-          </button>
-        </div>
+          </SheetTitle>
+          <SheetDescription className="text-xs">
+            Shared members receive real-time updates whenever anyone adds or completes tasks in this list.
+          </SheetDescription>
+        </SheetHeader>
 
-        <div className="modal-body">
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-            Shared members will automatically receive live updates whenever anyone edits tasks in this list.
-          </p>
-
-          {/* Share with library contact */}
-          <form onSubmit={handleAddMember} style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-            <select
-              value={selectedUserId}
-              onChange={(e) => setSelectedUserId(e.target.value)}
-              style={{ flex: 1, padding: '8px 12px', borderRadius: 4, border: '1px solid var(--border-color)', fontSize: 13 }}
-            >
-              <option value="">Select contact from library...</option>
-              {availableUsers.map(u => (
-                <option key={u.id} value={u.id}>
-                  👤 {u.name} ({u.email})
-                </option>
-              ))}
-            </select>
-            <button type="submit" className="btn-primary" disabled={!selectedUserId}>
-              Add Member
-            </button>
+        <div className="py-4 space-y-4 max-h-[55vh] overflow-y-auto pr-1">
+          {/* Add member picker */}
+          <form onSubmit={handleAddMember} className="space-y-2">
+            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+              Add Member from Contacts
+            </label>
+            <div className="flex gap-2">
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="flex-1 h-12 px-3 rounded-xl bg-background border border-border text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
+              >
+                <option value="">Select contact from library...</option>
+                {availableUsers.map((u) => (
+                  <option key={u.id} value={u.id}>
+                    👤 {u.name} ({u.email})
+                  </option>
+                ))}
+              </select>
+              <Button
+                type="submit"
+                size="lg"
+                disabled={!selectedUserId}
+                className="h-12 px-5 font-semibold"
+              >
+                Add
+              </Button>
+            </div>
           </form>
 
-          {/* Current Members List */}
-          <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 8 }}>List Members ({members.length})</div>
-          {members.length === 0 ? (
-            <div style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', padding: '12px 0' }}>
-              This list is not shared with anyone yet.
+          {/* Members List */}
+          <div className="space-y-2 pt-2">
+            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+              Active List Members ({members.length})
             </div>
-          ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {members.map(m => (
-                <div key={m.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 12px', background: '#faf9f8', borderRadius: 4, border: '1px solid var(--border-color)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <img src={m.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`} alt={m.name} style={{ width: 28, height: 28, borderRadius: '50%' }} />
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{m.phone}</div>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => onRemoveShare(list.id, m.id)}
-                    style={{ background: 'none', border: 'none', color: '#a80000', cursor: 'pointer' }}
-                    title="Remove access"
+
+            {members.length === 0 ? (
+              <div className="text-center py-6 px-4 bg-muted/30 rounded-xl border border-dashed border-border text-muted-foreground text-xs">
+                This list is not shared with anyone yet. Select a contact above to share!
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {members.map((m) => (
+                  <div
+                    key={m.id}
+                    className="flex items-center justify-between p-3 rounded-2xl bg-card border border-border shadow-sm min-h-[56px]"
                   >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <img
+                        src={
+                          m.avatar ||
+                          `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.name}`
+                        }
+                        alt={m.name}
+                        className="w-10 h-10 rounded-full object-cover ring-1 ring-border flex-shrink-0"
+                      />
+                      <div className="overflow-hidden">
+                        <div className="text-sm font-bold truncate">{m.name}</div>
+                        <div className="text-xs text-muted-foreground truncate">{m.phone}</div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => onRemoveShare(list.id, m.id)}
+                      className="p-2 text-muted-foreground hover:text-destructive rounded-lg min-h-[44px] min-w-[44px] flex items-center justify-center touch-manipulation"
+                      title="Remove access"
+                      aria-label={`Remove access for ${m.name}`}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="modal-footer">
-          <button className="btn-secondary" onClick={onClose}>Done</button>
+        <div className="pt-3 border-t border-border mt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            size="lg"
+            className="w-full h-11 font-semibold"
+            onClick={onClose}
+          >
+            Done
+          </Button>
         </div>
-      </div>
-    </div>
+      </SheetContent>
+    </Sheet>
   );
 }

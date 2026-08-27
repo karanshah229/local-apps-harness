@@ -3,6 +3,8 @@ import { io } from 'socket.io-client';
 import Sidebar from './components/Sidebar';
 import TaskMainView from './components/TaskMainView';
 import TaskDetailDrawer from './components/TaskDetailDrawer';
+import MobileBottomNav from './components/MobileBottomNav';
+import ListsSheet from './components/ListsSheet';
 import UserLibraryModal from './components/UserLibraryModal';
 import ShareListModal from './components/ShareListModal';
 import WhatsAppShareModal from './components/WhatsAppShareModal';
@@ -30,7 +32,7 @@ export default function App() {
 
   const [lists, setLists] = useState([]);
   const [activeListId, setActiveListId] = useState(null);
-  const [activeView, setActiveView] = useState('my-day');
+  const [activeView, setActiveView] = useState('all-tasks');
 
   const [tasks, setTasks] = useState([]);
   const [selectedTask, setSelectedTask] = useState(null);
@@ -38,12 +40,32 @@ export default function App() {
   const [taskCounts, setTaskCounts] = useState({});
   const [toastMessage, setToastMessage] = useState('');
 
-  // Modals state
+  // Modals and Sheet state
   const [isUserLibraryOpen, setIsUserLibraryOpen] = useState(false);
+  const [isListsSheetOpen, setIsListsSheetOpen] = useState(false);
   const [sharingList, setSharingList] = useState(null);
   const [whatsappConfig, setWhatsappConfig] = useState(null);
 
-  // 1. Load initial users (User Library)
+  // Dark Mode
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    return localStorage.getItem('todo_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('todo_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('todo_theme', 'light');
+    }
+  }, [isDarkMode]);
+
+  const toggleDarkMode = () => {
+    setIsDarkMode((prev) => !prev);
+  };
+
+  // 1. Load initial users
   const fetchUsers = async () => {
     try {
       const res = await fetch('/api/users');
@@ -51,7 +73,7 @@ export default function App() {
         const data = await res.json();
         setUsers(data);
         if (!activeUser && data.length > 0) {
-          setActiveUser(data[0]); // Default to Alex Johnson
+          setActiveUser(data[0]);
         }
       }
     } catch (err) {
@@ -94,17 +116,17 @@ export default function App() {
     }
   }, [activeListId, activeView, activeUser]);
 
-  // 4. Calculate task counts for sidebar badges
+  // 4. Calculate task counts for badges
   const fetchTaskCounts = useCallback(async () => {
     if (!activeUser) return;
     try {
-      const views = ['my-day', 'important', 'planned', 'assigned-to-me', 'all-tasks'];
+      const views = ['all-tasks', 'important', 'assigned-to-me'];
       const counts = {};
       for (const v of views) {
         const res = await fetch(`/api/tasks?view=${v}&userId=${activeUser.id}`);
         if (res.ok) {
           const data = await res.json();
-          counts[v] = data.filter(t => !t.is_completed).length;
+          counts[v] = data.filter((t) => !t.is_completed).length;
         }
       }
       setTaskCounts(counts);
@@ -137,14 +159,16 @@ export default function App() {
       fetchTasks();
       fetchTaskCounts();
       fetchLists();
-      setSelectedTask(prev => (prev && prev.id === updatedTask.id ? updatedTask : prev));
+      setSelectedTask((prev) =>
+        prev && prev.id === updatedTask.id ? updatedTask : prev
+      );
     });
 
     socket.on('task_deleted', ({ id }) => {
       fetchTasks();
       fetchTaskCounts();
       fetchLists();
-      setSelectedTask(prev => (prev && prev.id === parseInt(id) ? null : prev));
+      setSelectedTask((prev) => (prev && prev.id === parseInt(id) ? null : prev));
     });
 
     socket.on('list_created', () => fetchLists());
@@ -171,7 +195,7 @@ export default function App() {
     };
   }, [fetchTasks, fetchTaskCounts, fetchLists]);
 
-  // Handler functions
+  // Handlers
   const handleAddUser = async (userObj) => {
     try {
       const res = await fetch('/api/users', {
@@ -181,7 +205,7 @@ export default function App() {
       });
       if (res.ok) {
         const newUser = await res.json();
-        setUsers(prev => [...prev, newUser]);
+        setUsers((prev) => [...prev, newUser]);
         setToastMessage(`Contact "${newUser.name}" added to user library!`);
         setTimeout(() => setToastMessage(''), 3000);
         return true;
@@ -201,7 +225,7 @@ export default function App() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setUsers(prev => prev.map(u => u.id === updated.id ? updated : u));
+        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
         if (activeUser && activeUser.id === updated.id) {
           setActiveUser(updated);
         }
@@ -219,9 +243,9 @@ export default function App() {
     try {
       const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
       if (res.ok) {
-        setUsers(prev => prev.filter(u => u.id !== userId));
+        setUsers((prev) => prev.filter((u) => u.id !== userId));
         if (activeUser && activeUser.id === userId) {
-          const remaining = users.filter(u => u.id !== userId);
+          const remaining = users.filter((u) => u.id !== userId);
           if (remaining.length > 0) setActiveUser(remaining[0]);
         }
         setToastMessage('Contact deleted from user library.');
@@ -230,6 +254,27 @@ export default function App() {
     } catch (err) {
       console.error(err);
     }
+  };
+
+  const handleBatchImportUsers = async (contactsArray) => {
+    try {
+      const res = await fetch('/api/users/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contacts: contactsArray })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUsers(data.users);
+        const count = (data.importedCount || 0) + (data.updatedCount || 0);
+        setToastMessage(`Imported ${count} contact(s) from device!`);
+        setTimeout(() => setToastMessage(''), 4000);
+        return data;
+      }
+    } catch (err) {
+      console.error('Error batch importing users:', err);
+    }
+    return null;
   };
 
   const handleCreateList = async (title) => {
@@ -259,7 +304,7 @@ export default function App() {
       if (res.ok) {
         if (activeListId === listId) {
           setActiveListId(null);
-          setActiveView('my-day');
+          setActiveView('all-tasks');
         }
         fetchLists();
       }
@@ -269,7 +314,7 @@ export default function App() {
   };
 
   const handleUpdateListTheme = async (listId, themeColor) => {
-    const list = lists.find(l => l.id === listId);
+    const list = lists.find((l) => l.id === listId);
     if (!list) return;
     try {
       await fetch(`/api/lists/${listId}`, {
@@ -315,7 +360,7 @@ export default function App() {
       });
       if (res.ok) {
         const updated = await res.json();
-        setTasks(prev => prev.map(t => t.id === updated.id ? updated : t));
+        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
         if (selectedTask && selectedTask.id === updated.id) {
           setSelectedTask(updated);
         }
@@ -373,11 +418,11 @@ export default function App() {
     }
   };
 
-  const activeList = lists.find(l => l.id === activeListId);
+  const activeList = lists.find((l) => l.id === activeListId);
 
   return (
-    <div className="app-container">
-      {/* Sidebar */}
+    <div className="flex h-screen h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
+      {/* Desktop Sidebar (hidden on mobile) */}
       <Sidebar
         activeView={activeView}
         setActiveView={setActiveView}
@@ -388,13 +433,12 @@ export default function App() {
         activeUser={activeUser}
         setActiveUser={setActiveUser}
         onOpenUserLibrary={() => setIsUserLibraryOpen(true)}
-        onOpenShareModal={(list) => setSharingList(list)}
         onCreateList={handleCreateList}
         onDeleteList={handleDeleteList}
         taskCounts={taskCounts}
       />
 
-      {/* Main View */}
+      {/* Main Task List View */}
       <TaskMainView
         activeView={activeView}
         activeList={activeList}
@@ -407,9 +451,11 @@ export default function App() {
         onOpenShareModal={(list) => setSharingList(list)}
         onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
         onUpdateListTheme={handleUpdateListTheme}
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={toggleDarkMode}
       />
 
-      {/* Right Task Details Drawer */}
+      {/* Task Details Drawer (Fullscreen on mobile, side-panel on desktop) */}
       {selectedTask && (
         <TaskDetailDrawer
           task={selectedTask}
@@ -421,16 +467,47 @@ export default function App() {
         />
       )}
 
-      {/* Modals */}
+      {/* Mobile Bottom CTA Navigation Bar (hidden on desktop) */}
+      <MobileBottomNav
+        activeView={activeView}
+        setActiveView={setActiveView}
+        activeListId={activeListId}
+        setActiveListId={setActiveListId}
+        taskCounts={taskCounts}
+        onOpenListsSheet={() => setIsListsSheetOpen(true)}
+        onOpenUserLibrary={() => setIsUserLibraryOpen(true)}
+        activeUser={activeUser}
+        lists={lists}
+      />
+
+      {/* Lists Bottom Sheet */}
+      <ListsSheet
+        isOpen={isListsSheetOpen}
+        onClose={() => setIsListsSheetOpen(false)}
+        lists={lists}
+        activeListId={activeListId}
+        setActiveListId={setActiveListId}
+        activeView={activeView}
+        setActiveView={setActiveView}
+        onCreateList={handleCreateList}
+        onDeleteList={handleDeleteList}
+        taskCounts={taskCounts}
+      />
+
+      {/* User Library & Contacts Sheet */}
       <UserLibraryModal
         isOpen={isUserLibraryOpen}
         onClose={() => setIsUserLibraryOpen(false)}
         users={users}
+        activeUser={activeUser}
+        setActiveUser={setActiveUser}
         onAddUser={handleAddUser}
         onUpdateUser={handleUpdateUser}
         onDeleteUser={handleDeleteUser}
+        onBatchImportUsers={handleBatchImportUsers}
       />
 
+      {/* Share List Sheet */}
       <ShareListModal
         isOpen={!!sharingList}
         onClose={() => setSharingList(null)}
@@ -440,6 +517,7 @@ export default function App() {
         onRemoveShare={handleRemoveShare}
       />
 
+      {/* WhatsApp Share & Reminder Sheet */}
       <WhatsAppShareModal
         isOpen={!!whatsappConfig}
         onClose={() => setWhatsappConfig(null)}
@@ -447,10 +525,11 @@ export default function App() {
         users={users}
       />
 
-      {/* Toast Alert */}
+      {/* Toast Alert Notification */}
       {toastMessage && (
-        <div className="toast-alert">
-          <span>📲 {toastMessage}</span>
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm font-semibold max-w-[90vw] animate-in fade-in slide-in-from-top-4 duration-200">
+          <span className="text-base">📲</span>
+          <span className="truncate">{toastMessage}</span>
         </div>
       )}
     </div>
