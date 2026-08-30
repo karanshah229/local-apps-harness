@@ -136,6 +136,15 @@ export function initDb(): void {
     // Column already exists
   }
 
+  // Migrate lists table to add default_whatsapp_share_scope
+  try {
+    db.exec(`
+      ALTER TABLE lists ADD COLUMN default_whatsapp_share_scope TEXT DEFAULT 'pending';
+    `);
+  } catch (_e) {
+    // Column already exists
+  }
+
   // Migrate user_preferences table to add sort_preferences
   try {
     db.exec(`

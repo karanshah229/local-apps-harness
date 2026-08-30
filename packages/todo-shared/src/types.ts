@@ -18,6 +18,7 @@ export interface List {
   default_whatsapp_contact_id?: number | null;
   default_whatsapp_contact_name?: string | null;
   default_whatsapp_contact_phone?: string | null;
+  default_whatsapp_share_scope?: 'pending' | 'all' | 'current_view' | string;
   active?: number | boolean;
   created_at?: string;
   owner_name?: string;

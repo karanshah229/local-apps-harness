@@ -166,10 +166,9 @@ function RootLayoutNav() {
                 borderLeftWidth: 1,
                 borderRightWidth: 1,
                 borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-                shadowColor: '#000',
-                shadowOffset: { width: 0, height: 4 },
-                shadowOpacity: isDarkMode ? 0.35 : 0.08,
-                shadowRadius: 24,
+                boxShadow: isDarkMode
+                  ? '0px 4px 24px rgba(0, 0, 0, 0.45)'
+                  : '0px 4px 24px rgba(0, 0, 0, 0.08)',
               }
             : {}),
         }}

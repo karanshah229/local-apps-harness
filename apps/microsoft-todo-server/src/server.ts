@@ -444,9 +444,9 @@ fastify.get('/api/lists', async (req: FastifyRequest<{ Querystring: { userId?: s
   }
 });
 
-fastify.post('/api/lists', async (req: FastifyRequest<{ Body: { title?: string; color_theme?: string; icon?: string; created_by?: number; default_whatsapp_contact_id?: number } }>, reply: FastifyReply) => {
+fastify.post('/api/lists', async (req: FastifyRequest<{ Body: { title?: string; color_theme?: string; icon?: string; created_by?: number; default_whatsapp_contact_id?: number; default_whatsapp_share_scope?: string } }>, reply: FastifyReply) => {
   try {
-    const { title, color_theme = 'blue', icon = 'list', created_by, default_whatsapp_contact_id } = req.body || {};
+    const { title, color_theme = 'blue', icon = 'list', created_by, default_whatsapp_contact_id, default_whatsapp_share_scope = 'pending' } = req.body || {};
     if (!title || !title.trim()) {
       return reply.status(400).send({ error: 'Title is required' });
     }
@@ -466,10 +466,10 @@ fastify.post('/api/lists', async (req: FastifyRequest<{ Body: { title?: string; 
     }
 
     const stmt = db.prepare(`
-      INSERT INTO lists (title, color_theme, icon, created_by, default_whatsapp_contact_id, active)
-      VALUES (?, ?, ?, ?, ?, 1)
+      INSERT INTO lists (title, color_theme, icon, created_by, default_whatsapp_contact_id, default_whatsapp_share_scope, active)
+      VALUES (?, ?, ?, ?, ?, ?, 1)
     `);
-    const result = stmt.run(title.trim(), color_theme, icon, userId, default_whatsapp_contact_id || null);
+    const result = stmt.run(title.trim(), color_theme, icon, userId, default_whatsapp_contact_id || null, default_whatsapp_share_scope || 'pending');
 
     const newList = db.prepare(`
       SELECT l.*, u.name as owner_name,
@@ -491,9 +491,9 @@ fastify.post('/api/lists', async (req: FastifyRequest<{ Body: { title?: string; 
   }
 });
 
-fastify.put('/api/lists/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: { title?: string; color_theme?: string; icon?: string; default_whatsapp_contact_id?: number | null } }>, reply: FastifyReply) => {
+fastify.put('/api/lists/:id', async (req: FastifyRequest<{ Params: { id: string }; Body: { title?: string; color_theme?: string; icon?: string; default_whatsapp_contact_id?: number | null; default_whatsapp_share_scope?: string } }>, reply: FastifyReply) => {
   try {
-    const { title, color_theme, icon, default_whatsapp_contact_id } = req.body || {};
+    const { title, color_theme, icon, default_whatsapp_contact_id, default_whatsapp_share_scope } = req.body || {};
     const updates: string[] = [];
     const params: any[] = [];
 
@@ -503,6 +503,10 @@ fastify.put('/api/lists/:id', async (req: FastifyRequest<{ Params: { id: string 
     if (default_whatsapp_contact_id !== undefined) {
       updates.push('default_whatsapp_contact_id = ?');
       params.push(default_whatsapp_contact_id);
+    }
+    if (default_whatsapp_share_scope !== undefined) {
+      updates.push('default_whatsapp_share_scope = ?');
+      params.push(default_whatsapp_share_scope);
     }
 
     if (updates.length > 0) {
@@ -1213,14 +1217,19 @@ fastify.post('/api/whatsapp/generate-link', async (req: FastifyRequest<{
       const list = db.prepare('SELECT * FROM lists WHERE id = ? AND active = 1').get(listId) as any;
       if (!list) return reply.status(404).send({ error: 'List not found' });
 
-      const tasks = db.prepare(`
+      let tasks = db.prepare(`
         SELECT t.*, u.name as assignee_name
         FROM tasks t
         LEFT JOIN users u ON t.assigned_to_user_id = u.id AND u.active = 1
         WHERE (t.list_id = ? OR t.id IN (SELECT task_id FROM task_lists WHERE list_id = ? AND active = 1)) AND t.active = 1
       `).all(listId, listId) as any[];
 
-      message = formatWholeListMessage(list, tasks);
+      const scope = (list.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
+      if (scope === 'pending') {
+        tasks = tasks.filter((t: any) => !t.is_completed);
+      }
+
+      message = formatWholeListMessage(list, tasks, { scope });
       logWhatsAppMessage({ taskId: null, phone: recipientPhone, recipientName, message });
     }
 

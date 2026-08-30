@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useRef, useMemo, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,6 +14,7 @@ import {
   RefreshControl,
   Alert,
   Linking,
+  BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -379,11 +380,24 @@ export function TasksView({ fixedView }: TasksViewProps) {
   const { openTask, TaskLoadingIndicator } = useTaskNavigation();
 
   // Pre-fetch all tasks and subtasks whenever tasks in view load
-  React.useEffect(() => {
+  useEffect(() => {
     if (tasks && tasks.length > 0) {
       prefetchAllTasksInView(tasks);
     }
   }, [tasks]);
+
+  // Handle Android hardware back press and back gesture to cancel multi-select mode
+  useEffect(() => {
+    if (!isMultiSelectMode && selectedTaskIds.length === 0) return;
+
+    const onBackPress = () => {
+      clearSelectedBatchTasks();
+      return true;
+    };
+
+    const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => subscription.remove();
+  }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks]);
 
   const activeList = useMemo(() => (
     effectiveListId ? lists.find((l) => l.id === effectiveListId) : null

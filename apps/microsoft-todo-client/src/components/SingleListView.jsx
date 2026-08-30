@@ -276,7 +276,14 @@ export default function SingleListView({ listId, onBack, onOpenShareModal, onOpe
   // WhatsApp List Share
   const handleWhatsAppList = useCallback(() => {
     if (!activeList) return;
-    const message = formatWholeListMessage(activeList, tasks);
+    const scope = activeList.default_whatsapp_share_scope || 'pending';
+    let targetTasks = tasks;
+    if (scope === 'pending') {
+      targetTasks = tasks.filter((t) => !t.is_completed);
+    } else if (scope === 'current_view') {
+      targetTasks = filteredTasks;
+    }
+    const message = formatWholeListMessage(activeList, targetTasks, { scope });
 
     if (activeList.default_whatsapp_contact_id) {
       const defaultUser = users.find((u) => u.id === activeList.default_whatsapp_contact_id);
@@ -304,17 +311,21 @@ export default function SingleListView({ listId, onBack, onOpenShareModal, onOpe
     }
 
     setShowLongPressShareModal(true);
-  }, [activeList, tasks, users, updateListMutation]);
+  }, [activeList, tasks, filteredTasks, users, updateListMutation]);
 
   const handleExecuteLongPressShare = useCallback((scope) => {
     if (!activeList) return;
+    updateListMutation.mutate({
+      id: activeList.id,
+      default_whatsapp_share_scope: scope,
+    });
     let targetTasks = tasks;
     if (scope === 'pending') {
       targetTasks = tasks.filter((t) => !t.is_completed);
     } else if (scope === 'current_view') {
       targetTasks = filteredTasks;
     }
-    const message = formatWholeListMessage(activeList, targetTasks);
+    const message = formatWholeListMessage(activeList, targetTasks, { scope });
     setShowLongPressShareModal(false);
 
     const defaultUser = activeList.default_whatsapp_contact_id
@@ -322,7 +333,7 @@ export default function SingleListView({ listId, onBack, onOpenShareModal, onOpe
       : null;
     const phone = defaultUser?.phone || activeList.default_whatsapp_contact_phone || '';
     window.open(generateWhatsAppWebLink(phone, message), '_blank');
-  }, [activeList, tasks, filteredTasks, users]);
+  }, [activeList, tasks, filteredTasks, users, updateListMutation]);
 
   const sortedTasks = useMemo(() => {
     return sortTasks(filteredTasks, currentSort);
