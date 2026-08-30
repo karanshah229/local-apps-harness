@@ -1,34 +1,28 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import {
+  ArrowLeft,
   Plus,
   Star,
   Check,
   Calendar,
-  Clock,
-  Share2,
-  Send,
-  Palette,
-  CheckSquare,
-  Square,
-  ListTodo,
-  Settings,
+  Sparkles,
   ChevronDown,
   ChevronUp,
-  UserCheck,
-  Sparkles,
-  Layers,
+  ChevronRight,
   Search,
   SlidersHorizontal,
   ArrowUpDown,
   X,
   RotateCcw,
+  Send,
+  Palette,
   Trash2,
+  CheckSquare,
+  MoreVertical,
   CheckCircle2,
+  ListChecks,
+  UserCheck,
 } from 'lucide-react';
-import { Button } from './ui/button.jsx';
-import { Input } from './ui/input.jsx';
-import { Badge } from './ui/badge.jsx';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar.jsx';
 import { WhatsAppIcon } from './WhatsAppIcon.jsx';
 import { SortModal } from './SortModal.jsx';
 import { FilterModal } from './FilterModal.jsx';
@@ -65,22 +59,20 @@ import {
 } from '@shared/todo';
 import { cn } from '../lib/utils';
 
-export default function TaskMainView({
-  activeView,
-  activeList,
-  tasks = [],
-  selectedTaskId,
-  onSelectTask,
-  onCreateTask,
-  onToggleTaskComplete,
-  onToggleTaskImportant,
-  onOpenShareModal,
-  onOpenWhatsAppModal,
-  onUpdateListTheme,
-  isDarkMode,
-  onOpenSettings,
-}) {
+export default function SingleListView({ listId, onBack, onOpenShareModal, onOpenSettings }) {
+  const isDarkMode = useUiStore((s) => s.isDarkMode);
+  const isMultiSelectMode = useUiStore((s) => s.isMultiSelectMode);
+  const selectedTaskIds = useUiStore((s) => s.selectedTaskIds);
+  const toggleMultiSelectMode = useUiStore((s) => s.toggleMultiSelectMode);
+  const startMultiSelectWithTask = useUiStore((s) => s.startMultiSelectWithTask);
+  const toggleSelectTaskForBatch = useUiStore((s) => s.toggleSelectTaskForBatch);
+  const clearSelectedBatchTasks = useUiStore((s) => s.clearSelectedBatchTasks);
+  const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
+  const sortPreferences = useUiStore((s) => s.sortPreferences);
+  const setViewSort = useUiStore((s) => s.setViewSort);
+
   const [taskInput, setTaskInput] = useState('');
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   const [showCompleted, setShowCompleted] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
@@ -94,68 +86,29 @@ export default function TaskMainView({
   const [filterImportance, setFilterImportance] = useState('all');
   const [filterDue, setFilterDue] = useState('all');
   const [filterAssigneeId, setFilterAssigneeId] = useState('all');
-  const [filterListId, setFilterListId] = useState('all');
 
-  const taskInputRef = useRef(null);
   const longPressTimerRef = useRef(null);
+  const taskInputRef = useRef(null);
 
-  const {
-    isMultiSelectMode,
-    selectedTaskIds,
-    toggleMultiSelectMode,
-    startMultiSelectWithTask,
-    toggleSelectTaskForBatch,
-    clearSelectedBatchTasks,
-    sortPreferences,
-    setViewSort,
-  } = useUiStore();
+  const listsQuery = useListsQuery(1);
+  const usersQuery = useUsersQuery();
+  const tasksQuery = useTasksQuery({ listId, userId: 1 });
 
-  const { data: users = [] } = useUsersQuery();
-  const { data: lists = [] } = useListsQuery(1);
-  const { data: prefs } = useUserPreferencesQuery(1);
-  const updatePrefs = useUpdateUserPreferencesMutation();
+  const lists = listsQuery.data || [];
+  const users = usersQuery.data || [];
+  const tasks = tasksQuery.data || [];
 
+  const createTaskMutation = useCreateTaskMutation();
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
   const updateListMutation = useUpdateListMutation();
+  const deleteListMutation = useDeleteListMutation();
 
-  // Keyboard shortcut listener to focus task input on typing
-  useEffect(() => {
-    const handleGlobalKeyDown = (e) => {
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
+  const { data: prefs } = useUserPreferencesQuery(1);
+  const updatePrefs = useUpdateUserPreferencesMutation();
 
-      const activeTag = document.activeElement?.tagName?.toLowerCase();
-      const isEditable =
-        activeTag === 'input' ||
-        activeTag === 'textarea' ||
-        activeTag === 'select' ||
-        document.activeElement?.isContentEditable;
-
-      if (isEditable) return;
-
-      if (
-        e.key === 'Escape' ||
-        e.key === 'Tab' ||
-        e.key === 'Enter' ||
-        e.key.startsWith('Arrow') ||
-        e.key === 'Shift' ||
-        e.key === 'Control' ||
-        e.key === 'Alt' ||
-        e.key === 'Meta'
-      ) {
-        return;
-      }
-
-      if (e.key.length === 1 && taskInputRef.current) {
-        taskInputRef.current.focus();
-      }
-    };
-
-    window.addEventListener('keydown', handleGlobalKeyDown);
-    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, []);
-
-  const viewKey = activeList ? `list_${activeList.id}` : `view_${activeView || 'all-tasks'}`;
+  const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
+  const viewKey = `list_${listId}`;
   const currentSort = useMemo(() => sortPreferences[viewKey] || DEFAULT_SORT_CONFIG, [sortPreferences, viewKey]);
 
   const handleSelectSort = useCallback((config) => {
@@ -164,38 +117,11 @@ export default function TaskMainView({
     updatePrefs.mutate({ sort_preferences: updated });
   }, [viewKey, sortPreferences, setViewSort, updatePrefs]);
 
-  const getHeaderTitle = () => {
-    if (activeList) return activeList.title;
-    switch (activeView) {
-      case 'important': return 'Important';
-      case 'assigned-to-me': return 'Assigned to me';
-      case 'all-tasks':
-      default:
-        return 'Tasks';
-    }
-  };
-
   const themePrimary = useMemo(() => {
-    if (activeList) return getThemePrimary(activeList.color_theme || 'blue', isDarkMode);
-    if (activeView === 'important') return '#f59e0b';
-    if (activeView === 'assigned-to-me') return '#7c3aed';
-    return '#0078d4';
-  }, [activeList, activeView, isDarkMode]);
+    return getThemePrimary(activeList?.color_theme || 'blue', isDarkMode);
+  }, [activeList?.color_theme, isDarkMode]);
 
-  const handleAddTask = (e) => {
-    e.preventDefault();
-    if (!taskInput.trim()) return;
-
-    onCreateTask({
-      title: taskInput.trim(),
-      is_important: activeView === 'important' ? 1 : 0,
-      assigned_to_user_id: activeView === 'assigned-to-me' ? 1 : null,
-      list_id: activeList ? activeList.id : null,
-    });
-    setTaskInput('');
-  };
-
-  // Touch / Long press
+  // Touch / Pointer Long-Press handler
   const handlePointerDown = (taskId) => {
     longPressTimerRef.current = setTimeout(() => {
       startMultiSelectWithTask(taskId);
@@ -207,6 +133,48 @@ export default function TaskMainView({
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
+  };
+
+  // Task Action Handlers
+  const handleTaskClick = (task) => {
+    if (isMultiSelectMode) {
+      toggleSelectTaskForBatch(task.id);
+    } else {
+      setSelectedTaskId(task.id);
+    }
+  };
+
+  const handleToggleComplete = (task, e) => {
+    e?.stopPropagation?.();
+    if (isMultiSelectMode) {
+      toggleSelectTaskForBatch(task.id);
+    } else {
+      updateTaskMutation.mutate({
+        id: task.id,
+        is_completed: task.is_completed ? 0 : 1,
+      });
+    }
+  };
+
+  const handleToggleImportant = (task, e) => {
+    e?.stopPropagation?.();
+    updateTaskMutation.mutate({
+      id: task.id,
+      is_important: task.is_important ? 0 : 1,
+    });
+  };
+
+  const handleCreateTask = (e) => {
+    e.preventDefault();
+    if (!taskInput.trim()) return;
+
+    createTaskMutation.mutate({
+      title: taskInput.trim(),
+      list_id: listId,
+      created_by: 1,
+    });
+    setTaskInput('');
+    setShowQuickAddModal(false);
   };
 
   // Bulk Actions
@@ -275,7 +243,7 @@ export default function TaskMainView({
     }
   }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks]);
 
-  // Filtering Logic (Declared before WhatsApp handlers that reference filteredTasks)
+  // Filtering Logic
   const filteredTasks = useMemo(() => {
     const todayStr = new Date().toISOString().split('T')[0];
     const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -284,14 +252,13 @@ export default function TaskMainView({
       if (searchQuery.trim()) {
         const titleMatch = fuzzyMatch(task.title || '', searchQuery);
         const notesMatch = fuzzyMatch(task.notes || '', searchQuery);
-        if (!titleMatch && !notesMatch) return false;
+        const assigneeMatch = fuzzyMatch(task.assignee_name || '', searchQuery);
+        if (!titleMatch && !notesMatch && !assigneeMatch) return false;
       }
       if (filterStatus === 'pending' && task.is_completed) return false;
       if (filterStatus === 'completed' && !task.is_completed) return false;
-      if (activeView !== 'important' && !activeList) {
-        if (filterImportance === 'important' && !task.is_important) return false;
-        if (filterImportance === 'normal' && task.is_important) return false;
-      }
+      if (filterImportance === 'important' && !task.is_important) return false;
+      if (filterImportance === 'normal' && task.is_important) return false;
 
       if (filterDue === 'today' && task.due_date !== todayStr) return false;
       if (filterDue === 'tomorrow' && task.due_date !== tomorrowStr) return false;
@@ -299,21 +266,12 @@ export default function TaskMainView({
       if (filterDue === 'has_due' && !task.due_date) return false;
       if (filterDue === 'no_due' && task.due_date) return false;
 
-      if (!activeList && filterListId !== 'all') {
-        const tListIds = Array.isArray(task.list_ids) && task.list_ids.length > 0
-          ? task.list_ids
-          : (task.list_id ? [task.list_id] : []);
-        if (!tListIds.includes(filterListId)) return false;
-      }
-
-      if (activeView !== 'assigned-to-me') {
-        if (filterAssigneeId === 'unassigned' && task.assigned_to_user_id) return false;
-        if (typeof filterAssigneeId === 'number' && task.assigned_to_user_id !== filterAssigneeId) return false;
-      }
+      if (filterAssigneeId === 'unassigned' && task.assigned_to_user_id) return false;
+      if (typeof filterAssigneeId === 'number' && task.assigned_to_user_id !== filterAssigneeId) return false;
 
       return true;
     });
-  }, [tasks, searchQuery, filterStatus, filterImportance, filterDue, filterListId, filterAssigneeId, activeView, activeList]);
+  }, [tasks, searchQuery, filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   // WhatsApp List Share
   const handleWhatsAppList = useCallback(() => {
@@ -378,17 +336,15 @@ export default function TaskMainView({
     if (filterStatus !== 'all') count++;
     if (filterImportance !== 'all') count++;
     if (filterDue !== 'all') count++;
-    if (filterListId !== 'all') count++;
     if (filterAssigneeId !== 'all') count++;
     return count;
-  }, [filterStatus, filterImportance, filterDue, filterListId, filterAssigneeId]);
+  }, [filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   const handleResetFilters = useCallback(() => {
     setFilterStatus('all');
     setFilterImportance('all');
     setFilterDue('all');
     setFilterAssigneeId('all');
-    setFilterListId('all');
   }, []);
 
   const formattedToday = new Date().toLocaleDateString('en-US', {
@@ -398,10 +354,10 @@ export default function TaskMainView({
   });
 
   return (
-    <main className="flex-1 flex flex-col h-full overflow-hidden bg-background relative select-none">
+    <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#09090b] text-foreground relative select-none pb-16">
       {/* Header Banner */}
       <HeaderBanner
-        headerTitle={getHeaderTitle()}
+        headerTitle={activeList?.title || 'List'}
         formattedDate={formattedToday}
         pendingCount={pendingTasks.length}
         completedCount={completedTasks.length}
@@ -414,34 +370,40 @@ export default function TaskMainView({
         onOpenShareModal={onOpenShareModal}
         onWhatsAppList={handleWhatsAppList}
         onLongPressWhatsApp={() => setShowLongPressShareModal(true)}
-        onUpdateListTheme={onUpdateListTheme}
+        onUpdateListTheme={(listId, color) => updateListMutation.mutate({ id: listId, color_theme: color })}
+        onDeleteList={() => {
+          if (window.confirm(`Delete list "${activeList?.title}"?`)) {
+            deleteListMutation.mutate(activeList.id);
+            onBack?.();
+          }
+        }}
         onOpenSettings={onOpenSettings}
         isDarkMode={isDarkMode}
       />
 
-      {/* Main Scrollable Tasks Area */}
-      <div className="flex-1 overflow-y-auto px-3 sm:px-4 py-3 space-y-3">
+      {/* Main Tasks List */}
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
         {/* Search, Sort, Filter Row OR Contextual Bulk Actions Bar */}
         {isMultiSelectMode && selectedTaskIds.length > 0 ? (
-          <div className="sticky top-0 z-20 flex items-center justify-between min-h-[52px] p-3 px-4 rounded-2xl bg-slate-900 text-white border border-slate-800 shadow-2xl animate-in slide-in-from-top-2">
-            <div className="flex items-center gap-2.5">
+          <div className="sticky top-0 z-20 flex items-center justify-between min-h-[54px] p-2.5 px-3.5 rounded-2xl bg-[#1e293b] text-white border border-[#334155] shadow-2xl animate-in slide-in-from-top-2">
+            <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={clearSelectedBatchTasks}
-                className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center cursor-pointer transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
-              <span className="text-xs font-bold text-slate-200">
+              <span className="text-xs font-black text-white">
                 {selectedTaskIds.length} Selected
               </span>
             </div>
 
-            <div className="flex items-center gap-1.5 sm:gap-2">
+            <div className="flex items-center gap-1.5">
               <button
                 type="button"
                 onClick={handleBulkShare}
-                className="w-8 h-8 rounded-lg bg-[#25D366] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs hover:opacity-90"
+                className="w-9 h-9 rounded-xl bg-[#25D366] text-white flex items-center justify-center transition-all cursor-pointer shadow-xs hover:opacity-90 active:scale-95"
                 title="Bulk WhatsApp Share"
               >
                 <WhatsAppIcon className="w-4 h-4" />
@@ -450,7 +412,7 @@ export default function TaskMainView({
               <button
                 type="button"
                 onClick={handleBulkComplete}
-                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 title="Toggle Complete"
               >
                 <CheckCircle2 className="w-4 h-4" />
@@ -459,7 +421,7 @@ export default function TaskMainView({
               <button
                 type="button"
                 onClick={handleBulkImportant}
-                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-amber-400 flex items-center justify-center transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-amber-400 flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 title="Toggle Star"
               >
                 <Star className="w-4 h-4 fill-amber-400" />
@@ -468,7 +430,7 @@ export default function TaskMainView({
               <button
                 type="button"
                 onClick={() => setShowBulkDueModal(true)}
-                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 title="Assign Due Date"
               >
                 <Calendar className="w-4 h-4" />
@@ -477,7 +439,7 @@ export default function TaskMainView({
               <button
                 type="button"
                 onClick={() => setShowBulkAssigneeModal(true)}
-                className="w-8 h-8 rounded-lg bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 title="Assign Contact"
               >
                 <UserCheck className="w-4 h-4" />
@@ -486,7 +448,7 @@ export default function TaskMainView({
               <button
                 type="button"
                 onClick={handleBulkDelete}
-                className="w-8 h-8 rounded-lg bg-red-500/25 hover:bg-red-500/40 text-red-400 flex items-center justify-center transition-all cursor-pointer"
+                className="w-9 h-9 rounded-xl bg-red-500/25 hover:bg-red-500/40 text-red-400 flex items-center justify-center transition-all cursor-pointer active:scale-95"
                 title="Delete Selected Tasks"
               >
                 <Trash2 className="w-4 h-4" />
@@ -495,22 +457,22 @@ export default function TaskMainView({
           </div>
         ) : (
           <div className="space-y-2">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
               {/* Search Bar */}
-              <div className="flex-1 relative flex items-center">
-                <Search className="w-4 h-4 absolute left-3.5 text-muted-foreground" />
+              <div className="flex-1 h-[52px] relative flex items-center bg-[#18181b] border border-[#27272a] rounded-2xl px-3.5 shadow-xs focus-within:border-sky-500 transition-colors">
+                <Search className="w-4 h-4 text-[#71717a] mr-2.5 flex-shrink-0" />
                 <input
                   type="text"
-                  placeholder="Search tasks..."
+                  placeholder="Search"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2.5 rounded-2xl bg-card border border-border/80 text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-xs"
+                  className="w-full bg-transparent text-sm font-semibold text-white placeholder:text-[#71717a] focus:outline-none"
                 />
                 {searchQuery && (
                   <button
                     type="button"
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-2.5 text-muted-foreground hover:text-foreground cursor-pointer"
+                    className="text-[#71717a] hover:text-white cursor-pointer ml-1"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -522,16 +484,16 @@ export default function TaskMainView({
                 type="button"
                 onClick={() => setShowFilterModal(true)}
                 className={cn(
-                  'w-11 h-11 rounded-2xl flex items-center justify-center border transition-all cursor-pointer relative shadow-xs',
+                  'w-[52px] h-[52px] rounded-2xl flex items-center justify-center border transition-all cursor-pointer relative shadow-xs flex-shrink-0',
                   activeFiltersCount > 0
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card border-border/80 text-muted-foreground hover:text-foreground'
+                    ? 'bg-sky-500 text-white border-sky-500'
+                    : 'bg-[#18181b] border-[#27272a] text-white hover:border-[#3f3f46]'
                 )}
                 title="Filter tasks"
               >
                 <SlidersHorizontal className="w-4 h-4" />
                 {activeFiltersCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[10px] font-bold text-white flex items-center justify-center ring-2 ring-background">
+                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-amber-500 text-[10px] font-black text-white flex items-center justify-center ring-2 ring-[#09090b]">
                     {activeFiltersCount}
                   </span>
                 )}
@@ -542,16 +504,16 @@ export default function TaskMainView({
                 type="button"
                 onClick={() => setShowSortModal(true)}
                 className={cn(
-                  'w-11 h-11 rounded-2xl flex items-center justify-center border transition-all cursor-pointer relative shadow-xs',
+                  'w-[52px] h-[52px] rounded-2xl flex items-center justify-center border transition-all cursor-pointer relative shadow-xs flex-shrink-0',
                   currentSort.field !== 'smart'
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-card border-border/80 text-muted-foreground hover:text-foreground'
+                    ? 'bg-sky-500 text-white border-sky-500'
+                    : 'bg-[#18181b] border-[#27272a] text-white hover:border-[#3f3f46]'
                 )}
                 title="Sort tasks"
               >
                 <ArrowUpDown className="w-4 h-4" />
                 {currentSort.field !== 'smart' && (
-                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 ring-2 ring-background" />
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-amber-500 ring-2 ring-[#09090b]" />
                 )}
               </button>
             </div>
@@ -563,38 +525,32 @@ export default function TaskMainView({
                   <button
                     type="button"
                     onClick={() => setShowSortModal(true)}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-primary/10 text-primary border border-primary/20 text-xs font-bold hover:bg-primary/20 transition-colors cursor-pointer"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 border border-sky-500/25 text-xs font-bold hover:bg-sky-500/25 transition-colors cursor-pointer"
                   >
                     <span>Sort: {getSortDisplayLabel(currentSort)}</span>
                   </button>
                 )}
 
                 {filterStatus !== 'all' && (
-                  <span className="px-2.5 py-1 rounded-xl bg-primary/10 text-primary text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 text-xs font-bold">
                     Status: {filterStatus}
                   </span>
                 )}
 
                 {filterImportance !== 'all' && (
-                  <span className="px-2.5 py-1 rounded-xl bg-amber-500/10 text-amber-500 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-xl bg-amber-500/15 text-amber-400 text-xs font-bold">
                     {filterImportance}
                   </span>
                 )}
 
                 {filterDue !== 'all' && (
-                  <span className="px-2.5 py-1 rounded-xl bg-sky-500/10 text-sky-500 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-xl bg-sky-500/15 text-sky-400 text-xs font-bold">
                     Due: {filterDue}
                   </span>
                 )}
 
-                {!activeList && filterListId !== 'all' && (
-                  <span className="px-2.5 py-1 rounded-xl bg-purple-500/10 text-purple-500 text-xs font-bold">
-                    List: {lists.find((l) => l.id === filterListId)?.title || filterListId}
-                  </span>
-                )}
-
                 {filterAssigneeId !== 'all' && (
-                  <span className="px-2.5 py-1 rounded-xl bg-emerald-500/10 text-emerald-500 text-xs font-bold">
+                  <span className="px-2.5 py-1 rounded-xl bg-emerald-500/15 text-emerald-400 text-xs font-bold">
                     Assignee: {filterAssigneeId === 'unassigned' ? 'Unassigned' : 'Specific'}
                   </span>
                 )}
@@ -603,7 +559,7 @@ export default function TaskMainView({
                   <button
                     type="button"
                     onClick={handleResetFilters}
-                    className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-red-500 hover:text-red-600 cursor-pointer"
+                    className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-red-400 hover:text-red-300 cursor-pointer"
                   >
                     <RotateCcw className="w-3 h-3" />
                     <span>Reset</span>
@@ -614,169 +570,111 @@ export default function TaskMainView({
           </div>
         )}
 
-        {/* Empty State */}
+        {/* Task Cards List */}
         {sortedTasks.length === 0 ? (
-          <div className="flex flex-col items-center justify-center min-h-[260px] p-8 text-center border border-dashed border-border/80 rounded-3xl bg-card/40">
-            <div className="w-14 h-14 rounded-3xl bg-primary/10 text-primary flex items-center justify-center mb-3 shadow-xs">
+          <div className="flex flex-col items-center justify-center min-h-[240px] p-8 text-center border border-dashed border-[#27272a] rounded-3xl bg-[#18181b]/50 mt-2">
+            <div className="w-14 h-14 rounded-3xl bg-sky-500/15 text-sky-400 flex items-center justify-center mb-3 shadow-xs">
               <Sparkles className="w-7 h-7" />
             </div>
-            <h3 className="text-base font-bold text-foreground">No tasks yet</h3>
-            <p className="text-xs text-muted-foreground max-w-sm mt-1 mb-4">
-              Add your first task below or clear your filters to stay organized.
+            <h3 className="text-base font-bold text-white">No tasks yet</h3>
+            <p className="text-xs text-[#a1a1aa] max-w-xs mt-1 mb-4">
+              Tap the <span className="text-sky-400 font-bold">+</span> button below to create your first task.
             </p>
-            {activeFiltersCount > 0 ? (
-              <button
-                type="button"
-                onClick={handleResetFilters}
-                className="px-4 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-bold cursor-pointer"
-              >
-                Reset Filters
-              </button>
-            ) : (
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => taskInputRef.current?.focus()}
-                className="rounded-full px-4 text-xs font-bold"
-              >
-                Add a Task
-              </Button>
-            )}
           </div>
         ) : (
           <>
             {/* Pending Tasks */}
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {pendingTasks.map((task) => {
-                const isSelected = selectedTaskId === task.id;
                 const isCheckedForBatch = selectedTaskIds.includes(task.id);
                 const dueInfo = formatDueDateDisplay(task.due_date);
-                const reminderInfo = formatReminderDisplay(task.reminder_time);
-                const hasMetadata =
-                  task.due_date ||
-                  task.reminder_time ||
-                  task.assignee_name ||
-                  (task.subtask_count && task.subtask_count > 0) ||
-                  (task.lists && task.lists.length > 0);
 
                 return (
                   <div
                     key={task.id}
-                    onClick={() => {
-                      if (isMultiSelectMode) {
-                        toggleSelectTaskForBatch(task.id);
-                      } else {
-                        onSelectTask(task);
-                      }
-                    }}
+                    onClick={() => handleTaskClick(task)}
                     onPointerDown={() => handlePointerDown(task.id)}
                     onPointerUp={handlePointerUp}
                     onPointerCancel={handlePointerUp}
                     className={cn(
-                      'group flex items-center justify-between p-3.5 rounded-2xl border transition-all duration-150 shadow-xs cursor-pointer select-none',
+                      'group flex items-center justify-between p-4 rounded-2xl transition-all duration-150 shadow-xs cursor-pointer select-none',
                       isCheckedForBatch
-                        ? 'bg-sky-50 dark:bg-sky-950/30 border-sky-500 ring-1 ring-sky-500/30'
-                        : isSelected
-                        ? 'bg-primary/10 border-primary shadow-sm ring-1 ring-primary/20'
-                        : 'bg-card border-border/70 hover:border-primary/40 hover:bg-muted/30'
+                        ? 'bg-sky-500/20 border-2 border-sky-500 ring-1 ring-sky-500/40'
+                        : 'bg-[#18181b] border border-[#27272a] hover:border-[#3f3f46]'
                     )}
                   >
                     {/* Left: Checkbox & Content */}
-                    <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0 pr-2">
+                    <div className="flex items-center gap-3.5 overflow-hidden flex-1 min-w-0 pr-2">
                       <button
                         type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (isMultiSelectMode) {
-                            toggleSelectTaskForBatch(task.id);
-                          } else {
-                            onToggleTaskComplete(task);
-                          }
+                        onClick={(e) => handleToggleComplete(task, e)}
+                        className="w-6 h-6 rounded-lg border-2 flex items-center justify-center flex-shrink-0 cursor-pointer transition-colors"
+                        style={{
+                          borderColor: isCheckedForBatch ? '#0078d4' : '#52525b',
+                          backgroundColor: isCheckedForBatch ? '#0078d4' : 'transparent',
                         }}
-                        className="w-8 h-8 -ml-1 flex items-center justify-center flex-shrink-0 cursor-pointer"
                         aria-label="Toggle complete"
                       >
-                        {isCheckedForBatch ? (
-                          <div className="w-5 h-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
-                            <Check className="w-3.5 h-3.5 stroke-[3]" />
-                          </div>
-                        ) : isMultiSelectMode ? (
-                          <div className="w-5 h-5 rounded-md border-2 border-slate-400 dark:border-slate-500 bg-background/60" />
-                        ) : (
-                          <div className="w-5 h-5 rounded-md border-2 border-slate-400 dark:border-slate-500 group-hover:border-primary transition-colors bg-background/60" />
+                        {isCheckedForBatch && (
+                          <Check className="w-3.5 h-3.5 stroke-[3] text-white" />
                         )}
                       </button>
 
                       {/* Task Info */}
                       <div className="flex-1 min-w-0 space-y-1">
-                        <div className="text-sm font-semibold text-foreground truncate group-hover:text-primary transition-colors">
+                        <div className="text-[15px] font-bold text-white truncate">
                           {task.title}
                         </div>
 
-                        {hasMetadata && (
-                          <div className="flex items-center gap-2 flex-wrap text-[11px] text-muted-foreground">
-                            {dueInfo && (
-                              <span
-                                className={cn(
-                                  'flex items-center gap-1 font-semibold',
-                                  dueInfo.isOverdue
-                                    ? 'text-destructive font-bold'
-                                    : dueInfo.isToday
-                                    ? 'text-primary font-bold'
-                                    : 'text-muted-foreground'
-                                )}
-                              >
-                                <Calendar className="w-3 h-3" />
-                                {dueInfo.label}
-                              </span>
-                            )}
+                        {/* Metadata Tags */}
+                        <div className="flex items-center gap-2 flex-wrap text-[11px]">
+                          {dueInfo && (
+                            <span
+                              className={cn(
+                                'flex items-center gap-1 font-bold',
+                                dueInfo.isOverdue
+                                  ? 'text-red-400'
+                                  : dueInfo.isToday
+                                  ? 'text-sky-400'
+                                  : 'text-[#a1a1aa]'
+                              )}
+                            >
+                              <Calendar className="w-3 h-3" />
+                              {dueInfo.label}
+                            </span>
+                          )}
 
-                            {Boolean(task.subtask_count && task.subtask_count > 0) && (
-                              <span className="flex items-center gap-1 font-semibold text-slate-600 dark:text-slate-400 bg-muted/60 px-2 py-0.5 rounded-md">
-                                <CheckSquare className="w-3 h-3" />
-                                {task.subtask_completed_count || 0}/{task.subtask_count}
-                              </span>
-                            )}
+                          {Boolean(task.subtask_count && task.subtask_count > 0) && (
+                            <span className="flex items-center gap-1 font-bold text-[#a1a1aa] bg-[#27272a] px-2 py-0.5 rounded-md">
+                              <CheckSquare className="w-3 h-3" />
+                              {task.subtask_completed_count || 0}/{task.subtask_count}
+                            </span>
+                          )}
 
-                            {task.assignee_name && (
-                              <span className="bg-muted/60 px-2 py-0.5 rounded-full font-medium truncate max-w-[100px]">
-                                {task.assignee_name.split(' ')[0]}
-                              </span>
-                            )}
-
-                            {task.lists && task.lists.length > 0 && (
-                              <div className="flex items-center gap-1 flex-wrap">
-                                {task.lists.map((l) => (
-                                  <span
-                                    key={l.id}
-                                    className="bg-primary/10 text-primary px-2 py-0.5 rounded-full font-bold text-[10px]"
-                                  >
-                                    {l.title}
-                                  </span>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        )}
+                          {task.assignee_name && (
+                            <span className="bg-[#27272a] text-[#a1a1aa] px-2 py-0.5 rounded-md font-semibold truncate max-w-[100px]">
+                              {task.assignee_name.split(' ')[0]}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
                     {/* Right: Star Button */}
                     <button
                       type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onToggleTaskImportant(task);
-                      }}
-                      className={cn(
-                        'w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0',
-                        task.is_important
-                          ? 'text-amber-500 hover:text-amber-600'
-                          : 'text-muted-foreground/40 hover:text-amber-500 hover:bg-amber-500/10'
-                      )}
+                      onClick={(e) => handleToggleImportant(task, e)}
+                      className="w-8 h-8 rounded-xl flex items-center justify-center transition-all cursor-pointer flex-shrink-0"
                       title="Toggle importance"
                     >
-                      <Star className={cn('w-4 h-4', task.is_important && 'fill-amber-500')} />
+                      <Star
+                        className={cn(
+                          'w-5 h-5 transition-transform active:scale-125',
+                          task.is_important
+                            ? 'text-amber-500 fill-amber-500'
+                            : 'text-[#52525b] hover:text-amber-400'
+                        )}
+                      />
                     </button>
                   </div>
                 );
@@ -785,38 +683,33 @@ export default function TaskMainView({
 
             {/* Completed Tasks Group */}
             {completedTasks.length > 0 && (
-              <div className="pt-3 space-y-2">
+              <div className="pt-2 space-y-2">
                 <button
                   type="button"
                   onClick={() => setShowCompleted(!showCompleted)}
-                  className="flex items-center gap-2 text-xs font-bold text-muted-foreground uppercase tracking-wider hover:text-foreground transition-colors px-1 cursor-pointer"
+                  className="flex items-center gap-2 text-xs font-bold text-[#a1a1aa] uppercase tracking-wider hover:text-white transition-colors px-1 cursor-pointer"
                 >
                   {showCompleted ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                  <span>Completed ({completedTasks.length})</span>
+                  <span>COMPLETED ({completedTasks.length})</span>
                 </button>
 
                 {showCompleted && (
-                  <div className="space-y-1.5 opacity-75">
+                  <div className="space-y-1.5 opacity-80">
                     {completedTasks.map((task) => (
                       <div
                         key={task.id}
-                        onClick={() => onSelectTask(task)}
-                        className="group flex items-center justify-between p-2.5 rounded-2xl border border-border/50 bg-muted/20 hover:bg-muted/40 transition-all cursor-pointer"
+                        onClick={() => handleTaskClick(task)}
+                        className="group flex items-center justify-between p-3.5 rounded-2xl bg-[#18181b]/60 border border-[#27272a]/70 hover:bg-[#18181b] transition-all cursor-pointer"
                       >
                         <div className="flex items-center gap-3 overflow-hidden flex-1 min-w-0">
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onToggleTaskComplete(task);
-                            }}
-                            className="w-8 h-8 -ml-1 flex items-center justify-center flex-shrink-0 text-primary cursor-pointer"
+                            onClick={(e) => handleToggleComplete(task, e)}
+                            className="w-5 h-5 rounded-md bg-sky-500 text-white flex items-center justify-center flex-shrink-0 cursor-pointer shadow-xs"
                           >
-                            <div className="w-5 h-5 rounded-md bg-primary text-primary-foreground flex items-center justify-center shadow-xs">
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                            </div>
+                            <Check className="w-3.5 h-3.5 stroke-[3]" />
                           </button>
-                          <span className="text-xs line-through text-muted-foreground font-medium truncate">
+                          <span className="text-sm line-through text-[#71717a] font-medium truncate">
                             {task.title}
                           </span>
                         </div>
@@ -830,35 +723,61 @@ export default function TaskMainView({
         )}
       </div>
 
-      {/* Docked Quick-Add Input Card */}
-      <div className="p-3 sm:p-4 pt-2 pb-20 md:pb-3 flex-shrink-0 bg-background/90 backdrop-blur-md border-t border-border/50">
-        <form
-          onSubmit={handleAddTask}
-          className="flex items-center gap-2 bg-card border border-border/80 pl-4 pr-1.5 py-1.5 rounded-2xl shadow-sm focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary transition-all"
-        >
-          <input
-            ref={taskInputRef}
-            type="text"
-            placeholder={`Add a task to "${getHeaderTitle()}"...`}
-            value={taskInput}
-            onChange={(e) => setTaskInput(e.target.value)}
-            className="flex-1 bg-transparent text-sm font-semibold text-foreground placeholder:text-muted-foreground focus:outline-none"
-          />
-          <button
-            type="submit"
-            disabled={!taskInput.trim()}
-            className={cn(
-              'w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 transition-all cursor-pointer',
-              taskInput.trim()
-                ? 'bg-primary text-primary-foreground shadow-xs hover:opacity-90 active:scale-95'
-                : 'bg-muted text-muted-foreground opacity-40 cursor-not-allowed'
-            )}
-            title="Add task"
-          >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
-          </button>
-        </form>
-      </div>
+      {/* Floating Action Button (FAB) for Add Task */}
+      <button
+        type="button"
+        onClick={() => setShowQuickAddModal(true)}
+        className="fixed bottom-20 right-5 w-14 h-14 rounded-full bg-[#0078d4] hover:bg-[#006cbd] text-white flex items-center justify-center shadow-2xl z-30 transition-transform active:scale-90 cursor-pointer"
+        title="Add a task"
+        aria-label="Add a task"
+      >
+        <Plus className="w-7 h-7 stroke-[2.5]" />
+      </button>
+
+      {/* Quick Add Modal Sheet */}
+      {showQuickAddModal && (
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in-50">
+          <div className="w-full sm:max-w-md bg-[#18181b] border border-[#27272a] rounded-t-3xl sm:rounded-3xl p-5 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-extrabold text-white">Add Task to "{activeList?.title}"</h3>
+              <button
+                type="button"
+                onClick={() => setShowQuickAddModal(false)}
+                className="text-[#a1a1aa] hover:text-white p-1"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <form onSubmit={handleCreateTask} className="space-y-3">
+              <input
+                ref={taskInputRef}
+                type="text"
+                autoFocus
+                placeholder="What needs to be done?"
+                value={taskInput}
+                onChange={(e) => setTaskInput(e.target.value)}
+                className="w-full p-3.5 rounded-2xl bg-[#27272a] border border-[#3f3f46] text-sm font-semibold text-white placeholder:text-[#71717a] focus:outline-none focus:border-sky-500"
+              />
+              <div className="flex justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={() => setShowQuickAddModal(false)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-[#a1a1aa] hover:bg-[#27272a]"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!taskInput.trim()}
+                  className="px-5 py-2 rounded-xl text-xs font-extrabold bg-[#0078d4] text-white disabled:opacity-40 shadow-xs"
+                >
+                  Add Task
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Modals */}
       <SortModal
@@ -867,7 +786,7 @@ export default function TaskMainView({
         currentSort={currentSort}
         onSelectSort={handleSelectSort}
         themePrimary={themePrimary}
-        viewTitle={getHeaderTitle()}
+        viewTitle={activeList?.title || 'List'}
         isDarkMode={isDarkMode}
       />
 
@@ -882,11 +801,11 @@ export default function TaskMainView({
         setFilterDue={setFilterDue}
         filterAssigneeId={filterAssigneeId}
         setFilterAssigneeId={setFilterAssigneeId}
-        filterListId={filterListId}
-        setFilterListId={setFilterListId}
+        filterListId="all"
+        setFilterListId={() => {}}
         users={users}
         lists={lists}
-        isSmartView={!activeList}
+        isSmartView={false}
         onResetFilters={handleResetFilters}
       />
 
@@ -915,6 +834,6 @@ export default function TaskMainView({
         recipient={users.find((u) => u.id === activeList?.default_whatsapp_contact_id)}
         onExecuteShare={handleExecuteLongPressShare}
       />
-    </main>
+    </div>
   );
 }

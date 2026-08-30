@@ -13,9 +13,9 @@ import {
   ChevronDown,
   Sparkles,
 } from 'lucide-react';
-import { Input } from './ui/input';
-import { Badge } from './ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
+import { Input } from './ui/input.jsx';
+import { Badge } from './ui/badge.jsx';
+import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar.jsx';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +23,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from './ui/dropdown-menu';
+} from './ui/dropdown-menu.jsx';
+import { getThemePrimary } from '@shared/todo';
 import { cn } from '../lib/utils';
 
 export default function Sidebar({
@@ -86,26 +87,8 @@ export default function Sidebar({
     },
   ];
 
-  const themeColorDot = (c) => {
-    switch (c) {
-      case 'purple': return 'bg-[#742774]';
-      case 'green': return 'bg-[#107c41]';
-      case 'orange': return 'bg-[#d83b01]';
-      case 'red': return 'bg-[#e81123]';
-      case 'dark': return 'bg-[#2b2b2b]';
-      default: return 'bg-[#0078d4]';
-    }
-  };
-
-  const themeColorValue = (c) => {
-    switch (c) {
-      case 'purple': return '#a855f7';
-      case 'green': return '#22c55e';
-      case 'orange': return '#f97316';
-      case 'red': return '#ef4444';
-      case 'dark': return '#71717a';
-      default: return '#0078d4';
-    }
+  const getDotColor = (theme) => {
+    return getThemePrimary(theme);
   };
 
   return (
@@ -148,33 +131,36 @@ export default function Sidebar({
               </button>
             </DropdownMenuTrigger>
 
-            <DropdownMenuContent align="start" className="w-64">
-              <DropdownMenuLabel>Switch Profile</DropdownMenuLabel>
+            <DropdownMenuContent align="start" className="w-64 p-1.5 rounded-2xl shadow-xl border-border/80">
+              <DropdownMenuLabel className="text-xs text-muted-foreground px-2 py-1.5 font-bold uppercase tracking-wider">
+                Switch Active User
+              </DropdownMenuLabel>
               <DropdownMenuSeparator />
-              <div className="max-h-56 overflow-y-auto space-y-0.5">
+              <div className="max-h-60 overflow-y-auto space-y-1">
                 {users.map((u) => (
                   <DropdownMenuItem
                     key={u.id}
                     onClick={() => onSelectUser(u)}
                     className={cn(
-                      'flex items-center gap-2.5 px-2.5 py-2 rounded-xl',
-                      activeUser?.id === u.id && 'bg-primary/10 text-primary font-bold'
+                      'flex items-center gap-2.5 p-2 rounded-xl text-xs font-semibold cursor-pointer transition-colors',
+                      activeUser?.id === u.id
+                        ? 'bg-primary/10 text-primary font-bold'
+                        : 'hover:bg-muted'
                     )}
                   >
-                    <Avatar className="w-7 h-7 flex-shrink-0">
+                    <Avatar className="w-6 h-6 flex-shrink-0">
                       <AvatarImage
                         src={
                           u.avatar ||
                           `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name || 'User')}`
                         }
-                        alt={u.name}
                       />
-                      <AvatarFallback className="text-[10px]">
+                      <AvatarFallback className="text-[9px]">
                         {u.name?.slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
-                    <div className="truncate flex-1">
-                      <div className="font-semibold text-xs truncate">{u.name}</div>
+                    <div className="flex-1 min-w-0 truncate">
+                      <div className="truncate">{u.name}</div>
                       <div className="text-[10px] text-muted-foreground truncate">{u.phone || u.email}</div>
                     </div>
                   </DropdownMenuItem>
@@ -184,88 +170,75 @@ export default function Sidebar({
           </DropdownMenu>
         )}
 
-        {isCollapsed && (
-          <Avatar className="w-9 h-9 mx-auto ring-2 ring-primary/20">
-            <AvatarImage
-              src={
-                activeUser?.avatar ||
-                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(activeUser?.name || 'User')}`
-              }
-              alt={activeUser?.name || 'Profile'}
-            />
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-bold">
-              {activeUser?.name?.slice(0, 2).toUpperCase() || 'TO'}
-            </AvatarFallback>
-          </Avatar>
-        )}
-
-        {/* Sidebar Collapse Toggle Button */}
+        {/* Collapse Toggle Button */}
         <button
           type="button"
           onClick={onToggleCollapse}
-          className="w-8 h-8 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-all cursor-pointer flex-shrink-0"
-          title={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-          aria-label={isCollapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
+          className={cn(
+            'w-9 h-9 rounded-xl flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/70 transition-all cursor-pointer flex-shrink-0',
+            isCollapsed && 'mx-auto'
+          )}
+          title={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {isCollapsed ? <PanelLeftOpen className="w-4 h-4" /> : <PanelLeftClose className="w-4 h-4" />}
         </button>
       </div>
 
-      {/* Navigation Links Scroll Container */}
+      {/* Navigation Links Scrollable Area */}
       <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
-        {/* Smart Views Group */}
+        {/* Default Smart Views */}
         <div className="space-y-1">
-          {defaultViews.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeView === item.id && activeListId === null;
+          {defaultViews.map((v) => {
+            const Icon = v.icon;
+            const isActive = activeView === v.id && !activeListId;
 
             return (
-              <button
-                key={item.id}
-                type="button"
+              <div
+                key={v.id}
                 onClick={() => {
-                  setActiveView(item.id);
+                  setActiveView(v.id);
                   setActiveListId(null);
                 }}
                 className={cn(
                   'group w-full flex items-center justify-between px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer',
                   isCollapsed && 'justify-center px-0 min-h-[44px]',
                   isActive
-                    ? item.activeBg
+                    ? v.activeBg
                     : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
-                title={isCollapsed ? item.label : undefined}
-                aria-label={item.label}
+                role="button"
+                tabIndex={0}
+                title={isCollapsed ? v.label : undefined}
+                aria-label={v.label}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    setActiveView(v.id);
+                    setActiveListId(null);
+                  }
+                }}
               >
-                <div className={cn('flex items-center', isCollapsed ? 'justify-center' : 'gap-3')}>
-                  <Icon
-                    className={cn(
-                      'w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-110',
-                      isActive ? 'stroke-[2.5]' : item.iconColor
-                    )}
-                  />
-                  {!isCollapsed && <span>{item.label}</span>}
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <Icon className={cn('w-4 h-4 flex-shrink-0', isActive ? 'text-inherit' : v.iconColor)} />
+                  {!isCollapsed && <span className="truncate">{v.label}</span>}
                 </div>
-
-                {!isCollapsed && item.count > 0 && (
-                  <Badge
-                    variant={isActive ? 'default' : 'counter'}
-                    className={cn('text-[11px] px-2 py-0.5 rounded-full font-bold', isActive ? 'bg-primary text-primary-foreground' : '')}
-                  >
-                    {item.count}
+                {!isCollapsed && v.count > 0 && (
+                  <Badge variant="counter" className="text-[10px] px-1.5 py-0.5 rounded-full">
+                    {v.count}
                   </Badge>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
 
-        {/* Custom Lists Header & Items */}
+        {/* Custom Lists Section */}
         <div className="space-y-1">
-          <div className={cn('flex items-center justify-between px-2 pb-1.5', isCollapsed && 'justify-center')}>
+          <div className="flex items-center justify-between px-3 mb-2">
             {!isCollapsed && (
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                My Lists
+              <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                Lists ({lists.length})
               </span>
             )}
             <button
@@ -282,6 +255,7 @@ export default function Sidebar({
           {lists.map((list) => {
             const isActive = activeListId === list.id;
             const isShared = list.members && list.members.length > 0;
+            const listColor = getDotColor(list.color_theme);
 
             return (
               <div
@@ -311,17 +285,12 @@ export default function Sidebar({
               >
                 <div className={cn('flex items-center overflow-hidden', isCollapsed ? 'justify-center' : 'gap-2.5 flex-1 min-w-0')}>
                   {isCollapsed ? (
-                    <ListTodo
-                      className="w-4 h-4 flex-shrink-0"
-                      style={{ color: themeColorValue(list.color_theme) }}
-                    />
+                    <ListTodo className="w-4 h-4 flex-shrink-0" style={{ color: listColor }} />
                   ) : (
                     <>
                       <span
-                        className={cn(
-                          'w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-125',
-                          themeColorDot(list.color_theme)
-                        )}
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0 transition-transform group-hover:scale-125 shadow-xs"
+                        style={{ backgroundColor: listColor }}
                       />
                       <span className="truncate flex-1">{list.title}</span>
                       {isShared && (
@@ -334,10 +303,7 @@ export default function Sidebar({
                 {!isCollapsed && (
                   <div className="flex items-center gap-1.5">
                     {list.pending_task_count > 0 && (
-                      <Badge
-                        variant="counter"
-                        className="text-[10px] px-1.5 py-0.5 rounded-full"
-                      >
+                      <Badge variant="counter" className="text-[10px] px-1.5 py-0.5 rounded-full">
                         {list.pending_task_count}
                       </Badge>
                     )}
@@ -350,9 +316,8 @@ export default function Sidebar({
                             onDeleteList(list.id);
                           }
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive rounded-md transition-opacity"
-                        title="Delete list"
-                        aria-label="Delete list"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-muted-foreground hover:text-destructive rounded-md transition-opacity cursor-pointer"
+                        aria-label={`Delete list ${list.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -363,37 +328,53 @@ export default function Sidebar({
             );
           })}
 
-          {/* Inline Add List Form */}
+          {/* Quick Create Input Form */}
           {showAddListInput && !isCollapsed && (
-            <form onSubmit={handleAddListSubmit} className="pt-2 animate-in fade-in-50 zoom-in-95">
-              <div className="flex items-center gap-1.5 bg-background border border-primary/40 rounded-2xl p-1 shadow-xs">
-                <Input
-                  type="text"
-                  placeholder="New list name..."
-                  value={newListTitle}
-                  onChange={(e) => setNewListTitle(e.target.value)}
-                  className="h-8 text-xs border-0 bg-transparent focus-visible:ring-0 px-2"
-                  autoFocus
-                  onBlur={() => {
-                    if (!newListTitle.trim()) setShowAddListInput(false);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Escape') {
-                      setShowAddListInput(false);
-                      setNewListTitle('');
-                    }
-                  }}
-                />
-                <button
-                  type="submit"
-                  disabled={!newListTitle.trim()}
-                  className="h-7 px-2.5 bg-primary text-primary-foreground text-xs font-bold rounded-xl disabled:opacity-40 transition-opacity flex-shrink-0"
-                >
-                  Add
-                </button>
-              </div>
+            <form onSubmit={handleAddListSubmit} className="pt-2">
+              <Input
+                type="text"
+                placeholder="List name..."
+                value={newListTitle}
+                onChange={(e) => setNewListTitle(e.target.value)}
+                autoFocus
+                onBlur={() => {
+                  if (!newListTitle.trim()) setShowAddListInput(false);
+                }}
+                className="h-9 text-xs rounded-xl bg-background/80"
+              />
             </form>
           )}
+        </div>
+      </div>
+
+      {/* Sidebar Footer Link (Contacts / User Library) */}
+      <div className="p-3 border-t border-border/60">
+        <div
+          onClick={() => {
+            setActiveView('contacts');
+            setActiveListId(null);
+          }}
+          className={cn(
+            'flex items-center gap-3 px-3 py-2.5 rounded-2xl text-xs font-semibold transition-all cursor-pointer',
+            isCollapsed && 'justify-center px-0',
+            activeView === 'contacts'
+              ? 'bg-primary/10 text-primary font-bold'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+          )}
+          role="button"
+          tabIndex={0}
+          title={isCollapsed ? 'Contacts & User Library' : undefined}
+          aria-label="Contacts & User Library"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setActiveView('contacts');
+              setActiveListId(null);
+            }
+          }}
+        >
+          <Users className="w-4 h-4 flex-shrink-0 text-emerald-500" />
+          {!isCollapsed && <span>Contacts & Library</span>}
         </div>
       </div>
     </aside>

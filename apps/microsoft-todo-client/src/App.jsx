@@ -5,7 +5,10 @@ import {
   useUsersQuery,
   useListsQuery,
   useTasksQuery,
+  useTaskQuery,
   useTaskCountsQuery,
+  useUserPreferencesQuery,
+  useUpdateUserPreferencesMutation,
   useCreateTaskMutation,
   useUpdateTaskMutation,
   useDeleteTaskMutation,
@@ -22,6 +25,8 @@ import {
 
 import Sidebar from './components/Sidebar.jsx';
 import TaskMainView from './components/TaskMainView.jsx';
+import TasksView from './components/TasksView.jsx';
+import SingleListView from './components/SingleListView.jsx';
 import TaskDetailDrawer from './components/TaskDetailDrawer.jsx';
 import ContactsPage from './components/ContactsPage.jsx';
 import SettingsPage from './components/SettingsPage.jsx';
@@ -42,6 +47,8 @@ export default function App() {
     themeMode,
     isDarkMode,
     setThemeMode,
+    isPortrait,
+    setIsPortrait,
     isSidebarCollapsed,
     toggleSidebar,
     activeView,
@@ -58,7 +65,24 @@ export default function App() {
     setWhatsappConfig,
     isListsSheetOpen,
     setIsListsSheetOpen,
+    setSortPreferences,
   } = useUiStore();
+
+  // Handle responsive viewport orientation & resize listener
+  useEffect(() => {
+    const handleResize = () => {
+      const portrait = window.innerWidth <= 768 || window.innerHeight > window.innerWidth;
+      setIsPortrait(portrait);
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    window.addEventListener('orientationchange', handleResize);
+    return () => {
+      window.removeEventListener('resize', handleResize);
+      window.removeEventListener('orientationchange', handleResize);
+    };
+  }, [setIsPortrait]);
 
   // Sync theme to DOM on mount and changes
   useEffect(() => {
@@ -77,13 +101,9 @@ export default function App() {
     } else if (path.includes('/settings')) {
       setActiveView('settings');
     } else if (path.includes('/lists')) {
-      setActiveView(null);
-    } else {
-      if (activeView === 'contacts' || activeView === 'settings') {
-        setActiveView('all-tasks');
-      }
+      setIsListsSheetOpen(true);
     }
-  }, [location.pathname]);
+  }, [location.pathname, setActiveView, setIsListsSheetOpen]);
 
   // ----------------------------------------------------
   // SERVER DATA QUERIES
@@ -105,6 +125,26 @@ export default function App() {
   });
   const { data: taskCounts = {} } = useTaskCountsQuery(activeUser?.id);
 
+  // Sync user preferences (sort preferences, last view)
+  const { data: prefs } = useUserPreferencesQuery(activeUser?.id || 1);
+  const updatePrefs = useUpdateUserPreferencesMutation(activeUser?.id || 1);
+
+  useEffect(() => {
+    if (prefs?.sort_preferences) {
+      try {
+        const parsed = typeof prefs.sort_preferences === 'string'
+          ? JSON.parse(prefs.sort_preferences)
+          : prefs.sort_preferences;
+        setSortPreferences(parsed);
+      } catch {
+        // Ignore JSON parse errors
+      }
+    }
+  }, [prefs?.sort_preferences, setSortPreferences]);
+
+  // Single task query when drawer is open
+  const { data: fetchedTask } = useTaskQuery(selectedTaskId && selectedTaskId > 0 ? selectedTaskId : null);
+
   // ----------------------------------------------------
   // MUTATIONS
   // ----------------------------------------------------
@@ -123,11 +163,11 @@ export default function App() {
   const batchImportUsersMutation = useBatchImportUsersMutation();
 
   // Derived state
-  const activeList = lists.find((l) => l.id === activeListId);
+  const activeList = lists.find((l) => l.id === activeListId) || null;
   const selectedTask = selectedTaskId
     ? selectedTaskId < 0
       ? { id: selectedTaskId, title: '', notes: '', list_id: activeListId }
-      : tasks.find((t) => t.id === selectedTaskId) || null
+      : fetchedTask || tasks.find((t) => t.id === selectedTaskId) || null
     : null;
 
   // Handlers
@@ -138,7 +178,7 @@ export default function App() {
   const handleCreateTask = async (taskData) => {
     return createTaskMutation.mutateAsync({
       ...taskData,
-      created_by: activeUser ? activeUser.id : 2,
+      created_by: activeUser ? activeUser.id : 1,
     });
   };
 
@@ -171,7 +211,7 @@ export default function App() {
         title,
         color_theme: 'blue',
         icon: 'list',
-        created_by: activeUser ? activeUser.id : 2,
+        created_by: activeUser ? activeUser.id : 1,
       });
       if (newList?.id) {
         setActiveListId(newList.id);
@@ -203,95 +243,130 @@ export default function App() {
     });
   };
 
+  // Render content based on Portrait (Mobile Parity) vs Landscape (Desktop Web)
+  const renderMainContent = () => {
+    if (activeView === 'contacts') {
+      return (
+        <ContactsPage
+          onBack={() => {
+            setActiveView('all-tasks');
+            navigate('/');
+          }}
+          users={users}
+          activeUser={activeUser}
+          setActiveUser={setActiveUser}
+          onAddUser={(data) => addUserMutation.mutateAsync(data)}
+          onUpdateUser={(data) => updateUserMutation.mutateAsync(data)}
+          onDeleteUser={(id) => deleteUserMutation.mutateAsync(id)}
+          onBatchImportUsers={(contacts) => batchImportUsersMutation.mutateAsync(contacts)}
+        />
+      );
+    }
+
+    if (activeView === 'settings') {
+      return (
+        <SettingsPage
+          onBack={() => {
+            setActiveView('all-tasks');
+            navigate('/');
+          }}
+          isDarkMode={isDarkMode}
+          themeMode={themeMode}
+          onSetThemeMode={setThemeMode}
+        />
+      );
+    }
+
+    if (activeListId) {
+      return (
+        <SingleListView
+          listId={activeListId}
+          onBack={() => {
+            setActiveListId(null);
+            setActiveView('all-tasks');
+          }}
+          onOpenShareModal={(list) => setSharingList(list)}
+          onOpenSettings={() => {
+            setActiveView('settings');
+            navigate('/settings');
+          }}
+        />
+      );
+    }
+
+    if (isPortrait) {
+      return (
+        <TasksView
+          fixedView={activeView || 'all-tasks'}
+          onOpenSettings={() => {
+            setActiveView('settings');
+            navigate('/settings');
+          }}
+        />
+      );
+    }
+
+    return (
+      <TaskMainView
+        activeView={activeView}
+        activeList={activeList}
+        tasks={tasks}
+        selectedTaskId={selectedTask?.id}
+        onSelectTask={handleSelectTask}
+        onCreateTask={handleCreateTask}
+        onToggleTaskComplete={handleToggleTaskComplete}
+        onToggleTaskImportant={handleToggleTaskImportant}
+        onOpenShareModal={(list) => setSharingList(list)}
+        onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
+        onUpdateListTheme={handleUpdateListTheme}
+        isDarkMode={isDarkMode}
+        onOpenSettings={() => {
+          setActiveView('settings');
+          navigate('/settings');
+        }}
+      />
+    );
+  };
+
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground selection:bg-primary/20 selection:text-primary antialiased font-sans">
-      {/* Desktop / Tablet Left Sidebar */}
-      <Sidebar
-        activeView={activeView}
-        setActiveView={(v) => {
-          setActiveView(v);
-          if (v === 'contacts') navigate('/contacts');
-          else if (v === 'settings') navigate('/settings');
-          else navigate('/tasks');
-        }}
-        activeListId={activeListId}
-        setActiveListId={(id) => {
-          setActiveListId(id);
-          navigate('/tasks');
-        }}
-        lists={lists}
-        activeUser={activeUser}
-        users={users}
-        onSelectUser={setActiveUser}
-        onCreateList={handleCreateList}
-        onDeleteList={handleDeleteList}
-        taskCounts={taskCounts}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={toggleSidebar}
-      />
+      {/* Desktop / Tablet Left Sidebar (Hidden on Portrait / Mobile) */}
+      {!isPortrait && (
+        <Sidebar
+          activeView={activeView}
+          setActiveView={(v) => {
+            setActiveView(v);
+            if (v === 'contacts') navigate('/contacts');
+            else if (v === 'settings') navigate('/settings');
+            else navigate('/');
+          }}
+          activeListId={activeListId}
+          setActiveListId={(id) => {
+            setActiveListId(id);
+            navigate('/');
+          }}
+          lists={lists}
+          activeUser={activeUser}
+          users={users}
+          onSelectUser={setActiveUser}
+          onCreateList={handleCreateList}
+          onDeleteList={handleDeleteList}
+          taskCounts={taskCounts}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapse={toggleSidebar}
+        />
+      )}
 
-      {/* Main Content Area */}
+      {/* Main Content Viewport */}
       <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden bg-background">
         <Routes>
-          <Route
-            path="/contacts"
-            element={
-              <ContactsPage
-                onBack={() => {
-                  setActiveView('all-tasks');
-                  navigate('/tasks');
-                }}
-                users={users}
-                activeUser={activeUser}
-                setActiveUser={setActiveUser}
-                onAddUser={(data) => addUserMutation.mutateAsync(data)}
-                onUpdateUser={(data) => updateUserMutation.mutateAsync(data)}
-                onDeleteUser={(id) => deleteUserMutation.mutateAsync(id)}
-                onBatchImportUsers={(contacts) => batchImportUsersMutation.mutateAsync(contacts)}
-              />
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <SettingsPage
-                onBack={() => {
-                  setActiveView('all-tasks');
-                  navigate('/tasks');
-                }}
-                isDarkMode={isDarkMode}
-                themeMode={themeMode}
-                onSetThemeMode={setThemeMode}
-              />
-            }
-          />
-          <Route
-            path="*"
-            element={
-              <TaskMainView
-                activeView={activeView}
-                activeList={activeList}
-                tasks={tasks}
-                selectedTaskId={selectedTask?.id}
-                onSelectTask={handleSelectTask}
-                onCreateTask={handleCreateTask}
-                onToggleTaskComplete={handleToggleTaskComplete}
-                onToggleTaskImportant={handleToggleTaskImportant}
-                onOpenShareModal={(list) => setSharingList(list)}
-                onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
-                onUpdateListTheme={handleUpdateListTheme}
-                isDarkMode={isDarkMode}
-                onOpenSettings={() => {
-                  setActiveView('settings');
-                  navigate('/settings');
-                }}
-              />
-            }
-          />
+          <Route path="/contacts" element={renderMainContent()} />
+          <Route path="/settings" element={renderMainContent()} />
+          <Route path="*" element={renderMainContent()} />
         </Routes>
       </div>
 
-      {/* Task Details Drawer (Fullscreen on mobile, split-pane on desktop) */}
+      {/* Task Details Drawer (Fullscreen on portrait, split-pane on landscape) */}
       {selectedTask && (
         <TaskDetailDrawer
           task={selectedTask}
@@ -305,29 +380,31 @@ export default function App() {
         />
       )}
 
-      {/* Mobile Bottom Navigation Bar (Hidden on desktop) */}
-      <MobileBottomNav
-        activeView={activeView}
-        setActiveView={(v) => {
-          setActiveView(v);
-          if (v === 'contacts') navigate('/contacts');
-          else if (v === 'settings') navigate('/settings');
-          else navigate('/tasks');
-        }}
-        activeListId={activeListId}
-        setActiveListId={(id) => {
-          setActiveListId(id);
-          navigate('/tasks');
-        }}
-        taskCounts={taskCounts}
-        onOpenListsSheet={() => setIsListsSheetOpen(true)}
-        onOpenUserLibrary={() => {
-          setActiveView('contacts');
-          navigate('/contacts');
-        }}
-        activeUser={activeUser}
-        lists={lists}
-      />
+      {/* Mobile Bottom Navigation Bar (Hidden on desktop landscape) */}
+      {isPortrait && (
+        <MobileBottomNav
+          activeView={activeView}
+          setActiveView={(v) => {
+            setActiveView(v);
+            if (v === 'contacts') navigate('/contacts');
+            else if (v === 'settings') navigate('/settings');
+            else navigate('/');
+          }}
+          activeListId={activeListId}
+          setActiveListId={(id) => {
+            setActiveListId(id);
+            navigate('/');
+          }}
+          taskCounts={taskCounts}
+          onOpenListsSheet={() => setIsListsSheetOpen(true)}
+          onOpenUserLibrary={() => {
+            setActiveView('contacts');
+            navigate('/contacts');
+          }}
+          activeUser={activeUser}
+          lists={lists}
+        />
+      )}
 
       {/* Global Modals & Sheets */}
       {sharingList && (
@@ -359,7 +436,13 @@ export default function App() {
         setActiveListId={(id) => {
           setActiveListId(id);
           setActiveView(null);
-          navigate('/tasks');
+          navigate('/');
+        }}
+        activeView={activeView}
+        setActiveView={(v) => {
+          setActiveView(v);
+          setActiveListId(null);
+          navigate('/');
         }}
         onCreateList={handleCreateList}
         onDeleteList={handleDeleteList}

@@ -6,6 +6,19 @@ import { Platform } from 'react-native';
  * When running in Expo Go on a physical device, this extracts the computer's LAN IP from Metro's hostUri.
  */
 export function getBackendApiUrl(): string {
+  if (process.env.EXPO_PUBLIC_API_URL) {
+    return process.env.EXPO_PUBLIC_API_URL;
+  }
+
+  // Web in browser
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.hostname) {
+    if (window.location.port === '5005' || window.location.pathname.startsWith('/todo')) {
+      return '';
+    }
+    const host = window.location.hostname || '127.0.0.1';
+    return `http://${host}:5005`;
+  }
+
   // Check Expo Constants for host machine IP
   const hostUri =
     Constants.expoConfig?.hostUri ||

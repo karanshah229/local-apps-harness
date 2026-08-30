@@ -27,7 +27,7 @@ function RootLayoutNav() {
   const systemColorScheme = useColorScheme();
 
   const [isReady, setIsReady] = useState(false);
-  const { data: preferences, isSuccess: isPrefsLoaded } = useUserPreferencesQuery(1);
+  const { data: preferences, isSuccess: isPrefsLoaded, isError: isPrefsError } = useUserPreferencesQuery(1);
   const hasRestoredView = useRef(false);
 
   useEffect(() => {
@@ -49,46 +49,65 @@ function RootLayoutNav() {
 
   // Directly navigate to last saved view before revealing the app
   useEffect(() => {
-    if (hasRestoredView.current || !isPrefsLoaded) return;
-    hasRestoredView.current = true;
+    if (hasRestoredView.current) return;
 
-    if (preferences?.sort_preferences) {
-      try {
-        const parsed = typeof preferences.sort_preferences === 'string'
-          ? JSON.parse(preferences.sort_preferences || '{}')
-          : preferences.sort_preferences;
-        useUiStore.getState().setAllSortPreferences(parsed || {});
-      } catch (_e) {
-        // ignore parse error
-      }
-    }
+    if (isPrefsLoaded) {
+      hasRestoredView.current = true;
 
-    if (preferences?.remember_last_view) {
-      const type = preferences.last_view_type;
-      const id = preferences.last_view_id;
-
-      if (type === 'list' && id) {
-        useUiStore.getState().setActiveListId(Number(id));
-        router.replace('/(tabs)/lists');
-      } else if (type === 'tab') {
-        if (id === 'important') {
-          router.replace('/(tabs)/important');
-        } else if (id === 'assigned-to-me') {
-          router.replace('/(tabs)/assigned');
-        } else if (id === 'lists') {
-          router.replace('/(tabs)/lists');
-        } else if (id === 'settings') {
-          router.replace('/(tabs)/settings');
-        } else if (id === 'all-tasks') {
-          router.replace('/(tabs)');
+      if (preferences?.sort_preferences) {
+        try {
+          const parsed = typeof preferences.sort_preferences === 'string'
+            ? JSON.parse(preferences.sort_preferences || '{}')
+            : preferences.sort_preferences;
+          useUiStore.getState().setAllSortPreferences(parsed || {});
+        } catch (_e) {
+          // ignore parse error
         }
       }
-    }
 
-    // Unveil the app cleanly directly on the target screen
-    setIsReady(true);
-    SplashScreen.hideAsync().catch(() => {});
-  }, [isPrefsLoaded, preferences, router]);
+      if (preferences?.remember_last_view) {
+        const type = preferences.last_view_type;
+        const id = preferences.last_view_id;
+
+        if (type === 'list' && id) {
+          useUiStore.getState().setActiveListId(Number(id));
+          router.replace('/(tabs)/lists');
+        } else if (type === 'tab') {
+          if (id === 'important') {
+            router.replace('/(tabs)/important');
+          } else if (id === 'assigned-to-me') {
+            router.replace('/(tabs)/assigned');
+          } else if (id === 'lists') {
+            router.replace('/(tabs)/lists');
+          } else if (id === 'settings') {
+            router.replace('/(tabs)/settings');
+          } else if (id === 'all-tasks') {
+            router.replace('/(tabs)');
+          }
+        }
+      }
+
+      // Unveil the app cleanly directly on the target screen
+      setIsReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    } else if (isPrefsError) {
+      hasRestoredView.current = true;
+      setIsReady(true);
+      SplashScreen.hideAsync().catch(() => {});
+    }
+  }, [isPrefsLoaded, isPrefsError, preferences, router]);
+
+  // Safety fallback: ensure screen is unveiled within 1s even if preferences network query hangs
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!hasRestoredView.current) {
+        hasRestoredView.current = true;
+        setIsReady(true);
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const bgColor = isDarkMode ? '#09090b' : '#f8fafc';
 

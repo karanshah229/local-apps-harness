@@ -8,7 +8,6 @@ import { QUERY_KEYS, User, List, Task, Subtask, BatchImportContact, UserPreferen
 import { getBackendApiUrl } from '../services/apiConfig';
 
 export function getApiBaseUrl(): string {
-  if (Platform.OS === 'web') return '';
   return getBackendApiUrl();
 }
 

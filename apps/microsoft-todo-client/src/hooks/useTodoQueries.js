@@ -204,6 +204,19 @@ export function useTasksQuery({ listId, view, userId }) {
   });
 }
 
+export function useTaskQuery(taskId) {
+  return useQuery({
+    queryKey: taskId ? ['task', taskId] : ['task', 'none'],
+    queryFn: async () => {
+      if (!taskId || taskId <= 0) throw new Error('Invalid task ID');
+      const res = await fetch(`/api/tasks/${taskId}`);
+      if (!res.ok) throw new Error('Failed to fetch task');
+      return res.json();
+    },
+    enabled: Boolean(taskId && taskId > 0),
+  });
+}
+
 export function useTaskCountsQuery(userId) {
   return useQuery({
     queryKey: ['taskCounts', userId || 1],
@@ -222,6 +235,40 @@ export function useTaskCountsQuery(userId) {
       return counts;
     },
   });
+}
+
+export async function prefetchTaskDetails(taskId) {
+  if (!taskId || taskId <= 0) return;
+  try {
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ['task', taskId],
+        queryFn: async () => {
+          const res = await fetch(`/api/tasks/${taskId}`);
+          if (!res.ok) throw new Error('Failed to fetch task');
+          return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: QUERY_KEYS.subtasks(taskId),
+        queryFn: async () => {
+          const res = await fetch(`/api/tasks/${taskId}/subtasks`);
+          if (!res.ok) throw new Error('Failed to fetch subtasks');
+          return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+      }),
+    ]);
+  } catch (_e) {
+    // Ignore background prefetch errors
+  }
+}
+
+export async function prefetchAllTasksInView(tasks) {
+  if (!tasks || tasks.length === 0) return;
+  const promises = tasks.map((t) => prefetchTaskDetails(t.id));
+  await Promise.allSettled(promises);
 }
 
 export function useCreateTaskMutation() {
@@ -274,6 +321,7 @@ export function useUpdateTaskMutation() {
       qc.invalidateQueries({ queryKey: ['taskCounts'] });
       qc.invalidateQueries({ queryKey: QUERY_KEYS.lists });
       if (updatedTask?.id) {
+        qc.invalidateQueries({ queryKey: ['task', updatedTask.id] });
         qc.invalidateQueries({ queryKey: QUERY_KEYS.subtasks(updatedTask.id) });
       }
     },
@@ -292,6 +340,38 @@ export function useDeleteTaskMutation() {
       qc.invalidateQueries({ queryKey: QUERY_KEYS.tasks });
       qc.invalidateQueries({ queryKey: ['taskCounts'] });
       qc.invalidateQueries({ queryKey: QUERY_KEYS.lists });
+    },
+  });
+}
+
+// ----------------------------------------------------
+// USER PREFERENCES QUERIES & MUTATIONS
+// ----------------------------------------------------
+export function useUserPreferencesQuery(userId = 1) {
+  return useQuery({
+    queryKey: ['userPreferences', userId],
+    queryFn: async () => {
+      const res = await fetch(`/api/user-preferences?userId=${userId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+  });
+}
+
+export function useUpdateUserPreferencesMutation(userId = 1) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (prefsData) => {
+      const res = await fetch(`/api/user-preferences?userId=${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, ...prefsData }),
+      });
+      if (!res.ok) throw new Error('Failed to update user preferences');
+      return res.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['userPreferences', userId] });
     },
   });
 }
@@ -376,9 +456,8 @@ export function useSocketSync() {
   const qc = useQueryClient();
 
   useEffect(() => {
-    // Determine socket path based on subpath if applicable
     let socketPath = '/socket.io';
-    if (window.location.pathname.startsWith('/todo')) {
+    if (typeof window !== 'undefined' && window.location.pathname.startsWith('/todo')) {
       socketPath = '/todo/socket.io';
     }
 

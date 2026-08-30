@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { DEFAULT_SORT_CONFIG } from '@shared/todo';
 
 function getInitialThemeMode() {
   const saved = localStorage.getItem('todo_theme_mode') || localStorage.getItem('todo_theme');
@@ -9,7 +10,12 @@ function getInitialThemeMode() {
 function computeIsDark(mode) {
   if (mode === 'dark') return true;
   if (mode === 'light') return false;
-  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+}
+
+function computeIsPortrait() {
+  if (typeof window === 'undefined') return false;
+  return window.innerWidth <= 768 || window.innerHeight > window.innerWidth;
 }
 
 export const useUiStore = create((set, get) => ({
@@ -26,6 +32,10 @@ export const useUiStore = create((set, get) => ({
     }
     set({ themeMode: mode, isDarkMode: isDark });
   },
+
+  // Responsive Layout (Portrait vs Landscape)
+  isPortrait: computeIsPortrait(),
+  setIsPortrait: (val) => set({ isPortrait: val }),
 
   // Sidebar collapse state
   isSidebarCollapsed: localStorage.getItem('todo_sidebar_collapsed') === 'true',
@@ -50,6 +60,18 @@ export const useUiStore = create((set, get) => ({
   searchQuery: '',
   setSearchQuery: (query) => set({ searchQuery: query }),
 
+  // Sorting Preferences
+  sortPreferences: {},
+  setViewSort: (viewKey, config) => {
+    set((state) => ({
+      sortPreferences: {
+        ...state.sortPreferences,
+        [viewKey]: config,
+      },
+    }));
+  },
+  setSortPreferences: (prefs) => set({ sortPreferences: prefs || {} }),
+
   // Multi-select Batch mode
   isMultiSelectMode: false,
   selectedTaskIds: [],
@@ -57,13 +79,20 @@ export const useUiStore = create((set, get) => ({
     const next = !get().isMultiSelectMode;
     set({ isMultiSelectMode: next, selectedTaskIds: [] });
   },
+  startMultiSelectWithTask: (taskId) => {
+    set({ isMultiSelectMode: true, selectedTaskIds: [taskId] });
+  },
   toggleSelectTaskForBatch: (taskId) => {
     const current = get().selectedTaskIds;
     if (current.includes(taskId)) {
-      set({ selectedTaskIds: current.filter((id) => id !== taskId) });
+      const next = current.filter((id) => id !== taskId);
+      set({ selectedTaskIds: next, isMultiSelectMode: next.length > 0 });
     } else {
-      set({ selectedTaskIds: [...current, taskId] });
+      set({ selectedTaskIds: [...current, taskId], isMultiSelectMode: true });
     }
+  },
+  selectAllTasks: (taskIds) => {
+    set({ isMultiSelectMode: true, selectedTaskIds: taskIds });
   },
   clearSelectedBatchTasks: () => set({ selectedTaskIds: [], isMultiSelectMode: false }),
 
