@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, useColorScheme } from 'react-native';
+import { View, useColorScheme, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -35,6 +35,15 @@ function RootLayoutNav() {
       setIsDarkMode(systemColorScheme === 'dark');
     }
   }, [systemColorScheme, themeMode, setIsDarkMode]);
+
+  const outerBgColor = isDarkMode ? '#000000' : '#ffffff';
+  const appBgColor = isDarkMode ? '#09090b' : '#f8fafc';
+
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.body.style.backgroundColor = outerBgColor;
+    }
+  }, [outerBgColor]);
 
   useEffect(() => {
     // Auto sync contacts on first open of the day in background
@@ -109,50 +118,98 @@ function RootLayoutNav() {
     return () => clearTimeout(timer);
   }, []);
 
-  const bgColor = isDarkMode ? '#09090b' : '#f8fafc';
-
   if (!isReady) {
-    return <View style={{ flex: 1, backgroundColor: bgColor }} />;
+    return (
+      <View
+        style={{
+          flex: 1,
+          backgroundColor: outerBgColor,
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: '100%',
+          height: '100%',
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            width: '100%',
+            maxWidth: Platform.OS === 'web' ? 480 : undefined,
+            backgroundColor: appBgColor,
+          }}
+        />
+      </View>
+    );
   }
 
   return (
-    <View style={{ flex: 1, backgroundColor: bgColor }}>
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: outerBgColor,
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: '100%',
+        height: '100%',
+      }}
+    >
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          animation: 'none',
-          contentStyle: {
-            backgroundColor: bgColor,
-          },
+      <View
+        style={{
+          flex: 1,
+          width: '100%',
+          maxWidth: Platform.OS === 'web' ? 480 : undefined,
+          backgroundColor: appBgColor,
+          overflow: 'hidden',
+          ...(Platform.OS === 'web'
+            ? {
+                borderLeftWidth: 1,
+                borderRightWidth: 1,
+                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 4 },
+                shadowOpacity: isDarkMode ? 0.35 : 0.08,
+                shadowRadius: 24,
+              }
+            : {}),
         }}
       >
-        <Stack.Screen
-          name="(tabs)"
-          options={{
+        <Stack
+          screenOptions={{
             headerShown: false,
             animation: 'none',
-            contentStyle: { backgroundColor: bgColor },
+            contentStyle: {
+              backgroundColor: appBgColor,
+            },
           }}
-        />
-        <Stack.Screen
-          name="contacts/index"
-          options={{
-            headerShown: false,
-            animation: 'none',
-            contentStyle: { backgroundColor: bgColor },
-          }}
-        />
-        <Stack.Screen
-          name="task/[id]"
-          options={{
-            presentation: 'card',
-            animation: 'none',
-            headerShown: false,
-            contentStyle: { backgroundColor: bgColor },
-          }}
-        />
-      </Stack>
+        >
+          <Stack.Screen
+            name="(tabs)"
+            options={{
+              headerShown: false,
+              animation: 'none',
+              contentStyle: { backgroundColor: appBgColor },
+            }}
+          />
+          <Stack.Screen
+            name="contacts/index"
+            options={{
+              headerShown: false,
+              animation: 'none',
+              contentStyle: { backgroundColor: appBgColor },
+            }}
+          />
+          <Stack.Screen
+            name="task/[id]"
+            options={{
+              presentation: 'card',
+              animation: 'none',
+              headerShown: false,
+              contentStyle: { backgroundColor: appBgColor },
+            }}
+          />
+        </Stack>
+      </View>
     </View>
   );
 }

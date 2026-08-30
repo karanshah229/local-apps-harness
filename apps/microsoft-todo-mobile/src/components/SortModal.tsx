@@ -139,11 +139,14 @@ export function SortModal({
             flex: 1,
             backgroundColor: 'rgba(0, 0, 0, 0.55)',
             justifyContent: 'flex-end',
+            alignItems: 'center',
           }}
         >
           <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
             <View
               style={{
+                width: '100%',
+                maxWidth: 480,
                 backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
                 borderTopLeftRadius: 28,
                 borderTopRightRadius: 28,
