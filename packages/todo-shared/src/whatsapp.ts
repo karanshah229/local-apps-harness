@@ -1,4 +1,4 @@
-import { Task, Subtask, List, User } from './types';
+import { Task, Subtask, List, User } from './types.js';
 
 export function formatSingleTaskMessage(task: Task, recipient: { name?: string; phone?: string }, subtasks: Subtask[] = []): string {
   let message = `📋 *Task Reminder: ${task.title}*\n`;
@@ -37,7 +37,7 @@ export function formatSingleTaskMessage(task: Task, recipient: { name?: string; 
   }
 
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `_Sent via Microsoft To Do App_`;
+  message += `_Sent via Kamdhenu ToDo App_`;
 
   return message;
 }
@@ -61,7 +61,7 @@ export function formatBatchTasksMessage(tasks: Task[]): string {
   });
 
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `_Sent via Microsoft To Do App_`;
+  message += `_Sent via Kamdhenu ToDo App_`;
 
   return message;
 }
@@ -92,7 +92,7 @@ export function formatWholeListMessage(list: List, tasks: Task[]): string {
   }
 
   message += `━━━━━━━━━━━━━━━━━━━━━\n`;
-  message += `_Sent via Microsoft To Do App_`;
+  message += `_Sent via Kamdhenu ToDo App_`;
 
   return message;
 }

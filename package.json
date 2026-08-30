@@ -1,54 +1,54 @@
 {
-  "name": "saileshbhai-monorepo",
-  "version": "1.0.0",
-  "private": true,
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=9.0.0"
-  },
-  "packageManager": "pnpm@10.32.1",
-  "scripts": {
-    "build": "turbo build",
-    "dev": "turbo dev",
-    "dev:todo": "turbo dev --filter=microsoft-todo-*",
-    "dev:mobile": "pnpm --filter microsoft-todo-mobile dev",
-    "dev:web": "pnpm --filter microsoft-todo-frontend dev",
-    "dev:server": "pnpm --filter microsoft-todo-backend dev",
-    "lint": "node scripts/lint-workspace.mjs",
-    "test": "pnpm test:platform",
-    "test:platform": "node --test tests/*.test.mjs",
-    "platform:check": "node scripts/platform.mjs check",
-    "platform:list": "node scripts/platform.mjs list",
-    "platform:recipe": "node scripts/platform.mjs recipe",
-    "platform:inspect": "node scripts/platform.mjs inspect",
-    "platform:scan": "node scripts/platform.mjs scan",
-    "platform:impact": "node scripts/platform.mjs impact",
-    "platform:register": "node scripts/register-app.mjs",
-    "platform:nginx": "node scripts/generate-nginx.mjs",
-    "platform:backup": "node scripts/backup-app.mjs",
-    "platform:backup:prune": "node scripts/backup-app.mjs --prune",
-    "platform:restore": "node scripts/restore-app.mjs",
-    "platform:db:ensure": "node scripts/ensure-postgres-db.mjs",
-    "platform:tailscale": "node scripts/configure-tailscale.mjs",
-    "platform:deploy": "node scripts/deploy-app.mjs",
-    "clean": "rm -rf .turbo && pnpm -r exec rm -rf node_modules dist .turbo .next build"
-  },
-  "devDependencies": {
-    "turbo": "^2.0.0"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "esbuild",
-      "sqlite3"
-    ],
-    "peerDependencyRules": {
-      "allowAny": [
-        "react",
-        "react-dom",
-        "@types/react",
-        "@types/react-dom"
-      ]
-    }
-  }
+	"name": "local-apps-monorepo",
+	"version": "1.0.0",
+	"private": true,
+	"engines": {
+		"node": ">=18.0.0",
+		"pnpm": ">=9.0.0"
+	},
+	"packageManager": "pnpm@10.32.1",
+	"scripts": {
+		"build": "turbo build",
+		"dev": "turbo dev",
+		"dev:todo": "turbo dev --filter=microsoft-todo-*",
+		"dev:todo:mobile": "pnpm --filter microsoft-todo-mobile dev",
+		"dev:todo:web": "pnpm --filter microsoft-todo-frontend dev",
+		"dev:todo:server": "pnpm --filter microsoft-todo-backend dev",
+		"lint": "node scripts/lint-workspace.mjs",
+		"test": "pnpm test:platform",
+		"test:platform": "node --test tests/*.test.mjs",
+		"platform:check": "node scripts/platform.mjs check",
+		"platform:list": "node scripts/platform.mjs list",
+		"platform:recipe": "node scripts/platform.mjs recipe",
+		"platform:inspect": "node scripts/platform.mjs inspect",
+		"platform:scan": "node scripts/platform.mjs scan",
+		"platform:impact": "node scripts/platform.mjs impact",
+		"platform:register": "node scripts/register-app.mjs",
+		"platform:nginx": "node scripts/generate-nginx.mjs",
+		"platform:backup": "node scripts/backup-app.mjs",
+		"platform:backup:prune": "node scripts/backup-app.mjs --prune",
+		"platform:restore": "node scripts/restore-app.mjs",
+		"platform:db:ensure": "node scripts/ensure-postgres-db.mjs",
+		"platform:tailscale": "node scripts/configure-tailscale.mjs",
+		"platform:deploy": "node scripts/deploy-app.mjs",
+		"clean": "rm -rf .turbo && pnpm -r exec rm -rf node_modules dist .turbo .next build"
+	},
+	"devDependencies": {
+		"turbo": "^2.0.0"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"better-sqlite3",
+			"esbuild",
+			"sqlite3"
+		],
+		"peerDependencyRules": {
+			"allowAny": [
+				"react",
+				"react-dom",
+				"@types/react",
+				"@types/react-dom"
+			]
+		}
+	}
 }

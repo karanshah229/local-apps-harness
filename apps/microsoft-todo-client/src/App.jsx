@@ -1,537 +1,370 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { io } from 'socket.io-client';
-import Sidebar from './components/Sidebar';
-import TaskMainView from './components/TaskMainView';
-import TaskDetailDrawer from './components/TaskDetailDrawer';
-import MobileBottomNav from './components/MobileBottomNav';
-import ListsSheet from './components/ListsSheet';
-import UserLibraryModal from './components/UserLibraryModal';
-import ShareListModal from './components/ShareListModal';
-import WhatsAppShareModal from './components/WhatsAppShareModal';
-import './App.css';
+import React, { useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { useUiStore } from './store/useUiStore.js';
+import {
+  useUsersQuery,
+  useListsQuery,
+  useTasksQuery,
+  useTaskCountsQuery,
+  useCreateTaskMutation,
+  useUpdateTaskMutation,
+  useDeleteTaskMutation,
+  useCreateListMutation,
+  useUpdateListMutation,
+  useDeleteListMutation,
+  useShareListMutation,
+  useAddUserMutation,
+  useUpdateUserMutation,
+  useDeleteUserMutation,
+  useBatchImportUsersMutation,
+  useSocketSync,
+} from './hooks/useTodoQueries.js';
 
-const getBaseUrl = () => {
-  let path = window.location.pathname;
-  if (path.endsWith('.html')) {
-    path = path.substring(0, path.lastIndexOf('/'));
-  }
-  if (!path.endsWith('/')) {
-    path += '/';
-  }
-  return path;
-};
-
-const socket = io('/', {
-  path: `${getBaseUrl()}socket.io`.replace(/\/+/g, '/'),
-  autoConnect: true
-});
+import Sidebar from './components/Sidebar.jsx';
+import TaskMainView from './components/TaskMainView.jsx';
+import TaskDetailDrawer from './components/TaskDetailDrawer.jsx';
+import ContactsPage from './components/ContactsPage.jsx';
+import SettingsPage from './components/SettingsPage.jsx';
+import ShareListModal from './components/ShareListModal.jsx';
+import WhatsAppShareModal from './components/WhatsAppShareModal.jsx';
+import ListsSheet from './components/ListsSheet.jsx';
+import MobileBottomNav from './components/MobileBottomNav.jsx';
 
 export default function App() {
-  const [users, setUsers] = useState([]);
-  const [activeUser, setActiveUser] = useState(null);
+  // Initialize Real-Time Socket.IO Synchronization with TanStack Query
+  useSocketSync();
 
-  const [lists, setLists] = useState([]);
-  const [activeListId, setActiveListId] = useState(null);
-  const [activeView, setActiveView] = useState('all-tasks');
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  const [tasks, setTasks] = useState([]);
-  const [selectedTask, setSelectedTask] = useState(null);
+  // Zustand Store States & Actions
+  const {
+    themeMode,
+    isDarkMode,
+    setThemeMode,
+    isSidebarCollapsed,
+    toggleSidebar,
+    activeView,
+    setActiveView,
+    activeListId,
+    setActiveListId,
+    selectedTaskId,
+    setSelectedTaskId,
+    activeUser,
+    setActiveUser,
+    sharingList,
+    setSharingList,
+    whatsappConfig,
+    setWhatsappConfig,
+    isListsSheetOpen,
+    setIsListsSheetOpen,
+  } = useUiStore();
 
-  const [taskCounts, setTaskCounts] = useState({});
-  const [toastMessage, setToastMessage] = useState('');
-
-  // Modals and Sheet state
-  const [isUserLibraryOpen, setIsUserLibraryOpen] = useState(false);
-  const [isListsSheetOpen, setIsListsSheetOpen] = useState(false);
-  const [sharingList, setSharingList] = useState(null);
-  const [whatsappConfig, setWhatsappConfig] = useState(null);
-
-  // Dark Mode
-  const [isDarkMode, setIsDarkMode] = useState(() => {
-    return localStorage.getItem('todo_theme') === 'dark';
-  });
-
+  // Sync theme to DOM on mount and changes
   useEffect(() => {
     if (isDarkMode) {
       document.documentElement.classList.add('dark');
-      localStorage.setItem('todo_theme', 'dark');
     } else {
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('todo_theme', 'light');
     }
   }, [isDarkMode]);
 
-  const toggleDarkMode = () => {
-    setIsDarkMode((prev) => !prev);
-  };
-
-  // 1. Load initial users
-  const fetchUsers = async () => {
-    try {
-      const res = await fetch('/api/users');
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data);
-        if (!activeUser && data.length > 0) {
-          setActiveUser(data[0]);
-        }
-      }
-    } catch (err) {
-      console.error('Error fetching users:', err);
-    }
-  };
-
-  // 2. Load accessible lists for active user
-  const fetchLists = useCallback(async () => {
-    if (!activeUser) return;
-    try {
-      const res = await fetch(`/api/lists?userId=${activeUser.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setLists(data);
-      }
-    } catch (err) {
-      console.error('Error fetching lists:', err);
-    }
-  }, [activeUser]);
-
-  // 3. Load tasks for current view or current list
-  const fetchTasks = useCallback(async () => {
-    if (!activeUser) return;
-    try {
-      let url = '/api/tasks?';
-      if (activeListId) {
-        url += `listId=${activeListId}`;
-      } else {
-        url += `view=${activeView}&userId=${activeUser.id}`;
-      }
-
-      const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setTasks(data);
-      }
-    } catch (err) {
-      console.error('Error fetching tasks:', err);
-    }
-  }, [activeListId, activeView, activeUser]);
-
-  // 4. Calculate task counts for badges
-  const fetchTaskCounts = useCallback(async () => {
-    if (!activeUser) return;
-    try {
-      const views = ['all-tasks', 'important', 'assigned-to-me'];
-      const counts = {};
-      for (const v of views) {
-        const res = await fetch(`/api/tasks?view=${v}&userId=${activeUser.id}`);
-        if (res.ok) {
-          const data = await res.json();
-          counts[v] = data.filter((t) => !t.is_completed).length;
-        }
-      }
-      setTaskCounts(counts);
-    } catch (err) {
-      console.error('Error fetching task counts:', err);
-    }
-  }, [activeUser]);
-
+  // Sync URL route with active view
   useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  useEffect(() => {
-    if (activeUser) {
-      fetchLists();
-      fetchTasks();
-      fetchTaskCounts();
+    const path = location.pathname;
+    if (path.includes('/contacts')) {
+      setActiveView('contacts');
+    } else if (path.includes('/settings')) {
+      setActiveView('settings');
+    } else if (path.includes('/lists')) {
+      setActiveView(null);
+    } else {
+      if (activeView === 'contacts' || activeView === 'settings') {
+        setActiveView('all-tasks');
+      }
     }
-  }, [activeUser, fetchLists, fetchTasks, fetchTaskCounts]);
+  }, [location.pathname]);
 
-  // 5. Setup Socket.io real-time sync listeners
+  // ----------------------------------------------------
+  // SERVER DATA QUERIES
+  // ----------------------------------------------------
+  const { data: users = [] } = useUsersQuery();
+
+  // Set default active user once loaded
   useEffect(() => {
-    socket.on('task_created', () => {
-      fetchTasks();
-      fetchTaskCounts();
-      fetchLists();
-    });
+    if (!activeUser && users.length > 0) {
+      setActiveUser(users[0]);
+    }
+  }, [users, activeUser, setActiveUser]);
 
-    socket.on('task_updated', (updatedTask) => {
-      fetchTasks();
-      fetchTaskCounts();
-      fetchLists();
-      setSelectedTask((prev) =>
-        prev && prev.id === updatedTask.id ? updatedTask : prev
-      );
-    });
+  const { data: lists = [] } = useListsQuery(activeUser?.id);
+  const { data: tasks = [] } = useTasksQuery({
+    listId: activeListId,
+    view: activeView,
+    userId: activeUser?.id,
+  });
+  const { data: taskCounts = {} } = useTaskCountsQuery(activeUser?.id);
 
-    socket.on('task_deleted', ({ id }) => {
-      fetchTasks();
-      fetchTaskCounts();
-      fetchLists();
-      setSelectedTask((prev) => (prev && prev.id === parseInt(id) ? null : prev));
-    });
+  // ----------------------------------------------------
+  // MUTATIONS
+  // ----------------------------------------------------
+  const createTaskMutation = useCreateTaskMutation();
+  const updateTaskMutation = useUpdateTaskMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
 
-    socket.on('list_created', () => fetchLists());
-    socket.on('list_updated', () => fetchLists());
-    socket.on('list_deleted', () => fetchLists());
-    socket.on('list_shared', () => fetchLists());
-    socket.on('users_updated', () => fetchUsers());
+  const createListMutation = useCreateListMutation();
+  const updateListMutation = useUpdateListMutation();
+  const deleteListMutation = useDeleteListMutation();
+  const shareListMutation = useShareListMutation();
 
-    socket.on('reminder_alert', ({ message }) => {
-      setToastMessage(message);
-      setTimeout(() => setToastMessage(''), 6000);
-    });
+  const addUserMutation = useAddUserMutation();
+  const updateUserMutation = useUpdateUserMutation();
+  const deleteUserMutation = useDeleteUserMutation();
+  const batchImportUsersMutation = useBatchImportUsersMutation();
 
-    return () => {
-      socket.off('task_created');
-      socket.off('task_updated');
-      socket.off('task_deleted');
-      socket.off('list_created');
-      socket.off('list_updated');
-      socket.off('list_deleted');
-      socket.off('list_shared');
-      socket.off('users_updated');
-      socket.off('reminder_alert');
-    };
-  }, [fetchTasks, fetchTaskCounts, fetchLists]);
+  // Derived state
+  const activeList = lists.find((l) => l.id === activeListId);
+  const selectedTask = selectedTaskId
+    ? selectedTaskId < 0
+      ? { id: selectedTaskId, title: '', notes: '', list_id: activeListId }
+      : tasks.find((t) => t.id === selectedTaskId) || null
+    : null;
 
   // Handlers
-  const handleAddUser = async (userObj) => {
-    try {
-      const res = await fetch('/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userObj)
-      });
-      if (res.ok) {
-        const newUser = await res.json();
-        setUsers((prev) => [...prev, newUser]);
-        setToastMessage(`Contact "${newUser.name}" added to user library!`);
-        setTimeout(() => setToastMessage(''), 3000);
-        return true;
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    return false;
+  const handleSelectTask = (task) => {
+    setSelectedTaskId(task ? task.id : null);
   };
 
-  const handleUpdateUser = async (userObj) => {
-    try {
-      const res = await fetch(`/api/users/${userObj.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(userObj)
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
-        if (activeUser && activeUser.id === updated.id) {
-          setActiveUser(updated);
-        }
-        setToastMessage(`Contact "${updated.name}" updated successfully!`);
-        setTimeout(() => setToastMessage(''), 3000);
-        return true;
-      }
-    } catch (err) {
-      console.error(err);
-    }
-    return false;
+  const handleCreateTask = async (taskData) => {
+    return createTaskMutation.mutateAsync({
+      ...taskData,
+      created_by: activeUser ? activeUser.id : 2,
+    });
   };
 
-  const handleDeleteUser = async (userId) => {
-    try {
-      const res = await fetch(`/api/users/${userId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setUsers((prev) => prev.filter((u) => u.id !== userId));
-        if (activeUser && activeUser.id === userId) {
-          const remaining = users.filter((u) => u.id !== userId);
-          if (remaining.length > 0) setActiveUser(remaining[0]);
-        }
-        setToastMessage('Contact deleted from user library.');
-        setTimeout(() => setToastMessage(''), 3000);
-      }
-    } catch (err) {
-      console.error(err);
-    }
+  const handleUpdateTask = (taskUpdate) => {
+    updateTaskMutation.mutate(taskUpdate);
   };
 
-  const handleBatchImportUsers = async (contactsArray) => {
-    try {
-      const res = await fetch('/api/users/batch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ contacts: contactsArray })
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setUsers(data.users);
-        const count = (data.importedCount || 0) + (data.updatedCount || 0);
-        setToastMessage(`Imported ${count} contact(s) from device!`);
-        setTimeout(() => setToastMessage(''), 4000);
-        return data;
-      }
-    } catch (err) {
-      console.error('Error batch importing users:', err);
-    }
-    return null;
+  const handleDeleteTask = (taskId) => {
+    if (selectedTaskId === taskId) setSelectedTaskId(null);
+    deleteTaskMutation.mutate(taskId);
+  };
+
+  const handleToggleTaskComplete = (task) => {
+    updateTaskMutation.mutate({
+      id: task.id,
+      is_completed: task.is_completed ? 0 : 1,
+    });
+  };
+
+  const handleToggleTaskImportant = (task) => {
+    updateTaskMutation.mutate({
+      id: task.id,
+      is_important: task.is_important ? 0 : 1,
+    });
   };
 
   const handleCreateList = async (title) => {
     try {
-      const res = await fetch('/api/lists', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title,
-          created_by: activeUser ? activeUser.id : 1
-        })
+      const newList = await createListMutation.mutateAsync({
+        title,
+        color_theme: 'blue',
+        icon: 'list',
+        created_by: activeUser ? activeUser.id : 2,
       });
-      if (res.ok) {
-        const newList = await res.json();
+      if (newList?.id) {
         setActiveListId(newList.id);
         setActiveView(null);
-        fetchLists();
       }
-    } catch (err) {
-      console.error(err);
+      return true;
+    } catch {
+      return false;
     }
   };
 
-  const handleDeleteList = async (listId) => {
-    try {
-      const res = await fetch(`/api/lists/${listId}`, { method: 'DELETE' });
-      if (res.ok) {
-        if (activeListId === listId) {
-          setActiveListId(null);
-          setActiveView('all-tasks');
-        }
-        fetchLists();
-      }
-    } catch (err) {
-      console.error(err);
+  const handleDeleteList = async (id) => {
+    if (activeListId === id) {
+      setActiveListId(null);
+      setActiveView('all-tasks');
     }
+    await deleteListMutation.mutateAsync(id);
+    return true;
   };
 
-  const handleUpdateListTheme = async (listId, themeColor) => {
+  const handleUpdateListTheme = (listId, themeColor) => {
     const list = lists.find((l) => l.id === listId);
     if (!list) return;
-    try {
-      await fetch(`/api/lists/${listId}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: list.title,
-          color_theme: themeColor,
-          icon: list.icon
-        })
-      });
-      fetchLists();
-    } catch (err) {
-      console.error(err);
-    }
+    updateListMutation.mutate({
+      id: listId,
+      title: list.title,
+      color_theme: themeColor,
+      icon: list.icon,
+    });
   };
-
-  const handleCreateTask = async (taskData) => {
-    try {
-      const res = await fetch('/api/tasks', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...taskData,
-          created_by: activeUser ? activeUser.id : 1
-        })
-      });
-      if (res.ok) {
-        fetchTasks();
-        fetchTaskCounts();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleUpdateTask = async (taskUpdate) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskUpdate.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(taskUpdate)
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
-        if (selectedTask && selectedTask.id === updated.id) {
-          setSelectedTask(updated);
-        }
-        fetchTaskCounts();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleToggleTaskComplete = (task) => {
-    handleUpdateTask({ id: task.id, is_completed: task.is_completed ? 0 : 1 });
-  };
-
-  const handleToggleTaskImportant = (task) => {
-    handleUpdateTask({ id: task.id, is_important: task.is_important ? 0 : 1 });
-  };
-
-  const handleDeleteTask = async (taskId) => {
-    try {
-      const res = await fetch(`/api/tasks/${taskId}`, { method: 'DELETE' });
-      if (res.ok) {
-        setSelectedTask(null);
-        fetchTasks();
-        fetchTaskCounts();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleShareList = async (listId, userId) => {
-    try {
-      const res = await fetch(`/api/lists/${listId}/share`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId })
-      });
-      if (res.ok) {
-        fetchLists();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const handleRemoveShare = async (listId, userId) => {
-    try {
-      const res = await fetch(`/api/lists/${listId}/share/${userId}`, { method: 'DELETE' });
-      if (res.ok) {
-        fetchLists();
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  const activeList = lists.find((l) => l.id === activeListId);
 
   return (
-    <div className="flex h-screen h-[100dvh] w-screen overflow-hidden bg-background text-foreground">
-      {/* Desktop Sidebar (hidden on mobile) */}
+    <div className="flex h-screen w-screen overflow-hidden bg-background text-foreground selection:bg-primary/20 selection:text-primary antialiased font-sans">
+      {/* Desktop / Tablet Left Sidebar */}
       <Sidebar
         activeView={activeView}
-        setActiveView={setActiveView}
-        lists={lists}
+        setActiveView={(v) => {
+          setActiveView(v);
+          if (v === 'contacts') navigate('/contacts');
+          else if (v === 'settings') navigate('/settings');
+          else navigate('/tasks');
+        }}
         activeListId={activeListId}
-        setActiveListId={setActiveListId}
-        users={users}
+        setActiveListId={(id) => {
+          setActiveListId(id);
+          navigate('/tasks');
+        }}
+        lists={lists}
         activeUser={activeUser}
-        setActiveUser={setActiveUser}
-        onOpenUserLibrary={() => setIsUserLibraryOpen(true)}
+        users={users}
+        onSelectUser={setActiveUser}
         onCreateList={handleCreateList}
         onDeleteList={handleDeleteList}
         taskCounts={taskCounts}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
-      {/* Main Task List View */}
-      <TaskMainView
-        activeView={activeView}
-        activeList={activeList}
-        tasks={tasks}
-        selectedTaskId={selectedTask?.id}
-        onSelectTask={(task) => setSelectedTask(task)}
-        onCreateTask={handleCreateTask}
-        onToggleTaskComplete={handleToggleTaskComplete}
-        onToggleTaskImportant={handleToggleTaskImportant}
-        onOpenShareModal={(list) => setSharingList(list)}
-        onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
-        onUpdateListTheme={handleUpdateListTheme}
-        isDarkMode={isDarkMode}
-        onToggleDarkMode={toggleDarkMode}
-      />
+      {/* Main Content Area */}
+      <div className="flex-1 flex flex-col min-w-0 h-full relative overflow-hidden bg-background">
+        <Routes>
+          <Route
+            path="/contacts"
+            element={
+              <ContactsPage
+                onBack={() => {
+                  setActiveView('all-tasks');
+                  navigate('/tasks');
+                }}
+                users={users}
+                activeUser={activeUser}
+                setActiveUser={setActiveUser}
+                onAddUser={(data) => addUserMutation.mutateAsync(data)}
+                onUpdateUser={(data) => updateUserMutation.mutateAsync(data)}
+                onDeleteUser={(id) => deleteUserMutation.mutateAsync(id)}
+                onBatchImportUsers={(contacts) => batchImportUsersMutation.mutateAsync(contacts)}
+              />
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                onBack={() => {
+                  setActiveView('all-tasks');
+                  navigate('/tasks');
+                }}
+                isDarkMode={isDarkMode}
+                themeMode={themeMode}
+                onSetThemeMode={setThemeMode}
+              />
+            }
+          />
+          <Route
+            path="*"
+            element={
+              <TaskMainView
+                activeView={activeView}
+                activeList={activeList}
+                tasks={tasks}
+                selectedTaskId={selectedTask?.id}
+                onSelectTask={handleSelectTask}
+                onCreateTask={handleCreateTask}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                onToggleTaskImportant={handleToggleTaskImportant}
+                onOpenShareModal={(list) => setSharingList(list)}
+                onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
+                onUpdateListTheme={handleUpdateListTheme}
+                isDarkMode={isDarkMode}
+                onOpenSettings={() => {
+                  setActiveView('settings');
+                  navigate('/settings');
+                }}
+              />
+            }
+          />
+        </Routes>
+      </div>
 
-      {/* Task Details Drawer (Fullscreen on mobile, side-panel on desktop) */}
+      {/* Task Details Drawer (Fullscreen on mobile, split-pane on desktop) */}
       {selectedTask && (
         <TaskDetailDrawer
           task={selectedTask}
           users={users}
-          onClose={() => setSelectedTask(null)}
+          lists={lists}
+          onClose={() => setSelectedTaskId(null)}
           onUpdateTask={handleUpdateTask}
+          onCreateTask={handleCreateTask}
           onDeleteTask={handleDeleteTask}
           onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
         />
       )}
 
-      {/* Mobile Bottom CTA Navigation Bar (hidden on desktop) */}
+      {/* Mobile Bottom Navigation Bar (Hidden on desktop) */}
       <MobileBottomNav
         activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveView={(v) => {
+          setActiveView(v);
+          if (v === 'contacts') navigate('/contacts');
+          else if (v === 'settings') navigate('/settings');
+          else navigate('/tasks');
+        }}
         activeListId={activeListId}
-        setActiveListId={setActiveListId}
+        setActiveListId={(id) => {
+          setActiveListId(id);
+          navigate('/tasks');
+        }}
         taskCounts={taskCounts}
         onOpenListsSheet={() => setIsListsSheetOpen(true)}
-        onOpenUserLibrary={() => setIsUserLibraryOpen(true)}
+        onOpenUserLibrary={() => {
+          setActiveView('contacts');
+          navigate('/contacts');
+        }}
         activeUser={activeUser}
         lists={lists}
       />
 
-      {/* Lists Bottom Sheet */}
+      {/* Global Modals & Sheets */}
+      {sharingList && (
+        <ShareListModal
+          list={sharingList}
+          users={users}
+          currentUser={activeUser}
+          onClose={() => setSharingList(null)}
+          onShareList={(listId, userIds) => shareListMutation.mutateAsync({ listId, userIds })}
+          onRemoveUser={(listId, userId) => shareListMutation.mutateAsync({ listId, userId })}
+        />
+      )}
+
+      {whatsappConfig && (
+        <WhatsAppShareModal
+          config={whatsappConfig}
+          users={users}
+          lists={lists}
+          tasks={tasks}
+          onClose={() => setWhatsappConfig(null)}
+        />
+      )}
+
       <ListsSheet
         isOpen={isListsSheetOpen}
         onClose={() => setIsListsSheetOpen(false)}
         lists={lists}
         activeListId={activeListId}
-        setActiveListId={setActiveListId}
-        activeView={activeView}
-        setActiveView={setActiveView}
+        setActiveListId={(id) => {
+          setActiveListId(id);
+          setActiveView(null);
+          navigate('/tasks');
+        }}
         onCreateList={handleCreateList}
         onDeleteList={handleDeleteList}
         taskCounts={taskCounts}
       />
-
-      {/* User Library & Contacts Sheet */}
-      <UserLibraryModal
-        isOpen={isUserLibraryOpen}
-        onClose={() => setIsUserLibraryOpen(false)}
-        users={users}
-        activeUser={activeUser}
-        setActiveUser={setActiveUser}
-        onAddUser={handleAddUser}
-        onUpdateUser={handleUpdateUser}
-        onDeleteUser={handleDeleteUser}
-        onBatchImportUsers={handleBatchImportUsers}
-      />
-
-      {/* Share List Sheet */}
-      <ShareListModal
-        isOpen={!!sharingList}
-        onClose={() => setSharingList(null)}
-        list={sharingList}
-        users={users}
-        onShareList={handleShareList}
-        onRemoveShare={handleRemoveShare}
-      />
-
-      {/* WhatsApp Share & Reminder Sheet */}
-      <WhatsAppShareModal
-        isOpen={!!whatsappConfig}
-        onClose={() => setWhatsappConfig(null)}
-        config={whatsappConfig}
-        users={users}
-      />
-
-      {/* Toast Alert Notification */}
-      {toastMessage && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-2 text-xs sm:text-sm font-semibold max-w-[90vw] animate-in fade-in slide-in-from-top-4 duration-200">
-          <span className="text-base">📲</span>
-          <span className="truncate">{toastMessage}</span>
-        </div>
-      )}
     </div>
   );
 }

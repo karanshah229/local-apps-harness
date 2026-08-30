@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { Share2, Trash2, X, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { List, User } from '@saileshbhai/todo-shared';
+import { User, List } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface ShareListModalProps {
   isOpen: boolean;
@@ -54,7 +55,7 @@ export default function ShareListModal({
     <Modal
       visible={isOpen}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
@@ -274,11 +275,11 @@ const styles = StyleSheet.create({
     flex: 1
   },
   title: {
-    fontSize: 17,
+    fontSize: fontSizes.heading,
     fontWeight: '800'
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '500',
     marginTop: 1
   },
@@ -294,7 +295,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8,
@@ -323,7 +324,7 @@ const styles = StyleSheet.create({
     borderRadius: 12
   },
   userPickName: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     fontWeight: '700'
   },
   addMemberBtn: {
@@ -337,7 +338,7 @@ const styles = StyleSheet.create({
   },
   addMemberBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   },
   emptyUsersBox: {
@@ -346,7 +347,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   emptyUsersText: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     textAlign: 'center'
   },
   emptyMembersBox: {
@@ -357,7 +358,7 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   emptyMembersText: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     textAlign: 'center',
     lineHeight: 16
   },
@@ -381,11 +382,11 @@ const styles = StyleSheet.create({
     flex: 1
   },
   memberName: {
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '700'
   },
   memberPhone: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     marginTop: 1
   },
   removeBtn: {
@@ -404,7 +405,7 @@ const styles = StyleSheet.create({
   },
   doneBtnText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   }
 });

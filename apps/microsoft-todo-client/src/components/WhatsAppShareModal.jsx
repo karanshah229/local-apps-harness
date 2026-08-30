@@ -113,7 +113,7 @@ export default function WhatsAppShareModal({ isOpen, onClose, config, users }) {
         <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto pr-1">
           {/* Recipient Selection */}
           <div className="space-y-2">
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
               Select Contact from User Library
             </label>
             <select
@@ -144,7 +144,7 @@ export default function WhatsAppShareModal({ isOpen, onClose, config, users }) {
           {/* Formatted Message Bubble Preview */}
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-1">
                 <MessageSquare className="w-3.5 h-3.5" /> Formatted Message Preview
               </span>
               <button

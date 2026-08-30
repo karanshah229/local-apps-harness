@@ -2,7 +2,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createServer } from "node:net";
-import { mkdtempSync, mkdirSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 
@@ -34,7 +34,10 @@ async function waitForHealth(port, child, output) {
 async function runServerJourney({ directory, env }) {
   const port = await freePort();
   const output = [];
-  const child = spawn(process.execPath, ["src/server.js"], {
+  const scriptPath = existsSync(resolve(root, directory, "dist/server.js"))
+    ? "dist/server.js"
+    : "src/server.js";
+  const child = spawn(process.execPath, [scriptPath], {
     cwd: resolve(root, directory),
     env: { ...process.env, ...env, PORT: String(port) },
     stdio: ["ignore", "pipe", "pipe"],
@@ -57,7 +60,7 @@ async function runServerJourney({ directory, env }) {
   }
 }
 
-test("Microsoft To Do API starts with disposable data and reports healthy", async () => {
+test("Kamdhenu ToDo API starts with disposable data and reports healthy", async () => {
   const directory = mkdtempSync(resolve(tmpdir(), "todo-journey-"));
   try {
     await runServerJourney({

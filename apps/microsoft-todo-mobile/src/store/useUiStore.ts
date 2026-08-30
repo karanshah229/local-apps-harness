@@ -1,0 +1,104 @@
+import { create } from 'zustand';
+import { Appearance } from 'react-native';
+import { User, List, Task, WhatsAppPayloadConfig, ViewSortConfig, SortPreferences, DEFAULT_SORT_CONFIG } from '@shared/todo';
+
+const getInitialDarkMode = (mode: 'system' | 'light' | 'dark'): boolean => {
+  if (mode === 'dark') return true;
+  if (mode === 'light') return false;
+  return Appearance.getColorScheme() === 'dark';
+};
+
+interface UiState {
+  themeMode: 'system' | 'light' | 'dark';
+  isDarkMode: boolean;
+  setThemeMode: (mode: 'system' | 'light' | 'dark') => void;
+  setIsDarkMode: (isDark: boolean) => void;
+
+  activeView: string | null;
+  setActiveView: (view: string | null) => void;
+
+  activeListId: number | null;
+  setActiveListId: (id: number | null) => void;
+
+  selectedTaskId: number | null;
+  setSelectedTaskId: (id: number | null) => void;
+
+  isMultiSelectMode: boolean;
+  selectedTaskIds: number[];
+  toggleMultiSelectMode: () => void;
+  toggleSelectTaskForBatch: (taskId: number) => void;
+  clearSelectedBatchTasks: () => void;
+
+  activeUser: User | null;
+  setActiveUser: (user: User | null) => void;
+
+  sharingList: List | null;
+  setSharingList: (list: List | null) => void;
+
+  whatsappConfig: WhatsAppPayloadConfig | null;
+  setWhatsappConfig: (config: WhatsAppPayloadConfig | null) => void;
+
+  isListsSheetOpen: boolean;
+  setIsListsSheetOpen: (open: boolean) => void;
+
+  sortPreferences: SortPreferences;
+  getViewSort: (viewKey: string) => ViewSortConfig;
+  setViewSort: (viewKey: string, config: ViewSortConfig) => void;
+  setAllSortPreferences: (prefs: SortPreferences) => void;
+}
+
+export const useUiStore = create<UiState>((set, get) => ({
+  themeMode: 'system',
+  isDarkMode: getInitialDarkMode('system'),
+  setThemeMode: (mode) => set({ themeMode: mode, isDarkMode: getInitialDarkMode(mode) }),
+  setIsDarkMode: (isDark) => set({ isDarkMode: isDark }),
+
+  activeView: 'all-tasks',
+  setActiveView: (view) => set({ activeView: view, activeListId: null }),
+
+  activeListId: null,
+  setActiveListId: (id) => set({ activeListId: id, activeView: null }),
+
+  selectedTaskId: null,
+  setSelectedTaskId: (id) => set({ selectedTaskId: id }),
+
+  isMultiSelectMode: false,
+  selectedTaskIds: [],
+  toggleMultiSelectMode: () => {
+    const next = !get().isMultiSelectMode;
+    set({ isMultiSelectMode: next, selectedTaskIds: [] });
+  },
+  toggleSelectTaskForBatch: (taskId: number) => {
+    const current = get().selectedTaskIds;
+    if (current.includes(taskId)) {
+      set({ selectedTaskIds: current.filter((id) => id !== taskId) });
+    } else {
+      set({ selectedTaskIds: [...current, taskId] });
+    }
+  },
+  clearSelectedBatchTasks: () => set({ selectedTaskIds: [], isMultiSelectMode: false }),
+
+  activeUser: null,
+  setActiveUser: (user) => set({ activeUser: user }),
+
+  sharingList: null,
+  setSharingList: (list) => set({ sharingList: list }),
+
+  whatsappConfig: null,
+  setWhatsappConfig: (config) => set({ whatsappConfig: config }),
+
+  isListsSheetOpen: false,
+  setIsListsSheetOpen: (open) => set({ isListsSheetOpen: open }),
+
+  sortPreferences: {},
+  getViewSort: (viewKey: string) => {
+    return get().sortPreferences[viewKey] || DEFAULT_SORT_CONFIG;
+  },
+  setViewSort: (viewKey: string, config: ViewSortConfig) => {
+    const next = { ...get().sortPreferences, [viewKey]: config };
+    set({ sortPreferences: next });
+  },
+  setAllSortPreferences: (prefs: SortPreferences) => {
+    set({ sortPreferences: prefs || {} });
+  },
+}));

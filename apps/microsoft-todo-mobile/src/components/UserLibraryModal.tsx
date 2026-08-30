@@ -27,9 +27,14 @@ import {
   X
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { User as UserType, BatchImportContact } from '@saileshbhai/todo-shared';
+import {
+  User as UserType,
+  BatchImportContact,
+  normalizeToE164
+} from '@shared/todo';
 import { getDeviceContacts } from '../services/nativeContacts';
 import { lightColors, darkColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface UserLibraryModalProps {
   isOpen: boolean;
@@ -96,12 +101,14 @@ export default function UserLibraryModal({
       return;
     }
 
+    const normalizedPhone = normalizeToE164(phone.trim()) || phone.trim();
+
     if (editingUserId) {
       const success = await onUpdateUser({
         id: editingUserId,
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim()
+        phone: normalizedPhone
       });
       if (success) {
         handleCancelEdit();
@@ -113,7 +120,7 @@ export default function UserLibraryModal({
       const success = await onAddUser({
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim()
+        phone: normalizedPhone
       });
       if (success) {
         handleCancelEdit();
@@ -180,7 +187,7 @@ export default function UserLibraryModal({
     <Modal
       visible={isOpen}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
@@ -196,10 +203,10 @@ export default function UserLibraryModal({
               <Users size={22} color="#0078d4" />
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>
-                  Contacts & Library
+                  Contacts Directory
                 </Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  Manage accounts, device contacts & WhatsApp assignments
+                  Import device contacts & manage WhatsApp assignments
                 </Text>
               </View>
             </View>
@@ -212,70 +219,8 @@ export default function UserLibraryModal({
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
           >
-            {/* Active Account Switcher Card */}
-            <View
-              style={[
-                styles.activeUserCard,
-                {
-                  backgroundColor: isDarkMode
-                    ? 'rgba(0, 120, 212, 0.15)'
-                    : 'rgba(0, 120, 212, 0.08)',
-                  borderColor: 'rgba(0, 120, 212, 0.25)'
-                }
-              ]}
-            >
-              <View style={styles.activeUserHeader}>
-                <View style={styles.activeUserTag}>
-                  <ShieldCheck size={14} color="#0078d4" />
-                  <Text style={styles.activeUserTagText}>ACTIVE CURRENT USER</Text>
-                </View>
-                <Text style={{ color: colors.textMuted, fontSize: 11 }}>
-                  Tap to switch
-                </Text>
-              </View>
-
-              <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                <View style={styles.userPillRow}>
-                  {users.map((u) => {
-                    const isSelected = activeUser?.id === u.id;
-                    return (
-                      <TouchableOpacity
-                        key={u.id}
-                        onPress={() => setActiveUser(u)}
-                        style={[
-                          styles.userPill,
-                          {
-                            backgroundColor: colors.card,
-                            borderColor: isSelected ? '#0078d4' : colors.border
-                          },
-                          isSelected && styles.userPillSelected
-                        ]}
-                        activeOpacity={0.7}
-                      >
-                        <Image
-                          source={{
-                            uri:
-                              u.avatar ||
-                              `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
-                          }}
-                          style={styles.userPillAvatar}
-                        />
-                        <Text
-                          style={[
-                            styles.userPillName,
-                            { color: isSelected ? '#0078d4' : colors.text }
-                          ]}
-                        >
-                          {u.name.split(' ')[0]}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              </ScrollView>
-            </View>
-
             {/* Error / Success Feedback Banners */}
             {Boolean(error) && (
               <View style={styles.errorBanner}>
@@ -353,7 +298,7 @@ export default function UserLibraryModal({
                     {editingUserId ? `Edit: ${name}` : 'Add New Contact'}
                   </Text>
                   <TouchableOpacity onPress={handleCancelEdit}>
-                    <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                    <Text style={{ color: colors.textMuted, fontSize: fontSizes.caption }}>
                       Cancel
                     </Text>
                   </TouchableOpacity>
@@ -453,13 +398,7 @@ export default function UserLibraryModal({
                     key={u.id}
                     style={[
                       styles.contactCard,
-                      { backgroundColor: colors.card, borderColor: colors.border },
-                      isCurrentActive && {
-                        borderColor: '#0078d4',
-                        backgroundColor: isDarkMode
-                          ? 'rgba(0,120,212,0.1)'
-                          : 'rgba(0,120,212,0.05)'
-                      }
+                      { backgroundColor: colors.card, borderColor: colors.border }
                     ]}
                   >
                     <Image
@@ -479,11 +418,6 @@ export default function UserLibraryModal({
                         >
                           {u.name}
                         </Text>
-                        {isCurrentActive && (
-                          <View style={styles.youBadge}>
-                            <Text style={styles.youBadgeText}>You</Text>
-                          </View>
-                        )}
                       </View>
                       <Text
                         style={[styles.contactSub, { color: colors.textMuted }]}
@@ -497,14 +431,18 @@ export default function UserLibraryModal({
                       <TouchableOpacity
                         onPress={() => handleStartEdit(u)}
                         style={styles.contactActionBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel={`Edit ${u.name}`}
                       >
-                        <Edit3 size={16} color={colors.textMuted} />
+                        <Edit3 size={18} color={colors.textMuted} />
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleDelete(u)}
                         style={styles.contactActionBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        accessibilityLabel={`Delete ${u.name}`}
                       >
-                        <Trash2 size={16} color="#ef4444" />
+                        <Trash2 size={18} color="#ef4444" />
                       </TouchableOpacity>
                     </View>
                   </View>
@@ -569,16 +507,22 @@ const styles = StyleSheet.create({
     flex: 1
   },
   title: {
-    fontSize: 17,
+    fontSize: fontSizes.heading,
     fontWeight: '800'
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '500',
     marginTop: 1
   },
   closeBtn: {
-    padding: 6
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   scrollArea: {
     paddingHorizontal: 16,
@@ -586,7 +530,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: 10,
-    paddingBottom: 24
+    paddingBottom: 120
   },
   activeUserCard: {
     borderRadius: 18,
@@ -605,7 +549,7 @@ const styles = StyleSheet.create({
     gap: 4
   },
   activeUserTagText: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#0078d4',
     letterSpacing: 0.5
@@ -633,7 +577,7 @@ const styles = StyleSheet.create({
     borderRadius: 10
   },
   userPillName: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     fontWeight: '700'
   },
   errorBanner: {
@@ -648,7 +592,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     color: '#ef4444',
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     fontWeight: '600',
     flex: 1
   },
@@ -664,7 +608,7 @@ const styles = StyleSheet.create({
   },
   successText: {
     color: '#10b981',
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     fontWeight: '600',
     flex: 1
   },
@@ -686,7 +630,7 @@ const styles = StyleSheet.create({
     gap: 6
   },
   nativeContactsTitle: {
-    fontSize: 14,
+    fontSize: fontSizes.small,
     fontWeight: '800',
     color: '#0078d4'
   },
@@ -697,12 +641,12 @@ const styles = StyleSheet.create({
     borderRadius: 6
   },
   availableTagText: {
-    fontSize: 9,
+    fontSize: fontSizes.caption,
     fontWeight: '900',
     color: '#0078d4'
   },
   nativeContactsDesc: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     lineHeight: 16
   },
   importBtn: {
@@ -717,7 +661,7 @@ const styles = StyleSheet.create({
   },
   importBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   },
   formCard: {
@@ -732,7 +676,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between'
   },
   formTitle: {
-    fontSize: 14,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   },
   formInputs: {
@@ -748,7 +692,7 @@ const styles = StyleSheet.create({
   },
   formTextInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '600'
   },
   saveContactBtn: {
@@ -761,7 +705,7 @@ const styles = StyleSheet.create({
   },
   saveContactBtnText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   },
   addManualBtn: {
@@ -776,11 +720,11 @@ const styles = StyleSheet.create({
   },
   addManualBtnText: {
     color: '#0078d4',
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '700'
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8,
@@ -811,7 +755,7 @@ const styles = StyleSheet.create({
     gap: 6
   },
   contactName: {
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '700'
   },
   youBadge: {
@@ -822,11 +766,11 @@ const styles = StyleSheet.create({
   },
   youBadgeText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: fontSizes.caption,
     fontWeight: '900'
   },
   contactSub: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     marginTop: 1
   },
   contactActions: {
@@ -835,7 +779,13 @@ const styles = StyleSheet.create({
     gap: 4
   },
   contactActionBtn: {
-    padding: 6
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   bottomBar: {
     padding: 16,
@@ -850,7 +800,7 @@ const styles = StyleSheet.create({
   },
   doneBtnText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   }
 });

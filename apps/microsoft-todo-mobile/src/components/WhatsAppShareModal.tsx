@@ -24,11 +24,18 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User,
+  List,
+  Task,
   WhatsAppPayloadConfig,
+  formatSingleTaskMessage,
+  formatBatchTasksMessage,
+  formatWholeListMessage,
   generateWhatsAppDeepLink,
-  generateWhatsAppWebLink
-} from '@saileshbhai/todo-shared';
+  generateWhatsAppWebLink,
+  normalizeToE164
+} from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface WhatsAppShareModalProps {
   isOpen: boolean;
@@ -127,7 +134,7 @@ export default function WhatsAppShareModal({
     <Modal
       visible={isOpen}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
@@ -241,14 +248,14 @@ export default function WhatsAppShareModal({
                 {copied ? (
                   <>
                     <Check size={14} color="#10b981" />
-                    <Text style={{ color: '#10b981', fontSize: 12, fontWeight: '700' }}>
+                    <Text style={{ color: '#10b981', fontSize: fontSizes.caption, fontWeight: '700' }}>
                       Copied!
                     </Text>
                   </>
                 ) : (
                   <>
                     <Copy size={14} color="#0078d4" />
-                    <Text style={{ color: '#0078d4', fontSize: 12, fontWeight: '700' }}>
+                    <Text style={{ color: '#0078d4', fontSize: fontSizes.caption, fontWeight: '700' }}>
                       Copy Text
                     </Text>
                   </>
@@ -268,7 +275,7 @@ export default function WhatsAppShareModal({
               {loading ? (
                 <View style={styles.loadingWrap}>
                   <ActivityIndicator size="small" color="#25D366" />
-                  <Text style={{ color: colors.textMuted, fontSize: 12 }}>
+                  <Text style={{ color: colors.textMuted, fontSize: fontSizes.caption }}>
                     Generating formatted message...
                   </Text>
                 </View>
@@ -357,11 +364,11 @@ const styles = StyleSheet.create({
     flex: 1
   },
   title: {
-    fontSize: 17,
+    fontSize: fontSizes.heading,
     fontWeight: '800'
   },
   subtitle: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '500',
     marginTop: 1
   },
@@ -377,7 +384,7 @@ const styles = StyleSheet.create({
     paddingBottom: 24
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8
@@ -402,7 +409,7 @@ const styles = StyleSheet.create({
     borderRadius: 11
   },
   contactPillName: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     fontWeight: '700'
   },
   inputWrap: {
@@ -415,7 +422,7 @@ const styles = StyleSheet.create({
   },
   phoneInput: {
     flex: 1,
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '600'
   },
   previewHeaderRow: {
@@ -443,7 +450,7 @@ const styles = StyleSheet.create({
     maxHeight: 220
   },
   messageText: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     lineHeight: 18,
     fontFamily: 'Courier'
   },
@@ -475,7 +482,7 @@ const styles = StyleSheet.create({
   },
   openWhatsAppText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: fontSizes.small,
     fontWeight: '800'
   },
   cancelBtn: {
@@ -485,7 +492,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center'
   },
   cancelBtnText: {
-    fontSize: 14,
+    fontSize: fontSizes.small,
     fontWeight: '700'
   }
 });

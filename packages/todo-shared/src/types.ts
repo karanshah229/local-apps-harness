@@ -4,16 +4,21 @@ export interface User {
   email: string;
   phone: string;
   avatar?: string | null;
+  active?: number | boolean;
   created_at?: string;
 }
 
 export interface List {
   id: number;
   title: string;
-  color_theme: 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'dark' | string;
+  color_theme: 'blue' | 'indigo' | 'purple' | 'pink' | 'red' | 'orange' | 'amber' | 'green' | 'teal' | 'dark' | string;
   icon?: string;
   created_by?: number | null;
   is_default?: number | boolean;
+  default_whatsapp_contact_id?: number | null;
+  default_whatsapp_contact_name?: string | null;
+  default_whatsapp_contact_phone?: string | null;
+  active?: number | boolean;
   created_at?: string;
   owner_name?: string;
   share_count?: number;
@@ -33,6 +38,7 @@ export interface Task {
   reminder_time?: string | null;
   assigned_to_user_id?: number | null;
   created_by?: number | null;
+  active?: number | boolean;
   created_at?: string;
   updated_at?: string | number;
   assignee_name?: string | null;
@@ -40,6 +46,8 @@ export interface Task {
   assignee_avatar?: string | null;
   list_title?: string | null;
   list_color?: string | null;
+  list_ids?: number[];
+  lists?: Array<{ id: number; title: string; color_theme?: string; icon?: string }>;
   subtask_count?: number;
   subtask_completed_count?: number;
 }
@@ -50,6 +58,7 @@ export interface Subtask {
   title: string;
   is_completed: number | boolean;
   position?: number;
+  active?: number | boolean;
   created_at?: string;
 }
 
@@ -63,7 +72,18 @@ export interface WhatsAppLog {
   status: string;
 }
 
-export type ThemeColor = 'blue' | 'purple' | 'green' | 'orange' | 'red' | 'dark';
+export type ThemeColor =
+  | 'blue'
+  | 'indigo'
+  | 'purple'
+  | 'pink'
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'green'
+  | 'teal'
+  | 'dark'
+  | string;
 
 export type SmartViewType = 'all-tasks' | 'important' | 'assigned-to-me' | 'planned' | 'my-day';
 
@@ -81,4 +101,23 @@ export interface BatchImportContact {
   phone: string;
   email: string;
   avatar?: string;
+}
+
+export type SortField = 'smart' | 'due_date' | 'created_at' | 'title';
+export type SortDirection = 'asc' | 'desc';
+
+export interface ViewSortConfig {
+  field: SortField;
+  direction: SortDirection;
+}
+
+export type SortPreferences = Record<string, ViewSortConfig>;
+
+export interface UserPreferences {
+  user_id: number;
+  remember_last_view: number | boolean;
+  last_view_type: 'tab' | 'list' | string;
+  last_view_id: string;
+  sort_preferences?: SortPreferences | string;
+  updated_at?: string;
 }

@@ -6,12 +6,23 @@ export default {
     './src/**/*.{js,ts,jsx,tsx}',
   ],
   theme: {
+    fontSize: {
+      xs: ['var(--font-size-caption)', { lineHeight: '1rem' }],
+      sm: ['var(--font-size-small)', { lineHeight: '1.25rem' }],
+      base: ['var(--font-size-body)', { lineHeight: '1.5rem' }],
+      lg: ['var(--font-size-heading)', { lineHeight: '1.75rem' }],
+      xl: ['var(--font-size-title)', { lineHeight: '1.75rem' }],
+      '2xl': ['var(--font-size-display)', { lineHeight: '2rem' }],
+    },
     container: {
       center: true,
       padding: '1rem',
       screens: {
         '2xl': '1400px',
       },
+    },
+    fontFamily: {
+      sans: ['"Open Sans"', '-apple-system', 'BlinkMacSystemFont', '"Segoe UI"', 'Roboto', 'sans-serif'],
     },
     extend: {
       colors: {

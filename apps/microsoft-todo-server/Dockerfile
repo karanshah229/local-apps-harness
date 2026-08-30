@@ -1,25 +1,36 @@
 # Stage 1: Build the frontend
 FROM node:20-slim AS frontend-builder
-WORKDIR /app/client
-COPY apps/microsoft-todo-client/package*.json ./
-RUN npm install
-COPY apps/microsoft-todo-client/ ./
-RUN npm run build
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/todo-shared ./packages/todo-shared
+COPY apps/microsoft-todo-client ./apps/microsoft-todo-client
+RUN corepack enable && pnpm install --filter @shared/todo --filter microsoft-todo-frontend
+RUN pnpm --filter @shared/todo build && pnpm --filter microsoft-todo-frontend build
 
-# Stage 2: Run the production application
+# Stage 2: Build the backend
+FROM node:20-slim AS backend-builder
+WORKDIR /app
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/todo-shared ./packages/todo-shared
+COPY apps/microsoft-todo-server ./apps/microsoft-todo-server
+RUN corepack enable && pnpm install --filter @shared/todo --filter microsoft-todo-backend
+RUN pnpm --filter @shared/todo build && pnpm --filter microsoft-todo-backend build
+
+# Stage 3: Run the production application
 FROM node:20-slim
 WORKDIR /app
 
-# Copy package configurations and install production dependencies
-COPY apps/microsoft-todo-server/package*.json ./server/
-WORKDIR /app/server
-RUN npm install --only=production
+RUN corepack enable
 
-# Copy server code
-COPY apps/microsoft-todo-server/ ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY packages/todo-shared ./packages/todo-shared
+COPY apps/microsoft-todo-server/package.json ./apps/microsoft-todo-server/
+COPY --from=backend-builder /app/apps/microsoft-todo-server/dist ./apps/microsoft-todo-server/dist
+
+RUN pnpm install --prod --filter @shared/todo --filter microsoft-todo-backend
 
 # Copy compiled static frontend assets
-COPY --from=frontend-builder /app/client/dist /app/microsoft-todo-client/dist
+COPY --from=frontend-builder /app/apps/microsoft-todo-client/dist /app/microsoft-todo-client/dist
 
 # Expose backend server port
 EXPOSE 5005
@@ -28,5 +39,6 @@ EXPOSE 5005
 RUN mkdir -p /app/data
 ENV DATABASE_PATH=/app/data/todo.db
 
-# Start the Node.js server
-CMD ["node", "src/server.js"]
+WORKDIR /app/apps/microsoft-todo-server
+# Start the Fastify Node.js server
+CMD ["node", "dist/server.js"]

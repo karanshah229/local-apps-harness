@@ -40,12 +40,12 @@ export default function MobileBottomNav({
           <div className="relative">
             <CheckSquare className={cn('w-5 h-5 transition-transform', isTasksActive && 'scale-110')} />
             {taskCounts['all-tasks'] > 0 && (
-              <span className="absolute -top-1 -right-2 bg-blue-600 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 bg-blue-600 text-white text-xs font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
                 {taskCounts['all-tasks']}
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Tasks</span>
+          <span className="text-xs mt-1 tracking-tight">Tasks</span>
         </button>
 
         {/* 2. Important */}
@@ -64,12 +64,12 @@ export default function MobileBottomNav({
           <div className="relative">
             <Star className={cn('w-5 h-5 transition-transform', isImportantActive && 'scale-110')} />
             {taskCounts['important'] > 0 && (
-              <span className="absolute -top-1 -right-2 bg-purple-600 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 bg-purple-600 text-white text-xs font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
                 {taskCounts['important']}
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Important</span>
+          <span className="text-xs mt-1 tracking-tight">Important</span>
         </button>
 
         {/* 3. Assigned to me */}
@@ -88,12 +88,12 @@ export default function MobileBottomNav({
           <div className="relative">
             <UserCheck className={cn('w-5 h-5 transition-transform', isAssignedActive && 'scale-110')} />
             {taskCounts['assigned-to-me'] > 0 && (
-              <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
                 {taskCounts['assigned-to-me']}
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Assigned</span>
+          <span className="text-xs mt-1 tracking-tight">Assigned</span>
         </button>
 
         {/* 4. Lists Sheet Trigger */}
@@ -104,17 +104,17 @@ export default function MobileBottomNav({
             'flex flex-col items-center justify-center flex-1 h-full min-w-[60px] py-1 px-1 transition-all rounded-lg active:scale-95 touch-manipulation',
             isCustomListActive || isTasksActive ? 'text-primary font-bold' : 'text-muted-foreground hover:text-foreground'
           )}
-          aria-label="Custom Lists"
+          aria-label="Lists"
         >
           <div className="relative">
             <ListPlus className={cn('w-5 h-5 transition-transform', (isCustomListActive || isTasksActive) && 'scale-110')} />
             {totalCustomListTasks > 0 && (
-              <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-[10px] font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
+              <span className="absolute -top-1 -right-2 bg-primary text-primary-foreground text-xs font-bold rounded-full h-4 min-w-[16px] px-1 flex items-center justify-center">
                 {totalCustomListTasks}
               </span>
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight">Lists</span>
+          <span className="text-xs mt-1 tracking-tight">Lists</span>
         </button>
 
         {/* 5. Contacts / Account Trigger */}
@@ -135,7 +135,7 @@ export default function MobileBottomNav({
               <Users className="w-5 h-5" />
             )}
           </div>
-          <span className="text-[11px] mt-1 tracking-tight truncate max-w-[58px]">
+          <span className="text-xs mt-1 tracking-tight truncate max-w-[58px]">
             {activeUser ? activeUser.name.split(' ')[0] : 'Contacts'}
           </span>
         </button>

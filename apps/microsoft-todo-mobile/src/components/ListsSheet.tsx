@@ -10,17 +10,17 @@ import {
   Alert
 } from 'react-native';
 import {
-  ListTodo,
-  CheckSquare,
-  Star,
-  User as UserIcon,
   Plus,
   Trash2,
-  X
+  X,
+  Search,
+  ArrowLeft
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { List } from '@saileshbhai/todo-shared';
-import { lightColors, darkColors, getThemeGradientColors } from '../theme/colors';
+import { useRouter } from 'expo-router';
+import { List, THEME_PALETTES, ThemeColor } from '@shared/todo';
+import { lightColors, darkColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface ListsSheetProps {
   isOpen: boolean;
@@ -49,7 +49,11 @@ export default function ListsSheet({
   taskCounts,
   isDarkMode
 }: ListsSheetProps) {
+  const router = useRouter();
+  const [searchQuery, setSearchQuery] = useState('');
   const [newListTitle, setNewListTitle] = useState('');
+  const [isCreatingList, setIsCreatingList] = useState(false);
+
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
 
@@ -57,12 +61,14 @@ export default function ListsSheet({
     if (!newListTitle.trim()) return;
     onCreateList(newListTitle.trim());
     setNewListTitle('');
+    setIsCreatingList(false);
   };
 
-  const confirmDelete = (list: List) => {
+  const handleDelete = (list: List) => {
+    const listTitle = list.title || (list as any).name || 'Untitled list';
     Alert.alert(
       'Delete List',
-      `Are you sure you want to delete list "${list.title}"?`,
+      `Are you sure you want to delete "${listTitle}"? All tasks in this list will also be removed.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -74,11 +80,17 @@ export default function ListsSheet({
     );
   };
 
+  const filteredLists = (lists || []).filter((l) => {
+    if (!l) return false;
+    const title = l.title || (l as any).name || '';
+    return title.toLowerCase().includes((searchQuery || '').toLowerCase().trim());
+  });
+
   return (
     <Modal
       visible={isOpen}
       transparent
-      animationType="slide"
+      animationType="none"
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
@@ -88,225 +100,163 @@ export default function ListsSheet({
             { backgroundColor: colors.card, borderColor: colors.border }
           ]}
         >
-          {/* Sheet Header */}
-          <View style={[styles.header, { borderBottomColor: colors.border }]}>
-            <View style={styles.headerTitleRow}>
-              <ListTodo size={22} color="#0078d4" />
-              <Text style={[styles.title, { color: colors.text }]}>
-                Lists & Views
-              </Text>
-            </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <X size={20} color={colors.textMuted} />
+          {/* Top In-Line Header Row (Back Button + Search Bar) */}
+          <View style={[styles.headerRow, { borderBottomColor: colors.border }]}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={[
+                styles.backButton,
+                { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              accessibilityLabel="Back"
+            >
+              <ArrowLeft size={20} color={colors.text} />
             </TouchableOpacity>
+
+            <View
+              style={[
+                styles.searchInputInner,
+                { backgroundColor: isDarkMode ? '#18181b' : '#f8fafc', borderColor: colors.border }
+              ]}
+            >
+              <Search size={16} color={colors.textMuted} />
+              <TextInput
+                placeholder="Search lists..."
+                placeholderTextColor={colors.textMuted}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={[styles.searchInput, { color: colors.text }]}
+              />
+            </View>
           </View>
 
           {/* Scrollable Lists Area */}
           <ScrollView
             style={styles.scrollArea}
             contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+            automaticallyAdjustKeyboardInsets={true}
           >
-            {/* Smart Views Section */}
-            <Text style={styles.sectionHeader}>SMART VIEWS</Text>
-
-            {/* All Tasks */}
-            <TouchableOpacity
-              onPress={() => {
-                setActiveListId(null);
-                setActiveView('all-tasks');
-                onClose();
-              }}
-              style={[
-                styles.listItem,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
-                activeView === 'all-tasks' && !activeListId && styles.listItemActive
-              ]}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listItemLeft}>
-                <CheckSquare size={18} color="#0078d4" />
-                <Text style={[styles.listItemText, { color: colors.text }]}>
-                  Tasks
-                </Text>
-              </View>
-              {Boolean(taskCounts['all-tasks']) && (
-                <View style={styles.countBadge}>
-                  <Text style={styles.countText}>{taskCounts['all-tasks']}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Important */}
-            <TouchableOpacity
-              onPress={() => {
-                setActiveListId(null);
-                setActiveView('important');
-                onClose();
-              }}
-              style={[
-                styles.listItem,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
-                activeView === 'important' && !activeListId && styles.listItemActive
-              ]}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listItemLeft}>
-                <Star size={18} color="#742774" fill="#742774" />
-                <Text style={[styles.listItemText, { color: colors.text }]}>
-                  Important
-                </Text>
-              </View>
-              {Boolean(taskCounts['important']) && (
-                <View style={[styles.countBadge, { backgroundColor: '#742774' }]}>
-                  <Text style={styles.countText}>{taskCounts['important']}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Assigned to me */}
-            <TouchableOpacity
-              onPress={() => {
-                setActiveListId(null);
-                setActiveView('assigned-to-me');
-                onClose();
-              }}
-              style={[
-                styles.listItem,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
-                activeView === 'assigned-to-me' && !activeListId && styles.listItemActive
-              ]}
-              activeOpacity={0.7}
-            >
-              <View style={styles.listItemLeft}>
-                <UserIcon size={18} color="#d83b01" />
-                <Text style={[styles.listItemText, { color: colors.text }]}>
-                  Assigned to me
-                </Text>
-              </View>
-              {Boolean(taskCounts['assigned-to-me']) && (
-                <View style={[styles.countBadge, { backgroundColor: '#d83b01' }]}>
-                  <Text style={styles.countText}>
-                    {taskCounts['assigned-to-me']}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Custom Lists Section */}
+            {/* Lists Section Header */}
             <View style={styles.customSectionHeaderRow}>
               <Text style={styles.sectionHeader}>
-                CUSTOM LISTS ({lists.length})
+                LISTS ({filteredLists.length})
               </Text>
             </View>
 
-            {lists.map((list) => {
-              const isSelected = activeListId === list.id;
-              const themeColor = getThemeGradientColors(list.color_theme)[0];
+            {filteredLists.length === 0 ? (
+              <View
+                style={[
+                  styles.emptyBox,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
+                ]}
+              >
+                <Text style={[styles.emptyText, { color: colors.textMuted }]}>
+                  {searchQuery ? `No lists match "${searchQuery}".` : 'No lists yet.'}
+                </Text>
+              </View>
+            ) : (
+              filteredLists.map((l) => {
+                const isActive = activeListId === l.id;
+                const countKey = `list-${l.id}`;
+                const count = taskCounts[countKey] || 0;
+                const themeColor = l.color_theme || (l as any).theme_color || '#0078d4';
+                const listTitle = l.title || (l as any).name || 'Untitled list';
 
-              return (
-                <TouchableOpacity
-                  key={list.id}
-                  onPress={() => {
-                    setActiveListId(list.id);
-                    setActiveView(null);
-                    onClose();
-                  }}
-                  style={[
-                    styles.listItem,
-                    { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
-                    isSelected && styles.listItemActive
-                  ]}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.listItemLeft}>
-                    <View
-                      style={[
-                        styles.colorDot,
-                        { backgroundColor: themeColor }
-                      ]}
-                    />
-                    <Text
-                      style={[styles.listItemText, { color: colors.text }]}
-                      numberOfLines={1}
-                    >
-                      {list.title}
-                    </Text>
-                  </View>
+                return (
+                  <TouchableOpacity
+                    key={l.id}
+                    onPress={() => {
+                      onClose();
+                      router.push(`/list/${l.id}`);
+                    }}
+                    style={[
+                      styles.listItem,
+                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc', borderColor: colors.border },
+                      isActive && [styles.listItemActive, { borderColor: themeColor }]
+                    ]}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.listItemLeft}>
+                      <View style={[styles.colorDot, { backgroundColor: themeColor }]} />
+                      <Text style={[styles.listItemText, { color: colors.text }]} numberOfLines={1}>
+                        {listTitle}
+                      </Text>
+                    </View>
 
-                  <View style={styles.listItemRight}>
-                    {Boolean(list.pending_task_count && list.pending_task_count > 0) && (
-                      <View
-                        style={[
-                          styles.countBadge,
-                          { backgroundColor: themeColor }
-                        ]}
-                      >
-                        <Text style={styles.countText}>
-                          {list.pending_task_count}
-                        </Text>
-                      </View>
-                    )}
+                    <View style={styles.listItemRight}>
+                      {count > 0 && (
+                        <View style={[styles.countBadge, { backgroundColor: themeColor }]}>
+                          <Text style={styles.countText}>{count}</Text>
+                        </View>
+                      )}
 
-                    {!list.is_default && (
                       <TouchableOpacity
-                        onPress={() => confirmDelete(list)}
-                        style={styles.deleteTouch}
+                        onPress={(e) => {
+                          e.stopPropagation();
+                          handleDelete(l);
+                        }}
+                        style={styles.deleteBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                       >
                         <Trash2 size={16} color="#ef4444" />
                       </TouchableOpacity>
-                    )}
-                  </View>
-                </TouchableOpacity>
-              );
-            })}
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
 
-            {/* Create List Form */}
-            <View style={styles.createRow}>
-              <TextInput
-                placeholder="Create new list..."
-                placeholderTextColor={colors.textMuted}
-                value={newListTitle}
-                onChangeText={setNewListTitle}
-                onSubmitEditing={handleCreate}
-                returnKeyType="done"
+            {/* Inline Add List Form */}
+            {isCreatingList ? (
+              <View
                 style={[
-                  styles.createInput,
-                  { color: colors.text, borderColor: colors.border }
+                  styles.createForm,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
                 ]}
-              />
-              <TouchableOpacity
-                onPress={handleCreate}
-                disabled={!newListTitle.trim()}
-                style={[
-                  styles.createBtn,
-                  !newListTitle.trim() && { opacity: 0.5 }
-                ]}
-                activeOpacity={0.8}
               >
-                <Plus size={18} color="#ffffff" />
-                <Text style={styles.createBtnText}>Create</Text>
+                <TextInput
+                  placeholder="List name..."
+                  placeholderTextColor={colors.textMuted}
+                  value={newListTitle}
+                  onChangeText={setNewListTitle}
+                  onSubmitEditing={handleCreate}
+                  autoFocus
+                  style={[styles.createInput, { color: colors.text }]}
+                />
+                <View style={styles.createActions}>
+                  <TouchableOpacity
+                    onPress={() => setIsCreatingList(false)}
+                    style={styles.cancelBtn}
+                  >
+                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>
+                      Cancel
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleCreate}
+                    style={styles.saveBtn}
+                  >
+                    <Text style={styles.saveText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setIsCreatingList(true)}
+                style={[
+                  styles.addListBtn,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc', borderColor: colors.border }
+                ]}
+                activeOpacity={0.7}
+              >
+                <Plus size={18} color="#0078d4" />
+                <Text style={styles.addListBtnText}>Create new list</Text>
               </TouchableOpacity>
-            </View>
+            )}
           </ScrollView>
-
-          {/* Bottom Done Action */}
-          <View
-            style={[
-              styles.bottomBar,
-              {
-                borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, 16)
-              }
-            ]}
-          >
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.doneBtn}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.doneBtnText}>Done</Text>
-            </TouchableOpacity>
-          </View>
         </View>
       </View>
     </Modal>
@@ -316,7 +266,7 @@ export default function ListsSheet({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end'
   },
   sheetContainer: {
@@ -330,25 +280,36 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10
   },
-  header: {
+  headerRow: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    gap: 10
   },
-  headerTitleRow: {
+  backButton: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1
+  },
+  searchInputInner: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
+    height: 42,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    borderWidth: 1,
     gap: 8
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '800'
-  },
-  closeBtn: {
-    padding: 6
+  searchInput: {
+    flex: 1,
+    fontSize: fontSizes.small,
+    fontWeight: '500'
   },
   scrollArea: {
     paddingHorizontal: 16,
@@ -356,19 +317,19 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     gap: 8,
-    paddingBottom: 24
+    paddingBottom: 100
   },
   sectionHeader: {
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8,
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 4,
     paddingHorizontal: 4
   },
   customSectionHeaderRow: {
-    marginTop: 12
+    marginTop: 4
   },
   listItem: {
     flexDirection: 'row',
@@ -376,7 +337,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     paddingVertical: 12,
-    borderRadius: 16
+    borderRadius: 16,
+    borderWidth: 1,
+    minHeight: 52
   },
   listItemActive: {
     borderWidth: 1.5,
@@ -389,12 +352,12 @@ const styles = StyleSheet.create({
     flex: 1
   },
   colorDot: {
-    width: 14,
-    height: 14,
-    borderRadius: 7
+    width: 10,
+    height: 10,
+    borderRadius: 5
   },
   listItemText: {
-    fontSize: 14,
+    fontSize: fontSizes.small,
     fontWeight: '700',
     flex: 1
   },
@@ -404,63 +367,76 @@ const styles = StyleSheet.create({
     gap: 8
   },
   countBadge: {
-    backgroundColor: '#0078d4',
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 10
   },
   countText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800'
   },
-  deleteTouch: {
-    padding: 4
+  deleteBtn: {
+    padding: 6
   },
-  createRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 14,
-    paddingTop: 10
-  },
-  createInput: {
-    flex: 1,
-    borderWidth: 1,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    fontSize: 14,
-    fontWeight: '600'
-  },
-  createBtn: {
-    backgroundColor: '#0078d4',
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 14
-  },
-  createBtnText: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '800'
-  },
-  bottomBar: {
+  emptyBox: {
     padding: 16,
-    borderTopWidth: 1
-  },
-  doneBtn: {
-    backgroundColor: '#0078d4',
-    height: 46,
-    borderRadius: 16,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center'
   },
-  doneBtnText: {
+  emptyText: {
+    fontSize: fontSizes.small
+  },
+  addListBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 4
+  },
+  addListBtnText: {
+    fontSize: fontSizes.small,
+    fontWeight: '700',
+    color: '#0078d4'
+  },
+  createForm: {
+    padding: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    gap: 8,
+    marginTop: 4
+  },
+  createInput: {
+    fontSize: fontSizes.small,
+    paddingVertical: 4
+  },
+  createActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8
+  },
+  cancelBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6
+  },
+  cancelText: {
+    fontSize: fontSizes.caption,
+    fontWeight: '600'
+  },
+  saveBtn: {
+    backgroundColor: '#0078d4',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 10
+  },
+  saveText: {
     color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '800'
+    fontSize: fontSizes.caption,
+    fontWeight: '700'
   }
 });

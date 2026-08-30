@@ -25,6 +25,7 @@ import {
   CheckCircle2,
   AlertCircle
 } from 'lucide-react';
+import { normalizeToE164 } from '@shared/todo';
 import { cn } from '../lib/utils';
 
 export default function UserLibraryModal({
@@ -88,12 +89,14 @@ export default function UserLibraryModal({
       return;
     }
 
+    const normalizedPhone = normalizeToE164(phone.trim()) || phone.trim();
+
     if (editingUserId) {
       const success = await onUpdateUser({
         id: editingUserId,
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim()
+        phone: normalizedPhone
       });
       if (success) {
         handleCancelEdit();
@@ -104,7 +107,7 @@ export default function UserLibraryModal({
       const success = await onAddUser({
         name: name.trim(),
         email: email.trim(),
-        phone: phone.trim()
+        phone: normalizedPhone
       });
       if (success) {
         setName('');
@@ -185,38 +188,14 @@ export default function UserLibraryModal({
         <SheetHeader className="pb-3 border-b border-border">
           <SheetTitle className="flex items-center gap-2 text-lg font-bold">
             <Users className="w-5 h-5 text-primary" />
-            <span>Contacts & Account Library</span>
+            <span>Contacts Directory</span>
           </SheetTitle>
           <SheetDescription className="text-xs">
-            Switch active account, import device contacts, and manage WhatsApp task assignments.
+            Import device contacts and manage saved contacts for WhatsApp reminders and task assignments.
           </SheetDescription>
         </SheetHeader>
 
         <div className="py-4 space-y-4 max-h-[62vh] overflow-y-auto pr-1">
-          {/* Active Account Switcher Card */}
-          <div className="bg-primary/5 dark:bg-primary/10 border border-primary/20 rounded-2xl p-3.5 space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-primary uppercase tracking-wider flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4" /> Active Current User
-              </span>
-              <span className="text-[11px] text-muted-foreground">Tap to switch</span>
-            </div>
-
-            <select
-              value={activeUser?.id || ''}
-              onChange={(e) => {
-                const u = users.find((x) => x.id === parseInt(e.target.value));
-                if (u && setActiveUser) setActiveUser(u);
-              }}
-              className="w-full h-11 px-3 rounded-xl bg-background border border-border text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary shadow-sm"
-            >
-              {users.map((u) => (
-                <option key={u.id} value={u.id}>
-                  👤 {u.name} ({u.phone})
-                </option>
-              ))}
-            </select>
-          </div>
 
           {/* Feedback Banners */}
           {error && (
@@ -241,7 +220,7 @@ export default function UserLibraryModal({
                   <Smartphone className="w-4 h-4" />
                   <span>Mobile Device Contacts API</span>
                 </div>
-                <span className="text-[10px] font-extrabold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                <span className="text-xs font-extrabold uppercase tracking-wider bg-primary/10 text-primary px-2 py-0.5 rounded-full">
                   Available
                 </span>
               </div>
@@ -275,11 +254,11 @@ export default function UserLibraryModal({
               <div className="space-y-1">
                 <div className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <span>Device Contacts Import Info</span>
-                  <span className="text-[10px] text-muted-foreground font-normal bg-muted px-1.5 py-0.2 rounded">
+                  <span className="text-xs text-muted-foreground font-normal bg-muted px-1.5 py-0.2 rounded">
                     Mobile API
                   </span>
                 </div>
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                <p className="text-xs text-muted-foreground leading-relaxed">
                   Native address book import is active when opening this app on supported mobile browsers (such as Google Chrome on Android). You can also manually add or edit contacts anytime below.
                 </p>
               </div>
@@ -361,22 +340,16 @@ export default function UserLibraryModal({
 
           {/* Saved Contacts Directory List */}
           <div className="space-y-2 pt-1">
-            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
               Saved Contacts Directory ({users.length})
             </div>
 
             <div className="space-y-2">
               {users.map((u) => {
-                const isCurrentActive = activeUser && activeUser.id === u.id;
                 return (
                   <div
                     key={u.id}
-                    className={cn(
-                      'flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[56px] shadow-sm',
-                      isCurrentActive
-                        ? 'bg-primary/10 border-primary'
-                        : 'bg-card border-border hover:bg-muted/40'
-                    )}
+                    className="flex items-center justify-between p-3 rounded-2xl border transition-all min-h-[56px] shadow-sm bg-card border-border hover:bg-muted/40"
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
                       <img
@@ -387,11 +360,6 @@ export default function UserLibraryModal({
                       <div className="overflow-hidden">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold truncate">{u.name}</span>
-                          {isCurrentActive && (
-                            <span className="text-[10px] bg-primary text-primary-foreground font-bold px-1.5 py-0.5 rounded-full">
-                              You
-                            </span>
-                          )}
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-2 truncate">
                           <span>{u.phone}</span>

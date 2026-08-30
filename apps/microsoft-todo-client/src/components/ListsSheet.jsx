@@ -65,14 +65,14 @@ export default function ListsSheet({
             <span>Task Lists & Categories</span>
           </SheetTitle>
           <SheetDescription className="text-xs">
-            Switch between custom lists, assigned tasks, or create a new shared list.
+            Switch between lists, assigned tasks, or create a new shared list.
           </SheetDescription>
         </SheetHeader>
 
         <div className="py-4 space-y-4 max-h-[58vh] overflow-y-auto pr-1">
           {/* Quick System Categories */}
           <div className="space-y-1.5">
-            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
               General Views
             </div>
 
@@ -152,17 +152,17 @@ export default function ListsSheet({
             </div>
           </div>
 
-          {/* Custom Lists Section */}
+          {/* Lists Section */}
           <div className="space-y-1.5 pt-2">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">
-                My Custom Lists ({lists.length})
+              <span className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                Lists ({lists.length})
               </span>
             </div>
 
             {lists.length === 0 ? (
               <div className="text-center py-6 px-4 bg-muted/30 rounded-xl border border-dashed border-border text-muted-foreground text-xs">
-                No custom lists yet. Tap "+ New List" below to create one!
+                No lists yet. Tap "+ New List" below to create one!
               </div>
             ) : (
               lists.map((list) => {
@@ -194,7 +194,7 @@ export default function ListsSheet({
                       <span className="text-sm font-medium truncate">{list.title}</span>
                       {isShared && (
                         <span
-                          className="flex items-center gap-1 text-[11px] text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 flex-shrink-0"
+                          className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-1.5 py-0.5 rounded-md border border-blue-200 dark:border-blue-800 flex-shrink-0"
                           title={`Shared with ${list.members.length} members`}
                         >
                           <Share2 className="w-3 h-3" />
@@ -264,7 +264,7 @@ export default function ListsSheet({
               onClick={() => setIsCreating(true)}
             >
               <Plus className="w-5 h-5 text-primary" />
-              <span>Create New Custom List</span>
+              <span>Create New List</span>
             </Button>
           )}
         </div>

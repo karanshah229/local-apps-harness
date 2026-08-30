@@ -15,7 +15,7 @@ const badgeVariants = cva(
           'border-transparent bg-destructive text-destructive-foreground shadow hover:bg-destructive/80',
         outline: 'text-foreground',
         counter:
-          'border-transparent bg-muted/80 text-muted-foreground font-bold px-2 py-0.5 text-[11px]',
+          'border-transparent bg-muted/80 text-muted-foreground font-bold px-2 py-0.5 text-xs',
         themeBlue: 'border-transparent bg-blue-500 text-white',
         themePurple: 'border-transparent bg-purple-500 text-white',
         themeGreen: 'border-transparent bg-emerald-600 text-white',

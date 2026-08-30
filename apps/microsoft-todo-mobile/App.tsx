@@ -5,7 +5,12 @@ import {
   StyleSheet,
   StatusBar,
   SafeAreaView,
-  TouchableOpacity
+  TouchableOpacity,
+  BackHandler,
+  Keyboard,
+  Platform,
+  useColorScheme,
+  TextInput
 } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { io } from 'socket.io-client';
@@ -18,7 +23,7 @@ import {
   ThemeColor,
   WhatsAppPayloadConfig,
   BatchImportContact
-} from '@saileshbhai/todo-shared';
+} from '@shared/todo';
 import { getBackendApiUrl } from './src/services/apiConfig';
 import HeaderBanner from './src/components/HeaderBanner';
 import TaskMainView from './src/components/TaskMainView';
@@ -28,7 +33,39 @@ import ListsSheet from './src/components/ListsSheet';
 import UserLibraryModal from './src/components/UserLibraryModal';
 import ShareListModal from './src/components/ShareListModal';
 import WhatsAppShareModal from './src/components/WhatsAppShareModal';
+import SettingsPage from './src/components/SettingsPage';
+import ContactsPage from './src/components/ContactsPage';
+import ListsPage from './src/components/ListsPage';
 import { lightColors, darkColors } from './src/theme/colors';
+import { fontFamily, fontSizes } from './src/theme/typography';
+
+// Configure global Open Sans font family for Text and TextInput
+if ((Text as any).defaultProps == null) {
+  (Text as any).defaultProps = {};
+}
+(Text as any).defaultProps.style = {
+  fontFamily,
+  ...((Text as any).defaultProps.style || {})
+};
+
+if ((TextInput as any).defaultProps == null) {
+  (TextInput as any).defaultProps = {};
+}
+(TextInput as any).defaultProps.style = {
+  fontFamily,
+  ...((TextInput as any).defaultProps.style || {})
+};
+
+if (Platform.OS === 'web' && typeof document !== 'undefined') {
+  const fontId = 'open-sans-web-font';
+  if (!document.getElementById(fontId)) {
+    const link = document.createElement('link');
+    link.id = fontId;
+    link.rel = 'stylesheet';
+    link.href = 'https://fonts.googleapis.com/css2?family=Open+Sans:ital,wght@0,300..800;1,300..800&display=swap';
+    document.head.appendChild(link);
+  }
+}
 
 function MainTodoApp() {
   const [apiUrl, setApiUrl] = useState(() => getBackendApiUrl());
@@ -58,9 +95,28 @@ function MainTodoApp() {
   // Network error state
   const [networkError, setNetworkError] = useState<string | null>(null);
 
-  // Theme
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  // Theme - 3-way Theme (Dark, Light, System) - Default to dark
+  const systemColorScheme = useColorScheme();
+  const [themeMode, setThemeMode] = useState<'light' | 'dark' | 'system'>('dark');
+  const isDarkMode = themeMode === 'system' ? systemColorScheme === 'dark' : themeMode === 'dark';
+
   const [toastMessage, setToastMessage] = useState('');
+  const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const showSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      () => setIsKeyboardVisible(true)
+    );
+    const hideSub = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => setIsKeyboardVisible(false)
+    );
+    return () => {
+      showSub.remove();
+      hideSub.remove();
+    };
+  }, []);
 
   const colors = isDarkMode ? darkColors : lightColors;
 
@@ -155,6 +211,65 @@ function MainTodoApp() {
       setSubtasks([]);
     }
   }, [selectedTask, fetchSubtasks]);
+
+  // Close task detail drawer whenever view or list changes
+  useEffect(() => {
+    setSelectedTask(null);
+  }, [activeView, activeListId]);
+
+  // Handle Android system back button & gesture navigation
+  useEffect(() => {
+    const onBackPress = () => {
+      // 1. Dismiss any open modal sheets
+      if (whatsappConfig) {
+        setWhatsappConfig(null);
+        return true;
+      }
+      if (sharingList) {
+        setSharingList(null);
+        return true;
+      }
+      if (isUserLibraryOpen) {
+        setIsUserLibraryOpen(false);
+        return true;
+      }
+      if (isListsSheetOpen) {
+        setIsListsSheetOpen(false);
+        return true;
+      }
+      // 2. Dismiss task detail drawer if open
+      if (selectedTask) {
+        setSelectedTask(null);
+        return true;
+      }
+      // 3. Exit multi-select mode if active
+      if (isMultiSelectMode) {
+        setIsMultiSelectMode(false);
+        setSelectedTaskIds([]);
+        return true;
+      }
+      // 4. If viewing settings or a custom list or filter, return to 'all-tasks'
+      if (activeListId !== null || activeView !== 'all-tasks') {
+        setActiveListId(null);
+        setActiveView('all-tasks');
+        return true;
+      }
+      // 5. Default: allow OS to exit app
+      return false;
+    };
+
+    const backHandler = BackHandler.addEventListener('hardwareBackPress', onBackPress);
+    return () => backHandler.remove();
+  }, [
+    whatsappConfig,
+    sharingList,
+    isUserLibraryOpen,
+    isListsSheetOpen,
+    selectedTask,
+    isMultiSelectMode,
+    activeListId,
+    activeView
+  ]);
 
   // Socket.io real-time synchronization
   useEffect(() => {
@@ -253,30 +368,37 @@ function MainTodoApp() {
     }
   };
 
-  const handleCreateList = async (title: string) => {
+  const handleCreateList = async (title: string): Promise<boolean> => {
     try {
+      const creatorId = activeUser ? activeUser.id : (users && users.length > 0 ? users[0].id : 1);
       const newList = await client.createList({
         title,
-        created_by: activeUser ? activeUser.id : 1
+        created_by: creatorId
       });
-      setActiveListId(newList.id);
-      setActiveView(null);
-      fetchLists();
+      if (newList && newList.id) {
+        const data = await client.getLists(creatorId);
+        setLists(data);
+        return true;
+      }
+      return false;
     } catch (err) {
-      console.error(err);
+      console.error('Failed to create list:', err);
+      return false;
     }
   };
 
-  const handleDeleteList = async (listId: number) => {
+  const handleDeleteList = async (listId: number): Promise<boolean> => {
     try {
       await client.deleteList(listId);
       if (activeListId === listId) {
         setActiveListId(null);
         setActiveView('all-tasks');
       }
-      fetchLists();
+      await fetchLists();
+      return true;
     } catch (err) {
-      console.error(err);
+      console.error('Failed to delete list:', err);
+      return false;
     }
   };
 
@@ -297,29 +419,64 @@ function MainTodoApp() {
 
   const handleCreateTask = async (taskData: {
     title: string;
+    notes?: string | null;
     is_important?: number;
+    is_my_day?: number;
+    due_date?: string | null;
+    reminder_time?: string | null;
+    assigned_to_user_id?: number | null;
     list_id?: number | null;
+    list_ids?: number[];
+    draft_subtasks?: string[];
   }) => {
     try {
-      await client.createTask({
+      const newTask = await client.createTask({
         ...taskData,
         created_by: activeUser ? activeUser.id : 1
       });
+      if (taskData.draft_subtasks && Array.isArray(taskData.draft_subtasks) && newTask?.id) {
+        for (const stepTitle of taskData.draft_subtasks) {
+          if (stepTitle && stepTitle.trim()) {
+            await client.createSubtask(newTask.id, stepTitle.trim());
+          }
+        }
+      }
       fetchTasks();
       fetchTaskCounts();
+      return newTask;
     } catch (err) {
       console.error(err);
     }
   };
 
+  const handleOpenNewTaskDrawer = () => {
+    const defaultList = activeList || lists.find((list) => list.is_default) || lists[0] || null;
+    setSelectedTask({
+      id: 0,
+      title: '',
+      is_completed: 0,
+      is_important: activeView === 'important' ? 1 : 0,
+      is_my_day: activeView === 'my-day' ? 1 : 0,
+      list_id: defaultList ? defaultList.id : null,
+      list_ids: defaultList ? [defaultList.id] : [],
+      lists: defaultList ? [defaultList] : []
+    });
+    setSubtasks([]);
+  };
+
   const handleUpdateTask = async (updates: Partial<Task> & { id: number }) => {
     try {
+      if (updates.is_completed === 1) {
+        setSubtasks((prev) => prev.map((s) => ({ ...s, is_completed: 1 })));
+      }
       const updated = await client.updateTask(updates.id, updates);
       setTasks((prev) => prev.map((t) => (t.id === updated.id ? updated : t)));
       if (selectedTask && selectedTask.id === updated.id) setSelectedTask(updated);
       fetchTaskCounts();
+      return updated;
     } catch (err) {
       console.error(err);
+      return null;
     }
   };
 
@@ -361,9 +518,19 @@ function MainTodoApp() {
   const handleToggleSubtask = async (subtask: Subtask) => {
     try {
       const newStatus = subtask.is_completed ? 0 : 1;
+      const nextSubtasks = subtasks.map((s) => (s.id === subtask.id ? { ...s, is_completed: newStatus } : s));
+      setSubtasks(nextSubtasks);
+
+      const allCompleted = nextSubtasks.length > 0 && nextSubtasks.every((s) => s.is_completed === 1);
+
       const updated = await client.updateSubtask(subtask.id, { is_completed: newStatus });
       setSubtasks((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
-      fetchTasks();
+
+      if (allCompleted && selectedTask && !selectedTask.is_completed) {
+        handleUpdateTask({ id: selectedTask.id, is_completed: 1 });
+      } else {
+        fetchTasks();
+      }
     } catch (err) {
       console.error(err);
     }
@@ -399,9 +566,22 @@ function MainTodoApp() {
 
   const handleToggleSelectTaskForBatch = (taskId: number) => {
     if (selectedTaskIds.includes(taskId)) {
-      setSelectedTaskIds(selectedTaskIds.filter((id) => id !== taskId));
+      const next = selectedTaskIds.filter((id) => id !== taskId);
+      setSelectedTaskIds(next);
+      if (next.length === 0) {
+        setIsMultiSelectMode(false);
+      }
     } else {
       setSelectedTaskIds([...selectedTaskIds, taskId]);
+    }
+  };
+
+  const handleLongPressTask = (taskId: number) => {
+    if (!isMultiSelectMode) {
+      setIsMultiSelectMode(true);
+      setSelectedTaskIds([taskId]);
+    } else {
+      handleToggleSelectTaskForBatch(taskId);
     }
   };
 
@@ -434,8 +614,10 @@ function MainTodoApp() {
         <TaskDetailDrawer
           task={selectedTask}
           users={users}
+          lists={lists}
           onClose={() => setSelectedTask(null)}
           onUpdateTask={handleUpdateTask}
+          onCreateTask={handleCreateTask}
           onDeleteTask={handleDeleteTask}
           onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
           subtasks={subtasks}
@@ -444,55 +626,110 @@ function MainTodoApp() {
           onDeleteSubtask={handleDeleteSubtask}
           isDarkMode={isDarkMode}
         />
+      ) : activeView === 'settings' ? (
+        <SettingsPage
+          onBack={() => setActiveView('all-tasks')}
+          isDarkMode={isDarkMode}
+          themeMode={themeMode}
+          onSetThemeMode={setThemeMode}
+        />
       ) : (
-        <>
-          {/* Header Banner */}
-          <HeaderBanner
-            activeView={activeView}
-            activeList={activeList}
-            isMultiSelectMode={isMultiSelectMode}
-            onToggleMultiSelect={() => {
-              setIsMultiSelectMode(!isMultiSelectMode);
-              setSelectedTaskIds([]);
-            }}
-            onOpenShareModal={(list) => setSharingList(list)}
-            onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
-            onUpdateListTheme={handleUpdateListTheme}
-            isDarkMode={isDarkMode}
-            onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
-          />
+        <View style={{ flex: 1 }}>
+          {activeView === 'contacts' ? (
+            <ContactsPage
+              onBack={() => setActiveView('all-tasks')}
+              users={users}
+              activeUser={activeUser}
+              setActiveUser={setActiveUser}
+              onAddUser={handleAddUser}
+              onUpdateUser={handleUpdateUser}
+              onDeleteUser={handleDeleteUser}
+              onBatchImportUsers={handleBatchImportUsers}
+              isDarkMode={isDarkMode}
+            />
+          ) : activeView === 'lists' ? (
+            <>
+              <HeaderBanner
+                activeView="lists"
+                activeList={null}
+                onOpenShareModal={(list) => setSharingList(list)}
+                onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
+                onUpdateListTheme={handleUpdateListTheme}
+                isDarkMode={isDarkMode}
+                onOpenSettings={() => {
+                  setActiveView('settings');
+                  setActiveListId(null);
+                }}
+              />
+              <ListsPage
+                lists={lists}
+                activeListId={activeListId}
+                setActiveListId={setActiveListId}
+                activeView={activeView}
+                setActiveView={setActiveView}
+                onCreateList={handleCreateList}
+                onDeleteList={handleDeleteList}
+                onOpenShareModal={(list) => setSharingList(list)}
+                taskCounts={taskCounts}
+                isDarkMode={isDarkMode}
+              />
+            </>
+          ) : (
+            <>
+              {/* Header Banner */}
+              <HeaderBanner
+                activeView={activeView}
+                activeList={activeList}
+                onOpenShareModal={(list) => setSharingList(list)}
+                onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
+                onUpdateListTheme={handleUpdateListTheme}
+                isDarkMode={isDarkMode}
+                onOpenSettings={() => {
+                  setActiveView('settings');
+                  setActiveListId(null);
+                }}
+              />
 
-          {/* Main Task List */}
-          <TaskMainView
-            activeView={activeView}
-            activeList={activeList}
-            tasks={tasks}
-            selectedTaskId={selectedTask?.id}
-            onSelectTask={(task) => setSelectedTask(task)}
-            onCreateTask={handleCreateTask}
-            onToggleTaskComplete={handleToggleTaskComplete}
-            onToggleTaskImportant={handleToggleTaskImportant}
-            onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
-            isMultiSelectMode={isMultiSelectMode}
-            selectedTaskIds={selectedTaskIds}
-            onToggleSelectTaskForBatch={handleToggleSelectTaskForBatch}
-            isDarkMode={isDarkMode}
-          />
+              {/* Main Task List */}
+              <TaskMainView
+                activeView={activeView}
+                activeList={activeList}
+                tasks={tasks}
+                selectedTaskId={undefined}
+                onSelectTask={(task) => setSelectedTask(task)}
+                onCreateTask={handleCreateTask}
+                onOpenCreateTask={handleOpenNewTaskDrawer}
+                onToggleTaskComplete={handleToggleTaskComplete}
+                onToggleTaskImportant={handleToggleTaskImportant}
+                onOpenWhatsAppModal={(config) => setWhatsappConfig(config)}
+                isMultiSelectMode={isMultiSelectMode}
+                selectedTaskIds={selectedTaskIds}
+                onToggleSelectTaskForBatch={handleToggleSelectTaskForBatch}
+                onLongPressTask={handleLongPressTask}
+                isDarkMode={isDarkMode}
+              />
+            </>
+          )}
 
-          {/* Mobile Bottom Navigation Bar */}
-          <MobileBottomNav
-            activeView={activeView}
-            setActiveView={setActiveView}
-            activeListId={activeListId}
-            setActiveListId={setActiveListId}
-            taskCounts={taskCounts}
-            onOpenListsSheet={() => setIsListsSheetOpen(true)}
-            onOpenUserLibrary={() => setIsUserLibraryOpen(true)}
-            activeUser={activeUser}
-            lists={lists}
-            isDarkMode={isDarkMode}
-          />
-        </>
+          {/* Mobile Bottom Navigation Bar (hidden during keyboard entry) */}
+          {!isKeyboardVisible && (
+            <MobileBottomNav
+              activeView={activeView}
+              setActiveView={setActiveView}
+              activeListId={activeListId}
+              setActiveListId={setActiveListId}
+              taskCounts={taskCounts}
+              onOpenListsSheet={() => {
+                setActiveListId(null);
+                setActiveView('lists');
+              }}
+              onOpenUserLibrary={() => setActiveView('contacts')}
+              activeUser={activeUser}
+              lists={lists}
+              isDarkMode={isDarkMode}
+            />
+          )}
+        </View>
       )}
 
       {/* Lists Bottom Sheet */}
@@ -507,20 +744,6 @@ function MainTodoApp() {
         onCreateList={handleCreateList}
         onDeleteList={handleDeleteList}
         taskCounts={taskCounts}
-        isDarkMode={isDarkMode}
-      />
-
-      {/* User Library & Contacts Sheet */}
-      <UserLibraryModal
-        isOpen={isUserLibraryOpen}
-        onClose={() => setIsUserLibraryOpen(false)}
-        users={users}
-        activeUser={activeUser}
-        setActiveUser={setActiveUser}
-        onAddUser={handleAddUser}
-        onUpdateUser={handleUpdateUser}
-        onDeleteUser={handleDeleteUser}
-        onBatchImportUsers={handleBatchImportUsers}
         isDarkMode={isDarkMode}
       />
 
@@ -583,7 +806,7 @@ const styles = StyleSheet.create({
   },
   networkErrorText: {
     color: '#ffffff',
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '700',
     flex: 1
   },
@@ -595,7 +818,7 @@ const styles = StyleSheet.create({
   },
   retryBtnText: {
     color: '#dc2626',
-    fontSize: 11,
+    fontSize: fontSizes.caption,
     fontWeight: '800'
   },
   toastSafeArea: {
@@ -623,11 +846,11 @@ const styles = StyleSheet.create({
     elevation: 8
   },
   toastEmoji: {
-    fontSize: 16
+    fontSize: fontSizes.body
   },
   toastText: {
     color: '#ffffff',
-    fontSize: 13,
+    fontSize: fontSizes.small,
     fontWeight: '700'
   }
 });

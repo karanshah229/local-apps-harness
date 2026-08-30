@@ -79,3 +79,6 @@ ehthumbs.db
 
 # Local AI / IDE state
 .gemini/
+
+# Expo folder
+.expo/

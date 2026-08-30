@@ -1,4 +1,4 @@
-import { THEME_PALETTES, ThemeColor } from '@saileshbhai/todo-shared';
+import { THEME_PALETTES, ThemeColor, getThemeGradient, getThemePrimary } from '@shared/todo';
 
 export const lightColors = {
   background: '#f8fafc',
@@ -30,7 +30,6 @@ export const darkColors = {
   inputBg: '#27272a',
 };
 
-export function getThemeGradientColors(theme: string = 'blue'): [string, string] {
-  const t = (theme in THEME_PALETTES ? theme : 'blue') as ThemeColor;
-  return THEME_PALETTES[t].nativeGradient;
+export function getThemeGradientColors(theme: string = 'blue', isDarkMode: boolean = false): [string, string] {
+  return getThemeGradient(theme, isDarkMode);
 }

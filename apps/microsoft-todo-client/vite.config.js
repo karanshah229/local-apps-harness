@@ -12,12 +12,21 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:5005',
-        changeOrigin: true
+        changeOrigin: true,
       },
       '/socket.io': {
         target: 'http://localhost:5005',
-        ws: true
-      }
-    }
-  }
+        ws: true,
+        changeOrigin: true,
+        configure: (proxy) => {
+          proxy.on('error', (err) => {
+            // Silently handle socket drops when backend restarts or is offline
+            if (err.code !== 'ECONNRESET' && err.code !== 'ECONNREFUSED' && err.code !== 'EPIPE') {
+              console.error('Socket proxy error:', err);
+            }
+          });
+        },
+      },
+    },
+  },
 });

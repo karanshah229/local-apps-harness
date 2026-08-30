@@ -1,5 +1,7 @@
 import * as Contacts from 'expo-contacts';
-import { BatchImportContact } from '@saileshbhai/todo-shared';
+import { BatchImportContact, normalizeToE164 } from '@shared/todo';
+
+let memoryLastSyncDate: string | null = null;
 
 /**
  * Requests device contacts permission and returns formatted contacts from Android or iOS address book.
@@ -19,15 +21,17 @@ export async function getDeviceContacts(): Promise<{
       };
     }
 
-    const { data } = await Contacts.getContactsAsync({
-      fields: [
-        Contacts.Fields.Name,
-        Contacts.Fields.PhoneNumbers,
-        Contacts.Fields.Emails,
-        Contacts.Fields.Image
+    const data = await Contacts.Contact.getAllDetails(
+      [
+        Contacts.ContactField.FULL_NAME,
+        Contacts.ContactField.GIVEN_NAME,
+        Contacts.ContactField.FAMILY_NAME,
+        Contacts.ContactField.PHONES,
+        Contacts.ContactField.EMAILS,
+        Contacts.ContactField.IMAGE
       ],
-      sort: Contacts.SortTypes.FirstName
-    });
+      { sortOrder: Contacts.ContactsSortOrder.GivenName }
+    );
 
     if (!data || data.length === 0) {
       return { granted: true, contacts: [] };
@@ -36,10 +40,11 @@ export async function getDeviceContacts(): Promise<{
     const formatted: BatchImportContact[] = [];
 
     for (const item of data) {
-      const name = item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unnamed Contact';
-      const phone = item.phoneNumbers && item.phoneNumbers.length > 0 ? item.phoneNumbers[0].number || '' : '';
-      const email = item.emails && item.emails.length > 0 ? item.emails[0].email || '' : '';
-      const avatar = item.imageAvailable && item.image ? item.image.uri : undefined;
+      const name = item.fullName || `${item.givenName || ''} ${item.familyName || ''}`.trim() || 'Unnamed Contact';
+      const rawPhone = item.phones && item.phones.length > 0 ? item.phones[0].number || '' : '';
+      const phone = normalizeToE164(rawPhone) || rawPhone;
+      const email = item.emails && item.emails.length > 0 ? item.emails[0].address || '' : '';
+      const avatar = item.image || undefined;
 
       if (!name && !phone && !email) continue;
 
@@ -62,5 +67,31 @@ export async function getDeviceContacts(): Promise<{
       contacts: [],
       error: err?.message || 'Failed to read contacts.'
     };
+  }
+}
+
+/**
+ * Automatically syncs device contacts if today is a new day and the app was opened for the first time.
+ */
+export async function autoSyncDeviceContacts(
+  batchImportFn: (contacts: BatchImportContact[]) => Promise<any>
+): Promise<void> {
+  const today = new Date().toISOString().split('T')[0];
+  if (memoryLastSyncDate === today) {
+    return;
+  }
+
+  try {
+    const { status } = await Contacts.getPermissionsAsync();
+    // Only attempt silent auto-sync if permission is granted
+    if (status === 'granted') {
+      const result = await getDeviceContacts();
+      if (result.granted && result.contacts.length > 0) {
+        await batchImportFn(result.contacts);
+        memoryLastSyncDate = today;
+      }
+    }
+  } catch (err) {
+    console.warn('Auto contact sync skipped or failed:', err);
   }
 }

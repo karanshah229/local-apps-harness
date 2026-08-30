@@ -51,7 +51,7 @@ export default function ShareListModal({
         <div className="py-4 space-y-4 max-h-[55vh] overflow-y-auto pr-1">
           {/* Add member picker */}
           <form onSubmit={handleAddMember} className="space-y-2">
-            <label className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+            <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
               Add Member from Contacts
             </label>
             <div className="flex gap-2">
@@ -80,7 +80,7 @@ export default function ShareListModal({
 
           {/* Members List */}
           <div className="space-y-2 pt-2">
-            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider px-1">
+            <div className="text-xs font-bold text-muted-foreground uppercase tracking-wider px-1">
               Active List Members ({members.length})
             </div>
 

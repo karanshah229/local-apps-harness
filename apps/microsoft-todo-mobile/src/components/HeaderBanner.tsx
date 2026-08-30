@@ -10,39 +10,33 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
-  CheckSquare,
-  Square,
   Share2,
   Send,
   Palette,
-  Sun,
-  Moon
+  Settings
 } from 'lucide-react-native';
-import { List, THEME_COLORS, ThemeColor } from '@saileshbhai/todo-shared';
+import { List, THEME_COLORS, THEME_PALETTES, ThemeColor } from '@shared/todo';
 import { getThemeGradientColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface HeaderBannerProps {
   activeView: string | null;
   activeList?: List | null;
-  isMultiSelectMode: boolean;
-  onToggleMultiSelect: () => void;
   onOpenShareModal: (list: List) => void;
   onOpenWhatsAppModal: (config: any) => void;
   onUpdateListTheme: (listId: number, color: ThemeColor) => void;
   isDarkMode: boolean;
-  onToggleDarkMode: () => void;
+  onOpenSettings: () => void;
 }
 
 export default function HeaderBanner({
   activeView,
   activeList,
-  isMultiSelectMode,
-  onToggleMultiSelect,
   onOpenShareModal,
   onOpenWhatsAppModal,
   onUpdateListTheme,
   isDarkMode,
-  onToggleDarkMode
+  onOpenSettings
 }: HeaderBannerProps) {
   const [showThemePicker, setShowThemePicker] = useState(false);
   const insets = useSafeAreaInsets();
@@ -54,16 +48,19 @@ export default function HeaderBanner({
         return 'Important';
       case 'assigned-to-me':
         return 'Assigned to me';
+      case 'lists':
+        return 'Lists';
       case 'all-tasks':
       default:
-        return 'Tasks';
+        return 'All tasks';
     }
   };
 
   const getThemeKey = (): string => {
     if (activeList) return activeList.color_theme || 'blue';
-    if (activeView === 'important') return 'purple';
-    if (activeView === 'assigned-to-me') return 'orange';
+    if (activeView === 'important') return 'orange';
+    if (activeView === 'assigned-to-me') return 'purple';
+    if (activeView === 'lists') return 'blue';
     return 'blue';
   };
 
@@ -109,22 +106,6 @@ export default function HeaderBanner({
         </View>
 
         <View style={styles.actionRow}>
-          {/* Multi-Select Toggle */}
-          <TouchableOpacity
-            onPress={onToggleMultiSelect}
-            style={[
-              styles.iconButton,
-              isMultiSelectMode && styles.iconButtonActive
-            ]}
-            activeOpacity={0.7}
-          >
-            {isMultiSelectMode ? (
-              <CheckSquare size={18} color="#005a9e" />
-            ) : (
-              <Square size={18} color="#ffffff" />
-            )}
-          </TouchableOpacity>
-
           {/* Custom List Actions */}
           {activeList && (
             <>
@@ -132,8 +113,10 @@ export default function HeaderBanner({
                 onPress={() => onOpenShareModal(activeList)}
                 style={styles.iconButton}
                 activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityLabel="Share List"
               >
-                <Share2 size={18} color="#ffffff" />
+                <Share2 size={20} color="#ffffff" />
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -142,31 +125,33 @@ export default function HeaderBanner({
                 }
                 style={[styles.iconButton, styles.whatsappButton]}
                 activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityLabel="WhatsApp Full List"
               >
-                <Send size={18} color="#ffffff" />
+                <Send size={20} color="#ffffff" />
               </TouchableOpacity>
 
               <TouchableOpacity
                 onPress={() => setShowThemePicker(true)}
                 style={styles.iconButton}
                 activeOpacity={0.7}
+                hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                accessibilityLabel="Change Theme"
               >
-                <Palette size={18} color="#ffffff" />
+                <Palette size={20} color="#ffffff" />
               </TouchableOpacity>
             </>
           )}
 
-          {/* Dark / Light Toggle */}
+          {/* Settings Trigger */}
           <TouchableOpacity
-            onPress={onToggleDarkMode}
+            onPress={onOpenSettings}
             style={styles.iconButton}
             activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            accessibilityLabel="Open Settings"
           >
-            {isDarkMode ? (
-              <Sun size={18} color="#fde047" />
-            ) : (
-              <Moon size={18} color="#ffffff" />
-            )}
+            <Settings size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
       </View>
@@ -175,7 +160,7 @@ export default function HeaderBanner({
       <Modal
         visible={showThemePicker}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setShowThemePicker(false)}
       >
         <TouchableOpacity
@@ -240,7 +225,7 @@ const styles = StyleSheet.create({
     gap: 8
   },
   titleText: {
-    fontSize: 22,
+    fontSize: fontSizes.display,
     fontWeight: '900',
     color: '#ffffff',
     letterSpacing: -0.5
@@ -258,7 +243,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#cbd5e1'
   },
   dateText: {
-    fontSize: 12,
+    fontSize: fontSizes.caption,
     color: 'rgba(255, 255, 255, 0.85)',
     fontWeight: '600',
     marginTop: 2
@@ -266,12 +251,14 @@ const styles = StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 8
   },
   iconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
+    width: 44,
+    height: 44,
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 14,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center'
@@ -307,7 +294,7 @@ const styles = StyleSheet.create({
     borderWidth: 1
   },
   themePickerTitle: {
-    fontSize: 16,
+    fontSize: fontSizes.body,
     fontWeight: '800',
     color: '#0f172a',
     marginBottom: 16,

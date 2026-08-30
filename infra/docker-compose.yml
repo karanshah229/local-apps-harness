@@ -31,7 +31,7 @@ services:
       timeout: 5s
       retries: 5
 
-  # Microsoft To Do Clone (Express API + React static frontend)
+  # Kamdhenu ToDo (Express API + React static frontend)
   todo:
     build:
       context: ..

@@ -6,7 +6,7 @@ import {
   WhatsAppLog,
   WhatsAppPayloadConfig,
   BatchImportContact
-} from './types';
+} from './types.js';
 
 export class TodoApiClient {
   private baseUrl: string;
@@ -136,6 +136,7 @@ export class TodoApiClient {
   async createTask(task: {
     title: string;
     list_id?: number | null;
+    list_ids?: number[];
     notes?: string | null;
     is_important?: number | boolean;
     is_my_day?: number | boolean;

@@ -14,8 +14,9 @@ import {
   ListTodo,
   Users
 } from 'lucide-react-native';
-import { User, List } from '@saileshbhai/todo-shared';
+import { User, List } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
+import { fontSizes } from '../theme/typography';
 
 interface MobileBottomNavProps {
   activeView: string | null;
@@ -49,6 +50,7 @@ export default function MobileBottomNav({
   const isImportantActive = activeView === 'important' && !activeListId;
   const isAssignedActive = activeView === 'assigned-to-me' && !activeListId;
   const isCustomListActive = Boolean(activeListId);
+  const isContactsActive = activeView === 'contacts' && !activeListId;
 
   return (
     <View
@@ -158,16 +160,19 @@ export default function MobileBottomNav({
           </Text>
         </TouchableOpacity>
 
-        {/* Tab 4: Lists Bottom Sheet Trigger */}
+        {/* Tab 4: Lists Page Trigger */}
         <TouchableOpacity
-          onPress={onOpenListsSheet}
+          onPress={() => {
+            setActiveListId(null);
+            setActiveView('lists');
+          }}
           style={styles.navItem}
           activeOpacity={0.7}
         >
           <View style={styles.iconWrap}>
             <ListTodo
               size={20}
-              color={isCustomListActive ? '#0078d4' : colors.textMuted}
+              color={(activeView === 'lists' || isCustomListActive) ? '#0078d4' : colors.textMuted}
             />
             {Boolean(lists.length > 0) && (
               <View style={[styles.badge, { backgroundColor: '#64748b' }]}>
@@ -178,36 +183,35 @@ export default function MobileBottomNav({
           <Text
             style={[
               styles.navLabel,
-              { color: isCustomListActive ? '#0078d4' : colors.textMuted },
-              isCustomListActive && styles.navLabelActive
+              { color: (activeView === 'lists' || isCustomListActive) ? '#0078d4' : colors.textMuted },
+              (activeView === 'lists' || isCustomListActive) && styles.navLabelActive
             ]}
           >
             Lists
           </Text>
         </TouchableOpacity>
 
-        {/* Tab 5: Contacts & User Profile */}
+        {/* Tab 5: Contacts Page */}
         <TouchableOpacity
-          onPress={onOpenUserLibrary}
+          onPress={() => {
+            setActiveListId(null);
+            setActiveView('contacts');
+          }}
           style={styles.navItem}
           activeOpacity={0.7}
         >
           <View style={styles.iconWrap}>
-            {activeUser ? (
-              <Image
-                source={{
-                  uri:
-                    activeUser.avatar ||
-                    `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(activeUser.name)}`
-                }}
-                style={styles.userAvatar}
-              />
-            ) : (
-              <Users size={20} color={colors.textMuted} />
-            )}
+            <Users
+              size={20}
+              color={isContactsActive ? '#10b981' : colors.textMuted}
+            />
           </View>
           <Text
-            style={[styles.navLabel, { color: colors.textMuted }]}
+            style={[
+              styles.navLabel,
+              { color: isContactsActive ? '#10b981' : colors.textMuted },
+              isContactsActive && styles.navLabelActive
+            ]}
             numberOfLines={1}
           >
             Contacts
@@ -261,11 +265,11 @@ const styles = StyleSheet.create({
   },
   badgeText: {
     color: '#ffffff',
-    fontSize: 9,
+    fontSize: fontSizes.caption,
     fontWeight: '900'
   },
   navLabel: {
-    fontSize: 10,
+    fontSize: fontSizes.caption,
     fontWeight: '600',
     marginTop: 2
   },

@@ -4,6 +4,15 @@
 
 @layer base {
   :root {
+    color-scheme: light;
+
+    --font-size-caption: 0.75rem;
+    --font-size-small: 0.875rem;
+    --font-size-body: 1rem;
+    --font-size-heading: 1.125rem;
+    --font-size-title: 1.25rem;
+    --font-size-display: 1.5rem;
+
     --background: 210 40% 98%;
     --foreground: 222.2 47.4% 11.2%;
 
@@ -41,6 +50,8 @@
   }
 
   .dark {
+    color-scheme: dark;
+
     --background: 240 10% 3.9%;
     --foreground: 240 4.8% 95.9%;
 
@@ -80,8 +91,31 @@
   padding: 0;
 }
 
+body, button, input, textarea, select, optgroup, [contenteditable] {
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif !important;
+}
+
+input[type="date"],
+input[type="datetime-local"],
+input[type="time"],
+input[type="month"],
+input[type="week"] {
+  font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+input::-webkit-datetime-edit,
+input::-webkit-datetime-edit-fields-wrapper,
+input::-webkit-datetime-edit-text,
+input::-webkit-datetime-edit-month-field,
+input::-webkit-datetime-edit-day-field,
+input::-webkit-datetime-edit-year-field,
+input::-webkit-datetime-edit-hour-field,
+input::-webkit-datetime-edit-minute-field,
+input::-webkit-datetime-edit-ampm-field {
+  font-family: 'Open Sans', sans-serif !important;
+}
+
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   min-height: 100vh;
@@ -147,4 +181,22 @@ body {
 
 .pt-safe {
   padding-top: max(env(safe-area-inset-top, 0px), 1rem);
+}
+
+/* Custom enlarged date & time picker browser indicators */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  font-size: var(--font-size-title);
+  width: 24px;
+  height: 24px;
+  padding: 2px;
+  border-radius: 6px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator:hover {
+  transform: scale(1.15);
+  opacity: 1;
 }

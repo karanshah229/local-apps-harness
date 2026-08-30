@@ -4,7 +4,7 @@ Nginx is the single application entrypoint. Registered routes and upstreams live
 
 Current routes:
 
-- `/todo/` → Microsoft To Do service on port 5005.
+- `/todo/` → Kamdhenu ToDo service on port 5005.
 - `/stock/` → Stock Manager service on port 5001.
 - `/gold/` → Sip of Gold static service on port 80.
 
