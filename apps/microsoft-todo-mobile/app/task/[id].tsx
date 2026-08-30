@@ -36,6 +36,7 @@ import { WhatsAppIcon } from '../../src/components/WhatsAppIcon';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useTasksQuery,
+  useTaskQuery,
   useListsQuery,
   useUsersQuery,
   useSubtasksQuery,
@@ -199,7 +200,8 @@ export default function TaskDetailScreen() {
 
   const { isDarkMode } = useUiStore();
 
-  const { data: tasks = [] } = useTasksQuery({});
+  const { data: directTask, isLoading: isDirectTaskLoading } = useTaskQuery(isNewTask ? null : taskId);
+  const { data: tasks = [], isLoading: isTasksLoading } = useTasksQuery({});
   const { data: lists = [] } = useListsQuery();
   const { data: users = [] } = useUsersQuery();
   const { data: serverSubtasks = [] } = useSubtasksQuery(taskId);
@@ -211,7 +213,7 @@ export default function TaskDetailScreen() {
   const updateSubtaskMutation = useUpdateSubtaskMutation();
   const deleteSubtaskMutation = useDeleteSubtaskMutation();
 
-  const task = isNewTask ? null : tasks.find((t) => t.id === taskId);
+  const task = isNewTask ? null : (directTask || tasks.find((t) => t.id === taskId));
 
   const saveExistingTask = useCallback((updates: Partial<Task> & { id: number }) => (
     updateTaskMutation.mutateAsync(updates)
@@ -496,6 +498,16 @@ export default function TaskDetailScreen() {
     const q = assigneeSearchQuery.toLowerCase().trim();
     return users.filter((u) => u.name.toLowerCase().includes(q) || (u.phone && u.phone.includes(q)));
   }, [users, assigneeSearchQuery]);
+
+  const isTaskLoading = !isNewTask && !task && (isDirectTaskLoading || isTasksLoading);
+
+  if (isTaskLoading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', alignItems: 'center', justifyContent: 'center', paddingTop: topInset }}>
+        <ActivityIndicator size="large" color="#0078d4" />
+      </View>
+    );
+  }
 
   if (!isNewTask && !task) {
     return (

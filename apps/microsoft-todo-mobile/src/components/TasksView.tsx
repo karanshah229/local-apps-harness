@@ -12,6 +12,8 @@ import {
   TouchableWithoutFeedback,
   Image,
   RefreshControl,
+  Alert,
+  Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -31,6 +33,9 @@ import {
   ListTodo,
   User as UserIcon,
   CheckSquare,
+  Trash2,
+  UserCheck,
+  CheckCircle2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUiStore } from '../store/useUiStore';
@@ -39,8 +44,11 @@ import {
   useListsQuery,
   useUsersQuery,
   useUpdateTaskMutation,
+  useDeleteTaskMutation,
   useUpdateUserPreferencesMutation,
+  prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
+import { useTaskNavigation } from '../hooks/useTaskNavigation';
 import {
   Task,
   User,
@@ -53,8 +61,13 @@ import {
   DEFAULT_SORT_CONFIG,
   sortTasks,
   getSortDisplayLabel,
+  formatBatchTasksMessage,
+  generateWhatsAppWebLink,
 } from '@shared/todo';
 import { SortModal } from './SortModal';
+import { WhatsAppIcon } from './WhatsAppIcon';
+import { BulkDueDatePickerModal } from './BulkDueDatePickerModal';
+import { BulkAssigneePickerModal } from './BulkAssigneePickerModal';
 
 function hexToRgba(hex: string, alpha: number): string {
   let cleanHex = hex.replace('#', '');
@@ -79,6 +92,7 @@ interface TaskItemProps {
   isMultiSelectMode: boolean;
   isCheckedForBatch: boolean;
   onPress: (task: Task) => void;
+  onLongPress: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
   onToggleImportant: (task: Task) => void;
 }
@@ -90,12 +104,15 @@ const TaskItem = React.memo(({
   isMultiSelectMode,
   isCheckedForBatch,
   onPress,
+  onLongPress,
   onToggleComplete,
   onToggleImportant,
 }: TaskItemProps) => {
   return (
     <TouchableOpacity
       onPress={() => onPress(task)}
+      onLongPress={() => onLongPress(task)}
+      delayLongPress={280}
       activeOpacity={0.7}
       style={{
         flexDirection: 'row',
@@ -116,7 +133,7 @@ const TaskItem = React.memo(({
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
         <TouchableOpacity
-          onPress={() => onToggleComplete(task)}
+          onPress={() => isMultiSelectMode ? onPress(task) : onToggleComplete(task)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={{
             width: 24,
@@ -189,7 +206,10 @@ interface CompletedTaskItemProps {
   task: Task;
   isDarkMode: boolean;
   themePrimary: string;
+  isMultiSelectMode?: boolean;
+  isCheckedForBatch?: boolean;
   onPress: (task: Task) => void;
+  onLongPress?: (task: Task) => void;
   onToggleComplete: (task: Task) => void;
 }
 
@@ -197,12 +217,17 @@ const CompletedTaskItem = React.memo(({
   task,
   isDarkMode,
   themePrimary,
+  isMultiSelectMode,
+  isCheckedForBatch,
   onPress,
+  onLongPress,
   onToggleComplete,
 }: CompletedTaskItemProps) => {
   return (
     <TouchableOpacity
       onPress={() => onPress(task)}
+      onLongPress={() => onLongPress && onLongPress(task)}
+      delayLongPress={280}
       activeOpacity={0.7}
       style={{
         flexDirection: 'row',
@@ -211,27 +236,37 @@ const CompletedTaskItem = React.memo(({
         padding: 14,
         minHeight: 52,
         borderRadius: 16,
-        backgroundColor: isDarkMode ? 'rgba(39, 39, 42, 0.4)' : '#f1f5f9',
-        opacity: 0.75,
+        backgroundColor: isCheckedForBatch
+          ? hexToRgba(themePrimary, isDarkMode ? 0.2 : 0.08)
+          : (isDarkMode ? 'rgba(39, 39, 42, 0.4)' : '#f1f5f9'),
+        borderWidth: 1,
+        borderColor: isCheckedForBatch
+          ? themePrimary
+          : 'transparent',
+        opacity: isCheckedForBatch ? 1 : 0.75,
         marginBottom: 6,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
         <TouchableOpacity
-          onPress={() => onToggleComplete(task)}
+          onPress={() => isMultiSelectMode ? onPress(task) : onToggleComplete(task)}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           style={{
             width: 22,
             height: 22,
             borderRadius: 6,
             borderWidth: 2,
-            borderColor: themePrimary,
-            backgroundColor: themePrimary,
+            borderColor: isCheckedForBatch ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
+            backgroundColor: isCheckedForBatch ? themePrimary : (isMultiSelectMode ? 'transparent' : themePrimary),
             alignItems: 'center',
             justifyContent: 'center',
           }}
         >
-          <Check size={13} color="#ffffff" strokeWidth={3} />
+          {isCheckedForBatch ? (
+            <Check size={13} color="#ffffff" strokeWidth={3} />
+          ) : !isMultiSelectMode ? (
+            <Check size={13} color="#ffffff" strokeWidth={3} />
+          ) : null}
         </TouchableOpacity>
 
         <Text
@@ -354,12 +389,18 @@ export function TasksView({ fixedView }: TasksViewProps) {
   const isDarkMode = useUiStore((s) => s.isDarkMode);
   const isMultiSelectMode = useUiStore((s) => s.isMultiSelectMode);
   const selectedTaskIds = useUiStore((s) => s.selectedTaskIds);
+  const startMultiSelectWithTask = useUiStore((s) => s.startMultiSelectWithTask);
   const toggleSelectTaskForBatch = useUiStore((s) => s.toggleSelectTaskForBatch);
+  const selectAllTasks = useUiStore((s) => s.selectAllTasks);
+  const clearSelectedBatchTasks = useUiStore((s) => s.clearSelectedBatchTasks);
   const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
   const activeListId = useUiStore((s) => s.activeListId);
   const storeView = useUiStore((s) => s.activeView);
   const sortPreferences = useUiStore((s) => s.sortPreferences);
   const setViewSort = useUiStore((s) => s.setViewSort);
+
+  const [showBulkDueModal, setShowBulkDueModal] = useState(false);
+  const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
 
   const effectiveView = fixedView || storeView || 'all-tasks';
   const effectiveListId = fixedView ? null : activeListId;
@@ -402,6 +443,15 @@ export function TasksView({ fixedView }: TasksViewProps) {
   }, [tasksQuery, listsQuery, usersQuery]);
 
   const updateTaskMutation = useUpdateTaskMutation();
+  const deleteTaskMutation = useDeleteTaskMutation();
+  const { openTask, TaskLoadingIndicator } = useTaskNavigation();
+
+  // Pre-fetch all tasks and subtasks whenever tasks in view load
+  React.useEffect(() => {
+    if (tasks && tasks.length > 0) {
+      prefetchAllTasksInView(tasks);
+    }
+  }, [tasks]);
 
   const activeList = useMemo(() => (
     effectiveListId ? lists.find((l) => l.id === effectiveListId) : null
@@ -457,10 +507,93 @@ export function TasksView({ fixedView }: TasksViewProps) {
     if (isMultiSelectMode) {
       toggleSelectTaskForBatch(task.id);
     } else {
-      setSelectedTaskId(task.id);
-      router.push(`/task/${task.id}`);
+      openTask(task.id, themePrimary);
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, setSelectedTaskId, router]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, themePrimary]);
+
+  const handleTaskLongPress = useCallback((task: Task) => {
+    if (!isMultiSelectMode) {
+      startMultiSelectWithTask(task.id);
+    } else {
+      toggleSelectTaskForBatch(task.id);
+    }
+  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch]);
+
+  // Bulk Actions
+  const handleBulkShare = useCallback(() => {
+    if (selectedTaskIds.length === 0) return;
+    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
+    if (selectedTasks.length === 0) return;
+
+    const message = formatBatchTasksMessage(selectedTasks);
+    const firstWithPhone = selectedTasks.find((t) => t.assignee_phone);
+    const phone = firstWithPhone?.assignee_phone || '';
+    const waLink = generateWhatsAppWebLink(phone, message);
+    Linking.openURL(waLink).catch(() => {
+      Alert.alert('Error', 'Unable to open WhatsApp on this device');
+    });
+  }, [selectedTaskIds, tasks]);
+
+  const handleBulkComplete = useCallback(() => {
+    if (selectedTaskIds.length === 0) return;
+    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
+    const allCompleted = selectedTasks.every((t) => t.is_completed);
+    const newStatus = allCompleted ? 0 : 1;
+
+    for (const taskId of selectedTaskIds) {
+      updateTaskMutation.mutate({ id: taskId, is_completed: newStatus });
+    }
+    clearSelectedBatchTasks();
+  }, [selectedTaskIds, tasks, updateTaskMutation, clearSelectedBatchTasks]);
+
+  const handleBulkImportant = useCallback(() => {
+    if (selectedTaskIds.length === 0) return;
+    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
+    const allImportant = selectedTasks.every((t) => t.is_important);
+    const newStatus = allImportant ? 0 : 1;
+
+    for (const taskId of selectedTaskIds) {
+      updateTaskMutation.mutate({ id: taskId, is_important: newStatus });
+    }
+    clearSelectedBatchTasks();
+  }, [selectedTaskIds, tasks, updateTaskMutation, clearSelectedBatchTasks]);
+
+  const handleBulkDueDate = useCallback((dueDate: string | null) => {
+    if (selectedTaskIds.length === 0) return;
+    for (const taskId of selectedTaskIds) {
+      updateTaskMutation.mutate({ id: taskId, due_date: dueDate });
+    }
+    clearSelectedBatchTasks();
+  }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
+
+  const handleBulkAssignee = useCallback((userId: number | null) => {
+    if (selectedTaskIds.length === 0) return;
+    for (const taskId of selectedTaskIds) {
+      updateTaskMutation.mutate({ id: taskId, assigned_to_user_id: userId });
+    }
+    clearSelectedBatchTasks();
+  }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
+
+  const handleBulkDelete = useCallback(() => {
+    if (selectedTaskIds.length === 0) return;
+    Alert.alert(
+      'Delete Tasks',
+      `Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? 'task' : 'tasks'}?`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            for (const taskId of selectedTaskIds) {
+              deleteTaskMutation.mutate(taskId);
+            }
+            clearSelectedBatchTasks();
+          },
+        },
+      ]
+    );
+  }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks]);
 
   const handleOpenNewTask = useCallback(() => {
     const params = new URLSearchParams();
@@ -504,11 +637,12 @@ export function TasksView({ fixedView }: TasksViewProps) {
         isMultiSelectMode={isMultiSelectMode}
         isCheckedForBatch={isCheckedForBatch}
         onPress={handleTaskPress}
+        onLongPress={handleTaskLongPress}
         onToggleComplete={handleToggleComplete}
         onToggleImportant={handleToggleImportant}
       />
     );
-  }, [selectedTaskIds, isDarkMode, themePrimary, isMultiSelectMode, handleTaskPress, handleToggleComplete, handleToggleImportant]);
+  }, [selectedTaskIds, isDarkMode, themePrimary, isMultiSelectMode, handleTaskPress, handleTaskLongPress, handleToggleComplete, handleToggleImportant]);
 
   // Filter & Fuzzy Search Matching
   const filteredTasks = useMemo(() => {
@@ -658,172 +792,312 @@ export function TasksView({ fixedView }: TasksViewProps) {
         </Text>
       </LinearGradient>
 
-      {/* Standardized Search Box & Filters Button */}
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
-        {/* Search Bar - 52px Touch Target */}
+      {/* Search & Filters Row OR Contextual Bulk Actions Bar */}
+      {isMultiSelectMode && selectedTaskIds.length > 0 ? (
         <View
           style={{
-            flex: 1,
-            height: 52,
             flexDirection: 'row',
             alignItems: 'center',
-            backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-            borderRadius: 16,
-            borderWidth: 1,
-            borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-            paddingHorizontal: 14,
-          }}
-        >
-          <Search size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 10 }} />
-          <TextInput
-            placeholder="Search"
-            placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            style={{
-              flex: 1,
-              height: '100%',
-              fontSize: 15,
-              fontWeight: '600',
-              color: isDarkMode ? '#ffffff' : '#0f172a',
-            }}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity
-              onPress={() => setSearchQuery('')}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{ padding: 4 }}
-            >
-              <X size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
-            </TouchableOpacity>
-          )}
-        </View>
-
-        {/* Filters Trigger Button - 52x52px Touch Target */}
-        <TouchableOpacity
-          onPress={() => setShowFilterModal(true)}
-          activeOpacity={0.7}
-          style={{
-            width: 52,
+            justifyContent: 'space-between',
             height: 52,
+            backgroundColor: isDarkMode ? '#1e293b' : '#0f172a',
             borderRadius: 16,
-            backgroundColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
-            alignItems: 'center',
-            justifyContent: 'center',
+            paddingHorizontal: 12,
+            marginTop: 14,
             borderWidth: 1,
-            borderColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
+            borderColor: isDarkMode ? '#334155' : '#1e293b',
           }}
         >
-          <SlidersHorizontal size={20} color={activeFiltersCount > 0 ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
-          {activeFiltersCount > 0 && (
-            <View
+          {/* Left: Close & Count */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <TouchableOpacity
+              onPress={clearSelectedBatchTasks}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
               style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                minWidth: 20,
-                height: 20,
-                borderRadius: 10,
-                backgroundColor: '#f59e0b',
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: 'rgba(255,255,255,0.15)',
                 alignItems: 'center',
                 justifyContent: 'center',
-                paddingHorizontal: 4,
-                borderWidth: 2,
-                borderColor: isDarkMode ? '#09090b' : '#f8fafc',
               }}
             >
-              <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff' }}>{activeFiltersCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
+              <X size={16} color="#ffffff" />
+            </TouchableOpacity>
+            <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>
+              {selectedTaskIds.length} Selected
+            </Text>
+          </View>
 
-        {/* Sort Trigger Button - 52x52px Touch Target */}
-        <TouchableOpacity
-          onPress={() => setShowSortModal(true)}
-          activeOpacity={0.7}
-          style={{
-            width: 52,
-            height: 52,
-            borderRadius: 16,
-            backgroundColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
-            alignItems: 'center',
-            justifyContent: 'center',
-            borderWidth: 1,
-            borderColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
-          }}
-        >
-          <ArrowUpDown size={20} color={currentSort.field !== 'smart' ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
-          {currentSort.field !== 'smart' && (
+          {/* Right: 6 Action Icons */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            {/* Share Together */}
+            <TouchableOpacity
+              onPress={handleBulkShare}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: '#25D366',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <WhatsAppIcon size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            {/* Mark Complete */}
+            <TouchableOpacity
+              onPress={handleBulkComplete}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <CheckCircle2 size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            {/* Mark Important */}
+            <TouchableOpacity
+              onPress={handleBulkImportant}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Star size={18} color="#f59e0b" fill="#f59e0b" />
+            </TouchableOpacity>
+
+            {/* Assign Due Date */}
+            <TouchableOpacity
+              onPress={() => setShowBulkDueModal(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Calendar size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            {/* Assign Assignee */}
+            <TouchableOpacity
+              onPress={() => setShowBulkAssigneeModal(true)}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'rgba(255,255,255,0.15)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <UserCheck size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            {/* Delete All */}
+            <TouchableOpacity
+              onPress={handleBulkDelete}
+              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 10,
+                backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Trash2 size={18} color="#ef4444" />
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        <>
+          {/* Standardized Search Box & Filters Button */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 14 }}>
+            {/* Search Bar - 52px Touch Target */}
             <View
               style={{
-                position: 'absolute',
-                top: -4,
-                right: -4,
-                width: 14,
-                height: 14,
-                borderRadius: 7,
-                backgroundColor: '#f59e0b',
-                borderWidth: 2,
-                borderColor: isDarkMode ? '#09090b' : '#f8fafc',
+                flex: 1,
+                height: 52,
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                borderRadius: 16,
+                borderWidth: 1,
+                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                paddingHorizontal: 14,
               }}
-            />
-          )}
-        </TouchableOpacity>
-      </View>
+            >
+              <Search size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 10 }} />
+              <TextInput
+                placeholder="Search"
+                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style={{
+                  flex: 1,
+                  height: '100%',
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              />
+              {searchQuery.length > 0 && (
+                <TouchableOpacity
+                  onPress={() => setSearchQuery('')}
+                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                  style={{ padding: 4 }}
+                >
+                  <X size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                </TouchableOpacity>
+              )}
+            </View>
 
-      {/* Active Filter & Sort Indicator Chips */}
-      {(activeFiltersCount > 0 || currentSort.field !== 'smart') && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          {currentSort.field !== 'smart' && (
+            {/* Filters Trigger Button - 52x52px Touch Target */}
+            <TouchableOpacity
+              onPress={() => setShowFilterModal(true)}
+              activeOpacity={0.7}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                backgroundColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
+              }}
+            >
+              <SlidersHorizontal size={20} color={activeFiltersCount > 0 ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
+              {activeFiltersCount > 0 && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    minWidth: 20,
+                    height: 20,
+                    borderRadius: 10,
+                    backgroundColor: '#f59e0b',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    paddingHorizontal: 4,
+                    borderWidth: 2,
+                    borderColor: isDarkMode ? '#09090b' : '#f8fafc',
+                  }}
+                >
+                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff' }}>{activeFiltersCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+
+            {/* Sort Trigger Button - 52x52px Touch Target */}
             <TouchableOpacity
               onPress={() => setShowSortModal(true)}
               activeOpacity={0.7}
-              style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}
+              style={{
+                width: 52,
+                height: 52,
+                borderRadius: 16,
+                backgroundColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
+                alignItems: 'center',
+                justifyContent: 'center',
+                borderWidth: 1,
+                borderColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
+              }}
             >
-              <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
-                Sort: {getSortDisplayLabel(currentSort)}
-              </Text>
+              <ArrowUpDown size={20} color={currentSort.field !== 'smart' ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
+              {currentSort.field !== 'smart' && (
+                <View
+                  style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -4,
+                    width: 14,
+                    height: 14,
+                    borderRadius: 7,
+                    backgroundColor: '#f59e0b',
+                    borderWidth: 2,
+                    borderColor: isDarkMode ? '#09090b' : '#f8fafc',
+                  }}
+                />
+              )}
             </TouchableOpacity>
-          )}
-          {filterStatus !== 'all' && (
-            <View style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Status: {filterStatus}</Text>
+          </View>
+
+          {/* Active Filter & Sort Indicator Chips */}
+          {(activeFiltersCount > 0 || currentSort.field !== 'smart') && (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {currentSort.field !== 'smart' && (
+                <TouchableOpacity
+                  onPress={() => setShowSortModal(true)}
+                  activeOpacity={0.7}
+                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                    Sort: {getSortDisplayLabel(currentSort)}
+                  </Text>
+                </TouchableOpacity>
+              )}
+              {filterStatus !== 'all' && (
+                <View style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Status: {filterStatus}</Text>
+                </View>
+              )}
+              {effectiveView !== 'important' && filterImportance !== 'all' && (
+                <View style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>{filterImportance}</Text>
+                </View>
+              )}
+              {filterDue !== 'all' && (
+                <View style={{ minHeight: 32, backgroundColor: 'rgba(2,132,199,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#0284c7' }}>Due: {dueLabel}</Text>
+                </View>
+              )}
+              {filterListId !== 'all' && (
+                <View style={{ minHeight: 32, backgroundColor: 'rgba(168,85,247,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#a855f7' }}>List: {listLabel}</Text>
+                </View>
+              )}
+              {effectiveView !== 'assigned-to-me' && filterAssigneeId !== 'all' && (
+                <View style={{ minHeight: 32, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#10b981' }}>Assignee: {assigneeLabel}</Text>
+                </View>
+              )}
+              {activeFiltersCount > 0 && (
+                <TouchableOpacity
+                  onPress={handleResetFilters}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6 }}
+                >
+                  <RotateCcw size={12} color="#ef4444" />
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#ef4444' }}>Reset</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
-          {effectiveView !== 'important' && filterImportance !== 'all' && (
-            <View style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>{filterImportance}</Text>
-            </View>
-          )}
-          {filterDue !== 'all' && (
-            <View style={{ minHeight: 32, backgroundColor: 'rgba(2,132,199,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#0284c7' }}>Due: {dueLabel}</Text>
-            </View>
-          )}
-          {filterListId !== 'all' && (
-            <View style={{ minHeight: 32, backgroundColor: 'rgba(168,85,247,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#a855f7' }}>List: {listLabel}</Text>
-            </View>
-          )}
-          {effectiveView !== 'assigned-to-me' && filterAssigneeId !== 'all' && (
-            <View style={{ minHeight: 32, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#10b981' }}>Assignee: {assigneeLabel}</Text>
-            </View>
-          )}
-          {activeFiltersCount > 0 && (
-            <TouchableOpacity
-              onPress={handleResetFilters}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{ minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6 }}
-            >
-              <RotateCcw size={12} color="#ef4444" />
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#ef4444' }}>Reset</Text>
-            </TouchableOpacity>
-          )}
-        </View>
+        </>
       )}
     </View>
-  ), [gradientColors, themePrimary, formattedDate, headerTitle, pendingTasks.length, completedTasks.length, isDarkMode, searchQuery, activeFiltersCount, currentSort, filterStatus, filterImportance, filterDue, filterListId, filterAssigneeId, dueLabel, listLabel, assigneeLabel, handleResetFilters]);
+  ), [gradientColors, themePrimary, formattedDate, headerTitle, pendingTasks.length, completedTasks.length, isDarkMode, isMultiSelectMode, selectedTaskIds, clearSelectedBatchTasks, handleBulkShare, handleBulkComplete, handleBulkImportant, handleBulkDelete, searchQuery, activeFiltersCount, currentSort, filterStatus, filterImportance, filterDue, filterListId, filterAssigneeId, dueLabel, listLabel, assigneeLabel, handleResetFilters]);
 
   const ListEmpty = useMemo(() => {
     if (completedTasks.length > 0) return null;
@@ -906,7 +1180,10 @@ export function TasksView({ fixedView }: TasksViewProps) {
                 task={task}
                 isDarkMode={isDarkMode}
                 themePrimary={themePrimary}
+                isMultiSelectMode={isMultiSelectMode}
+                isCheckedForBatch={selectedTaskIds.includes(task.id)}
                 onPress={handleTaskPress}
+                onLongPress={handleTaskLongPress}
                 onToggleComplete={handleToggleComplete}
               />
             ))}
@@ -914,7 +1191,7 @@ export function TasksView({ fixedView }: TasksViewProps) {
         )}
       </View>
     );
-  }, [completedTasks, isDarkMode, themePrimary, showCompleted, handleTaskPress, handleToggleComplete]);
+  }, [completedTasks, isDarkMode, themePrimary, showCompleted, isMultiSelectMode, selectedTaskIds, handleTaskPress, handleTaskLongPress, handleToggleComplete]);
 
   return (
     <View
@@ -1633,6 +1910,30 @@ export function TasksView({ fixedView }: TasksViewProps) {
         themePrimary={themePrimary}
         viewTitle={headerTitle}
       />
+
+      {/* Bulk Due Date Picker Modal */}
+      <BulkDueDatePickerModal
+        visible={showBulkDueModal}
+        selectedCount={selectedTaskIds.length}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+        onClose={() => setShowBulkDueModal(false)}
+        onSelectDueDate={handleBulkDueDate}
+      />
+
+      {/* Bulk Assignee Picker Modal */}
+      <BulkAssigneePickerModal
+        visible={showBulkAssigneeModal}
+        selectedCount={selectedTaskIds.length}
+        users={users}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+        onClose={() => setShowBulkAssigneeModal(false)}
+        onSelectAssignee={handleBulkAssignee}
+      />
+
+      {/* 300ms Task Loading HUD */}
+      <TaskLoadingIndicator />
     </View>
   );
 }

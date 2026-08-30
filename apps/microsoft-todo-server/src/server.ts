@@ -656,6 +656,31 @@ fastify.get('/api/tasks', async (req: FastifyRequest<{ Querystring: { view?: str
   }
 });
 
+fastify.get('/api/tasks/:id', async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+  try {
+    const { id } = req.params;
+    const query = `
+      SELECT t.*,
+        u.name as assignee_name, u.phone as assignee_phone, u.avatar as assignee_avatar,
+        l.title as list_title, l.color_theme as list_color,
+        (SELECT COUNT(*) FROM subtasks st WHERE st.task_id = t.id AND st.active = 1) as subtask_count,
+        (SELECT COUNT(*) FROM subtasks st WHERE st.task_id = t.id AND st.is_completed = 1 AND st.active = 1) as subtask_completed_count
+      FROM tasks t
+      LEFT JOIN users u ON t.assigned_to_user_id = u.id AND u.active = 1
+      LEFT JOIN lists l ON t.list_id = l.id AND l.active = 1
+      WHERE t.id = ? AND t.active = 1
+    `;
+    const task = db.prepare(query).get(id) as any;
+    if (!task) {
+      return reply.status(404).send({ error: 'Task not found' });
+    }
+    attachTaskLists(task);
+    return reply.send(task);
+  } catch (err: any) {
+    return reply.status(500).send({ error: err.message });
+  }
+});
+
 fastify.get('/api/tasks/counts', async (req: FastifyRequest<{ Querystring: { userId?: string } }>, reply: FastifyReply) => {
   try {
     const { userId = '1' } = req.query;

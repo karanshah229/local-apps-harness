@@ -277,6 +277,85 @@ export function useTasksQuery({ listId, view, userId }: { listId?: number | null
   });
 }
 
+export function useTaskQuery(taskId: number | null) {
+  const baseUrl = getApiBaseUrl();
+  return useQuery<Task>({
+    queryKey: taskId ? ['task', taskId] : ['task', 'none'],
+    queryFn: async () => {
+      if (!taskId || taskId <= 0) throw new Error('Invalid task ID');
+      const res = await fetch(`${baseUrl}/api/tasks/${taskId}`);
+      if (!res.ok) throw new Error('Failed to fetch task');
+      return res.json();
+    },
+    enabled: Boolean(taskId && taskId > 0),
+    placeholderData: (previousData) => previousData,
+  });
+}
+
+export async function prefetchTaskDetails(taskId: number) {
+  const baseUrl = getApiBaseUrl();
+  if (!taskId || taskId <= 0) return;
+  try {
+    await Promise.all([
+      queryClient.prefetchQuery({
+        queryKey: ['task', taskId],
+        queryFn: async () => {
+          const res = await fetch(`${baseUrl}/api/tasks/${taskId}`);
+          if (!res.ok) throw new Error('Failed to fetch task');
+          return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+      }),
+      queryClient.prefetchQuery({
+        queryKey: QUERY_KEYS.subtasks(taskId),
+        queryFn: async () => {
+          const res = await fetch(`${baseUrl}/api/tasks/${taskId}/subtasks`);
+          if (!res.ok) throw new Error('Failed to fetch subtasks');
+          return res.json();
+        },
+        staleTime: 1000 * 60 * 5,
+      }),
+    ]);
+  } catch (_e) {
+    // Ignore background prefetch errors silently
+  }
+}
+
+export async function prefetchAllTasksInView(tasks: Task[]) {
+  if (!tasks || tasks.length === 0) return;
+  const promises = tasks.map((t) => prefetchTaskDetails(t.id));
+  await Promise.allSettled(promises);
+}
+
+export async function fetchTaskForNavigation(taskId: number): Promise<Task> {
+  const baseUrl = getApiBaseUrl();
+  if (!taskId || taskId <= 0) throw new Error('Invalid task ID');
+
+  // Concurrently ensure both task and subtasks are fetched
+  const [task] = await Promise.all([
+    queryClient.fetchQuery<Task>({
+      queryKey: ['task', taskId],
+      queryFn: async () => {
+        const res = await fetch(`${baseUrl}/api/tasks/${taskId}`);
+        if (!res.ok) throw new Error('Failed to fetch task');
+        return res.json();
+      },
+      staleTime: 1000 * 60 * 5,
+    }),
+    queryClient.fetchQuery<Subtask[]>({
+      queryKey: QUERY_KEYS.subtasks(taskId),
+      queryFn: async () => {
+        const res = await fetch(`${baseUrl}/api/tasks/${taskId}/subtasks`);
+        if (!res.ok) throw new Error('Failed to fetch subtasks');
+        return res.json();
+      },
+      staleTime: 1000 * 60 * 5,
+    }),
+  ]);
+
+  return task;
+}
+
 export function useTaskCountsQuery(userId?: number) {
   const baseUrl = getApiBaseUrl();
   const effectiveUserId = userId || 1;

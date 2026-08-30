@@ -26,7 +26,9 @@ interface UiState {
   isMultiSelectMode: boolean;
   selectedTaskIds: number[];
   toggleMultiSelectMode: () => void;
+  startMultiSelectWithTask: (taskId: number) => void;
   toggleSelectTaskForBatch: (taskId: number) => void;
+  selectAllTasks: (taskIds: number[]) => void;
   clearSelectedBatchTasks: () => void;
 
   activeUser: User | null;
@@ -68,13 +70,20 @@ export const useUiStore = create<UiState>((set, get) => ({
     const next = !get().isMultiSelectMode;
     set({ isMultiSelectMode: next, selectedTaskIds: [] });
   },
+  startMultiSelectWithTask: (taskId: number) => {
+    set({ isMultiSelectMode: true, selectedTaskIds: [taskId] });
+  },
   toggleSelectTaskForBatch: (taskId: number) => {
     const current = get().selectedTaskIds;
     if (current.includes(taskId)) {
-      set({ selectedTaskIds: current.filter((id) => id !== taskId) });
+      const next = current.filter((id) => id !== taskId);
+      set({ selectedTaskIds: next, isMultiSelectMode: next.length > 0 });
     } else {
-      set({ selectedTaskIds: [...current, taskId] });
+      set({ selectedTaskIds: [...current, taskId], isMultiSelectMode: true });
     }
+  },
+  selectAllTasks: (taskIds: number[]) => {
+    set({ isMultiSelectMode: true, selectedTaskIds: taskIds });
   },
   clearSelectedBatchTasks: () => set({ selectedTaskIds: [], isMultiSelectMode: false }),
 
