@@ -44,6 +44,7 @@ import {
 } from 'lucide-react-native';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { SortModal } from './SortModal';
+import { FilterBottomSheet } from './FilterBottomSheet';
 import { useUiStore } from '../store/useUiStore';
 import {
   useTasksQuery,
@@ -1702,144 +1703,26 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         </View>
       </Modal>
 
-      {/* Filter Modal */}
-      <Modal
+      {/* Task Filters Bottom Sheet */}
+      <FilterBottomSheet
         visible={showFilterModal}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowFilterModal(false)}
-      >
-        <View
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setShowFilterModal(false)}
-          />
-          <View
-            style={{
-              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 20,
-              paddingBottom: Math.max(insets.bottom, 24),
-              maxHeight: '80%',
-              borderTopWidth: 1,
-              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-            }}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                Filter Tasks
-              </Text>
-              <TouchableOpacity onPress={() => setShowFilterModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
-              {/* Status Filter */}
-              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>
-                Status
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                {(['all', 'pending', 'completed'] as const).map((s) => (
-                  <TouchableOpacity
-                    key={s}
-                    onPress={() => setFilterStatus(s)}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      backgroundColor: filterStatus === s ? themePrimary : (isDarkMode ? '#27272a' : '#f1f5f9'),
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: filterStatus === s ? '#ffffff' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
-                      {s === 'all' ? 'All' : s === 'pending' ? 'Pending' : 'Done'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Importance Filter */}
-              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>
-                Importance
-              </Text>
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 16 }}>
-                {(['all', 'important', 'normal'] as const).map((imp) => (
-                  <TouchableOpacity
-                    key={imp}
-                    onPress={() => setFilterImportance(imp)}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: 12,
-                      alignItems: 'center',
-                      backgroundColor: filterImportance === imp ? '#f59e0b' : (isDarkMode ? '#27272a' : '#f1f5f9'),
-                    }}
-                  >
-                    <Text style={{ fontSize: 13, fontWeight: '700', color: filterImportance === imp ? '#ffffff' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
-                      {imp === 'all' ? 'All' : imp === 'important' ? '★ Important' : 'Normal'}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {/* Due Date Filter */}
-              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 8 }}>
-                Due Date
-              </Text>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 16 }}>
-                {(['all', 'today', 'tomorrow', 'overdue', 'has_due', 'no_due'] as const).map((d) => (
-                  <TouchableOpacity
-                    key={d}
-                    onPress={() => setFilterDue(d)}
-                    style={{
-                      paddingHorizontal: 14,
-                      paddingVertical: 8,
-                      borderRadius: 12,
-                      backgroundColor: filterDue === d ? themePrimary : (isDarkMode ? '#27272a' : '#f1f5f9'),
-                    }}
-                  >
-                    <Text style={{ fontSize: 12, fontWeight: '700', color: filterDue === d ? '#ffffff' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
-                      {d.replace('_', ' ').toUpperCase()}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </ScrollView>
-
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 14 }}>
-              <TouchableOpacity
-                onPress={handleResetFilters}
-                style={{
-                  flex: 1,
-                  paddingVertical: 12,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>Reset</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => setShowFilterModal(false)}
-                style={{
-                  flex: 2,
-                  paddingVertical: 12,
-                  borderRadius: 14,
-                  alignItems: 'center',
-                  backgroundColor: themePrimary,
-                }}
-              >
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Apply Filters</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowFilterModal(false)}
+        filterStatus={filterStatus}
+        setFilterStatus={setFilterStatus}
+        filterImportance={filterImportance}
+        setFilterImportance={setFilterImportance}
+        filterDue={filterDue}
+        setFilterDue={setFilterDue}
+        filterAssigneeId={filterAssigneeId}
+        setFilterAssigneeId={setFilterAssigneeId}
+        users={users}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+        activeFiltersCount={activeFiltersCount}
+        onResetFilters={handleResetFilters}
+        totalMatchedTasks={filteredTasks.length}
+        hideList={true}
+      />
 
       {/* Default WhatsApp Contact Picker Modal */}
       <Modal
