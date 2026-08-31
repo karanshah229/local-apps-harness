@@ -31,11 +31,14 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User as UserType,
   BatchImportContact,
-  normalizeToE164
+  normalizeToE164,
+  fuzzyMatch,
+  getMultiFieldSearchScore,
 } from '@shared/todo';
 import { getDeviceContacts } from '../services/nativeContacts';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+import { useUiStore } from '../store/useUiStore';
 
 interface ContactsPageProps {
   onBack: () => void;
@@ -265,24 +268,21 @@ export default function ContactsPage({
     }
   };
 
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+
   const handleDelete = useCallback((u: UserType) => {
-    Alert.alert(
-      'Delete Contact',
-      `Are you sure you want to delete "${u.name}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onDeleteUser(u.id);
-            setSuccessMessage(`Deleted ${u.name}.`);
-            setTimeout(() => setSuccessMessage(''), 4000);
-          }
-        }
-      ]
-    );
-  }, [onDeleteUser]);
+    showConfirmDialog({
+      title: 'Delete Contact',
+      message: `Are you sure you want to delete "${u.name}"?`,
+      type: 'danger',
+      confirmLabel: 'Delete Contact',
+      onConfirm: () => {
+        onDeleteUser(u.id);
+        setSuccessMessage(`Deleted ${u.name}.`);
+        setTimeout(() => setSuccessMessage(''), 4000);
+      },
+    });
+  }, [onDeleteUser, showConfirmDialog]);
 
   const handleImportNativeContacts = async () => {
     setIsImporting(true);
@@ -311,13 +311,22 @@ export default function ContactsPage({
   };
 
   const filteredUsers = useMemo(() => {
-    const q = (searchQuery || '').toLowerCase().trim();
+    const q = (searchQuery || '').trim();
     if (!q) return users || [];
-    return (users || []).filter((u) => u && (
-      (u.name && typeof u.name === 'string' && u.name.toLowerCase().includes(q)) ||
-      (u.phone && typeof u.phone === 'string' && u.phone.toLowerCase().includes(q)) ||
-      (u.email && typeof u.email === 'string' && u.email.toLowerCase().includes(q))
-    ));
+    return (users || [])
+      .filter((u) => u && (
+        fuzzyMatch(u.name || '', q) ||
+        fuzzyMatch(u.phone || '', q) ||
+        fuzzyMatch(u.email || '', q)
+      ))
+      .sort((a, b) => {
+        const scoreA = getMultiFieldSearchScore([a.name, a.phone, a.email], q);
+        const scoreB = getMultiFieldSearchScore([b.name, b.phone, b.email], q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [users, searchQuery]);
 
   const renderContactItem = useCallback(({ item: u }: { item: UserType }) => {

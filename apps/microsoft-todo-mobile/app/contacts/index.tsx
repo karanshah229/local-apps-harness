@@ -23,7 +23,7 @@ import {
   useUsersQuery,
   useAddUserMutation,
 } from '../../src/hooks/useTodoQueries';
-import { User, normalizeToE164 } from '@shared/todo';
+import { User, normalizeToE164, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
 
 const ITEM_HEIGHT = 72;
 
@@ -118,7 +118,7 @@ export default function ContactsScreen() {
   const [newPhone, setNewPhone] = useState('');
   const [newEmail, setNewEmail] = useState('');
 
-  const { isDarkMode } = useUiStore();
+  const { isDarkMode, showAlertDialog } = useUiStore();
   const { data: users = [] } = useUsersQuery();
   const addUserMutation = useAddUserMutation();
 
@@ -135,19 +135,28 @@ export default function ContactsScreen() {
       setNewEmail('');
       setShowAddUser(false);
     } catch {
-      Alert.alert('Error', 'Failed to add contact.');
+      showAlertDialog('Error', 'Failed to add contact.');
     }
-  }, [newName, newPhone, newEmail, addUserMutation]);
+  }, [newName, newPhone, newEmail, addUserMutation, showAlertDialog]);
 
   const filteredUsers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = searchQuery.trim();
     if (!q) return users;
-    return users.filter(
-      (u) =>
-        u.name.toLowerCase().includes(q) ||
-        (u.phone && u.phone.includes(q)) ||
-        (u.email && u.email.toLowerCase().includes(q))
-    );
+    return users
+      .filter(
+        (u) =>
+          fuzzyMatch(u.name || '', q) ||
+          fuzzyMatch(u.phone || '', q) ||
+          fuzzyMatch(u.email || '', q)
+      )
+      .sort((a, b) => {
+        const scoreA = getMultiFieldSearchScore([a.name, a.phone, a.email], q);
+        const scoreB = getMultiFieldSearchScore([b.name, b.phone, b.email], q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [users, searchQuery]);
 
   const insets = useSafeAreaInsets();

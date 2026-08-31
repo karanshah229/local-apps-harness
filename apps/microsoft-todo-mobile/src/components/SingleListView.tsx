@@ -43,8 +43,11 @@ import {
   Eye,
   UserCheck,
   Pencil,
+  ListTodo,
+  Users,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from './WhatsAppIcon';
+import { WhatsAppGroupModal } from './WhatsAppGroupModal';
 import { SortModal } from './SortModal';
 import { FilterBottomSheet } from './FilterBottomSheet';
 import { useUiStore } from '../store/useUiStore';
@@ -58,6 +61,7 @@ import {
   useDeleteListMutation,
   useUserPreferencesQuery,
   useUpdateUserPreferencesMutation,
+  useAddUserMutation,
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
@@ -81,22 +85,13 @@ import {
   DEFAULT_SORT_CONFIG,
   sortTasks,
   getSortDisplayLabel,
+  fuzzyMatch,
+  getSearchMatchScore,
+  getMultiFieldSearchScore,
+  formatDueDateDisplay,
+  formatDueDateDDMMYY,
+  isTaskOverdue,
 } from '@shared/todo';
-
-function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  const cleanText = text.toLowerCase();
-  const cleanQuery = query.toLowerCase().trim();
-  if (cleanText.includes(cleanQuery)) return true;
-
-  let queryIdx = 0;
-  for (let i = 0; i < cleanText.length && queryIdx < cleanQuery.length; i++) {
-    if (cleanText[i] === cleanQuery[queryIdx]) {
-      queryIdx++;
-    }
-  }
-  return queryIdx === cleanQuery.length;
-}
 
 function hexToRgba(hex: string, alpha: number): string {
   if (!hex) return `rgba(0, 120, 212, ${alpha})`;
@@ -188,12 +183,39 @@ const TaskItem = React.memo(({
 
           {(task.due_date || (task.subtask_count && task.subtask_count > 0) || task.assignee_name) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              {task.due_date && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Calendar size={12} color={themePrimary} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: themePrimary }}>{task.due_date}</Text>
-                </View>
-              )}
+              {task.due_date && (() => {
+                const dueInfo = formatDueDateDisplay(task.due_date, task.is_completed);
+                if (!dueInfo) return null;
+                const isOverdue = dueInfo.isOverdue;
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: isOverdue
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : isDarkMode ? '#27272a' : '#f1f5f9',
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      borderWidth: isOverdue ? 1 : 0,
+                      borderColor: isOverdue ? 'rgba(239, 68, 68, 0.4)' : 'transparent',
+                    }}
+                  >
+                    <Calendar size={11} color={isOverdue ? '#ef4444' : themePrimary} />
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: isOverdue ? '#ef4444' : (isDarkMode ? '#d4d4d8' : '#334155'),
+                      }}
+                    >
+                      {dueInfo.label}
+                    </Text>
+                  </View>
+                );
+              })()}
               {Boolean(task.subtask_count && task.subtask_count > 0) && (
                 <View style={{ backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
                   <Text style={{ fontSize: 10, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
@@ -328,6 +350,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const selectAllTasks = useUiStore((s) => s.selectAllTasks);
   const clearSelectedBatchTasks = useUiStore((s) => s.clearSelectedBatchTasks);
   const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
 
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
@@ -343,13 +367,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const [editListTitle, setEditListTitle] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const [contactPickerSearch, setContactPickerSearch] = useState('');
   const [isSharingFromPicker, setIsSharingFromPicker] = useState(false);
+  const [showScopePickerModal, setShowScopePickerModal] = useState(false);
   const [showLongPressShareModal, setShowLongPressShareModal] = useState(false);
   const [shareScope, setShareScope] = useState<'pending' | 'all' | 'current_view'>('pending');
   const [longPressRecipient, setLongPressRecipient] = useState<User | null>(null);
-  const pendingShareTasksRef = useRef<Task[] | null>(null);
-  const pendingShareScopeRef = useRef<'pending' | 'all' | 'current_view'>('pending');
+  const pendingContactRef = useRef<User | null>(null);
 
   // Filter States
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
@@ -364,6 +389,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const lists = listsQuery.data || [];
   const users = usersQuery.data || [];
   const tasks = tasksQuery.data || [];
+
+  const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
@@ -383,9 +410,23 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const updateTaskMutation = useUpdateTaskMutation();
   const updateListMutation = useUpdateListMutation();
   const deleteListMutation = useDeleteListMutation();
+  const addUserMutation = useAddUserMutation();
   const { data: prefs } = useUserPreferencesQuery(1);
   const updatePrefs = useUpdateUserPreferencesMutation();
   const { openTask, TaskLoadingIndicator } = useTaskNavigation();
+
+  const handleCreateGroup = useCallback(async (groupName: string) => {
+    try {
+      const created = await addUserMutation.mutateAsync({
+        name: groupName,
+        phone: '',
+        is_group: 1,
+      });
+      return created;
+    } catch {
+      return null;
+    }
+  }, [addUserMutation]);
 
   // Pre-fetch all tasks and subtasks when tasks load in this list
   useEffect(() => {
@@ -418,11 +459,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     updatePrefs.mutate({ sort_preferences: updated });
   }, [viewKey, sortPreferences, setViewSort, updatePrefs]);
 
-  React.useEffect(() => {
-    if (prefs?.remember_last_view && listId && (prefs?.last_view_id !== String(listId) || prefs?.last_view_type !== 'list')) {
-      updatePrefs.mutate({ last_view_type: 'list', last_view_id: String(listId) });
-    }
-  }, [prefs?.remember_last_view, prefs?.last_view_id, prefs?.last_view_type, listId]);
 
   const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
 
@@ -432,12 +468,18 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [users, activeList?.default_whatsapp_contact_id]);
 
   const filteredContacts = useMemo(() => {
-    if (!contactPickerSearch.trim()) return users;
-    return users.filter(
-      (u) =>
-        fuzzyMatch(u.name || '', contactPickerSearch) ||
-        fuzzyMatch(u.phone || '', contactPickerSearch)
-    );
+    const q = contactPickerSearch.trim();
+    if (!q) return users;
+    return users
+      .filter((u) => fuzzyMatch(u.name || '', q) || fuzzyMatch(u.phone || '', q))
+      .sort((a, b) => {
+        const scoreA = getMultiFieldSearchScore([a.name, a.phone], q);
+        const scoreB = getMultiFieldSearchScore([b.name, b.phone], q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [users, contactPickerSearch]);
 
   const listTheme = activeList?.color_theme || 'blue';
@@ -470,32 +512,28 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     if (isMultiSelectMode) {
       toggleSelectTaskForBatch(task.id);
     } else {
-      openTask(task.id, themePrimary);
+      openTask(task.id, listTheme);
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, themePrimary]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, listTheme]);
 
   const handleOpenNewTask = useCallback(() => {
-    router.push(`/task/new?listId=${listId}`);
-  }, [listId, router]);
+    const themeParam = listTheme ? `&themeColor=${encodeURIComponent(listTheme)}` : '';
+    router.push(`/task/new?listId=${listId}${themeParam}`);
+  }, [listId, listTheme, router]);
 
   const handleDeleteList = useCallback(() => {
     if (!activeList) return;
-    if (activeList.is_default) {
-      Alert.alert('Cannot Delete', 'Default list cannot be deleted.');
-      return;
-    }
-    Alert.alert('Delete List', `Are you sure you want to delete "${activeList.title}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: async () => {
-          await deleteListMutation.mutateAsync(activeList.id);
-          onBack();
-        },
+    showConfirmDialog({
+      title: 'Delete List',
+      message: `Are you sure you want to delete "${activeList.title}"?`,
+      type: 'danger',
+      confirmLabel: 'Delete List',
+      onConfirm: async () => {
+        await deleteListMutation.mutateAsync(activeList.id);
+        onBack();
       },
-    ]);
-  }, [activeList, deleteListMutation, onBack]);
+    });
+  }, [activeList, deleteListMutation, onBack, showConfirmDialog]);
 
   const handleUpdateTheme = (newColor: ThemeColor) => {
     if (!activeList) return;
@@ -517,7 +555,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     if (!activeList) return;
     const trimmed = editListTitle.trim();
     if (!trimmed) {
-      Alert.alert('Invalid Name', 'List name cannot be empty.');
+      showAlertDialog('Invalid Name', 'List name cannot be empty.');
       return;
     }
     if (trimmed !== activeList.title) {
@@ -591,8 +629,21 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [tasks, searchQuery, filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   const sortedTasks = useMemo(() => {
-    return sortTasks(filteredTasks, currentSort);
-  }, [filteredTasks, currentSort]);
+    const baseSorted = sortTasks(filteredTasks, currentSort);
+    const q = searchQuery.trim();
+    if (!q) return baseSorted;
+
+    return [...baseSorted].sort((a, b) => {
+      const aFields = [a.title, a.notes, a.assignee_name, a.due_date];
+      const bFields = [b.title, b.notes, b.assignee_name, b.due_date];
+      const scoreA = getMultiFieldSearchScore(aFields, q);
+      const scoreB = getMultiFieldSearchScore(bFields, q);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      return 0;
+    });
+  }, [filteredTasks, currentSort, searchQuery]);
 
   const pendingTasks = useMemo(() => sortedTasks.filter((t) => !t.is_completed), [sortedTasks]);
   const completedTasks = useMemo(() => sortedTasks.filter((t) => t.is_completed), [sortedTasks]);
@@ -603,94 +654,145 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     }
   }, [activeList?.default_whatsapp_share_scope]);
 
+  const executeShareWithContactAndScope = useCallback(
+    (contact: { name?: string; phone?: string }, chosenScope: 'pending' | 'all' | 'current_view') => {
+      if (!activeList || !contact.phone) return;
+
+      let targetTasks: Task[] = [];
+      if (chosenScope === 'pending') {
+        targetTasks = tasks.filter((t) => !t.is_completed);
+      } else if (chosenScope === 'all') {
+        targetTasks = tasks;
+      } else {
+        targetTasks = filteredTasks;
+      }
+
+      if (targetTasks.length === 0) {
+        const msg = chosenScope === 'pending'
+          ? 'There are no pending tasks to share in this list.'
+          : 'There are no tasks matching the selected option.';
+        showAlertDialog('No Tasks to Share', msg);
+        return;
+      }
+
+      const message = formatWholeListMessage(activeList, targetTasks, { scope: chosenScope });
+      openWhatsAppWithMessage(contact.phone, message);
+    },
+    [activeList, tasks, filteredTasks, openWhatsAppWithMessage, showAlertDialog]
+  );
+
   const handleWhatsAppList = useCallback(() => {
     if (!activeList) return;
-    const scope = (activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || shareScope || 'pending';
 
-    let targetTasks: Task[] = [];
-    if (scope === 'pending') {
-      targetTasks = tasks.filter((t) => !t.is_completed);
-    } else if (scope === 'all') {
-      targetTasks = tasks;
-    } else {
-      targetTasks = filteredTasks;
-    }
-
-    if (targetTasks.length === 0) {
-      Alert.alert('No Tasks', 'There are no tasks matching the selected filter.');
+    if (tasks.length === 0) {
+      showAlertDialog('No Tasks', 'There are no tasks in this list to share.');
       return;
     }
 
-    const message = formatWholeListMessage(activeList, targetTasks, { scope });
-
-    // Rule 1: If default whatsapp share contact for that list is set -> open whatsapp with message preview for that contact
+    // 1. Check if default WhatsApp contact is selected
+    let defaultContact: { id?: number; name?: string; phone?: string } | null = null;
     if (activeList.default_whatsapp_contact_id) {
-      const defaultUser = users.find((u) => u.id === activeList.default_whatsapp_contact_id);
-      const phone = defaultUser?.phone || activeList.default_whatsapp_contact_phone;
-      if (phone) {
-        openWhatsAppWithMessage(phone, message);
-        return;
+      defaultContact = users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
+    }
+    if (!defaultContact && activeList.default_whatsapp_contact_phone) {
+      defaultContact = {
+        name: activeList.default_whatsapp_contact_name || 'Contact',
+        phone: activeList.default_whatsapp_contact_phone,
+      };
+    }
+
+    if (!defaultContact || !defaultContact.phone) {
+      // Ask for default WhatsApp contact if not selected
+      setIsSharingFromPicker(true);
+      setShowContactPicker(true);
+      return;
+    }
+
+    // 2. Ask for Tasks to send option first time only (if not yet chosen)
+    if (!activeList.default_whatsapp_share_scope) {
+      pendingContactRef.current = defaultContact as User;
+      setShowScopePickerModal(true);
+      return;
+    }
+
+    // Both are set -> send immediately
+    executeShareWithContactAndScope(
+      defaultContact,
+      activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+    );
+  }, [activeList, tasks.length, users, executeShareWithContactAndScope, showAlertDialog]);
+
+  const handleSelectDefaultContact = useCallback(
+    (user: User | null) => {
+      if (!activeList) return;
+      updateListMutation.mutate({
+        id: activeList.id,
+        default_whatsapp_contact_id: user ? user.id : null,
+        default_whatsapp_contact_name: user ? user.name : null,
+        default_whatsapp_contact_phone: user ? user.phone : null,
+      });
+      setLongPressRecipient(user);
+      setShowContactPicker(false);
+
+      if (isSharingFromPicker && user?.phone) {
+        setIsSharingFromPicker(false);
+        // Ask for Tasks to send option first time only if not yet set
+        if (!activeList.default_whatsapp_share_scope) {
+          pendingContactRef.current = user;
+          setShowScopePickerModal(true);
+        } else {
+          executeShareWithContactAndScope(
+            user,
+            activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+          );
+        }
+      } else if (!isSharingFromPicker && user) {
+        setShowLongPressShareModal(true);
       }
-    }
+    },
+    [activeList, isSharingFromPicker, updateListMutation, executeShareWithContactAndScope]
+  );
 
-    // Rule 3: If all tasks belong to 1 person -> open whatsapp with message preview for that contact and set it as default
-    const assignedUserIds = tasks
-      .map((t) => t.assigned_to_user_id)
-      .filter((id): id is number => typeof id === 'number' && id > 0);
-
-    const uniqueAssignees = Array.from(new Set(assignedUserIds));
-    if (tasks.length > 0 && uniqueAssignees.length === 1) {
-      const singleAssigneeId = uniqueAssignees[0];
-      const singleUser = users.find((u) => u.id === singleAssigneeId);
-      if (singleUser?.phone) {
-        updateListMutation.mutate({
-          id: activeList.id,
-          default_whatsapp_contact_id: singleUser.id,
-        });
-        openWhatsAppWithMessage(singleUser.phone, message);
-        return;
-      }
-    }
-
-    // Rule 4: If none of above -> open modal to select contact and set as default for that list
-    pendingShareTasksRef.current = targetTasks;
-    pendingShareScopeRef.current = scope;
-    setIsSharingFromPicker(true);
-    setShowContactPicker(true);
-  }, [activeList, tasks, filteredTasks, shareScope, users, openWhatsAppWithMessage, updateListMutation]);
-
-  const handleSelectDefaultContact = useCallback((user: User | null) => {
-    if (!activeList) return;
-    updateListMutation.mutate({
-      id: activeList.id,
-      default_whatsapp_contact_id: user ? user.id : null,
-      default_whatsapp_contact_name: user ? user.name : null,
-      default_whatsapp_contact_phone: user ? user.phone : null,
-    });
-    setLongPressRecipient(user);
-    setShowContactPicker(false);
-
-    if (isSharingFromPicker && user?.phone) {
-      setIsSharingFromPicker(false);
-      const targetTasks = pendingShareTasksRef.current || (shareScope === 'pending' ? tasks.filter((t) => !t.is_completed) : tasks);
-      const scope = pendingShareScopeRef.current || shareScope;
-      pendingShareTasksRef.current = null;
-      const message = formatWholeListMessage(activeList, targetTasks, { scope });
-      openWhatsAppWithMessage(user.phone, message);
-    } else if (!isSharingFromPicker && user) {
-      setShowLongPressShareModal(true);
-    }
-  }, [activeList, tasks, shareScope, isSharingFromPicker, updateListMutation, openWhatsAppWithMessage]);
-
-  const handleSelectShareScope = useCallback((scope: 'pending' | 'all' | 'current_view') => {
-    setShareScope(scope);
-    if (activeList) {
+  const handleChooseTasksToSendScope = useCallback(
+    (scope: 'pending' | 'all' | 'current_view') => {
+      if (!activeList) return;
+      setShareScope(scope);
       updateListMutation.mutate({
         id: activeList.id,
         default_whatsapp_share_scope: scope,
       });
-    }
-  }, [activeList, updateListMutation]);
+      setShowScopePickerModal(false);
+
+      const contact =
+        pendingContactRef.current ||
+        (activeList.default_whatsapp_contact_id
+          ? users.find((u) => u.id === activeList.default_whatsapp_contact_id)
+          : null) ||
+        (activeList.default_whatsapp_contact_phone
+          ? { name: activeList.default_whatsapp_contact_name || 'Contact', phone: activeList.default_whatsapp_contact_phone }
+          : null);
+
+      pendingContactRef.current = null;
+
+      if (contact?.phone) {
+        executeShareWithContactAndScope(contact, scope);
+      }
+    },
+    [activeList, users, updateListMutation, executeShareWithContactAndScope]
+  );
+
+  const handleSelectShareScope = useCallback(
+    (scope: 'pending' | 'all' | 'current_view') => {
+      setShareScope(scope);
+      if (activeList) {
+        updateListMutation.mutate({
+          id: activeList.id,
+          default_whatsapp_share_scope: scope,
+        });
+      }
+    },
+    [activeList, updateListMutation]
+  );
 
   const handleLongPressWhatsApp = useCallback(() => {
     if (!activeList) return;
@@ -737,9 +839,9 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     const phone = defaultUser?.phone || activeList?.default_whatsapp_contact_phone || firstWithPhone?.assignee_phone || '';
     const waLink = generateWhatsAppWebLink(phone, message);
     Linking.openURL(waLink).catch(() => {
-      Alert.alert('Error', 'Unable to open WhatsApp on this device');
+      showAlertDialog('Error', 'Unable to open WhatsApp on this device');
     });
-  }, [selectedTaskIds, tasks, activeList, users]);
+  }, [selectedTaskIds, tasks, activeList, users, showAlertDialog]);
 
   const handleBulkComplete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
@@ -783,24 +885,19 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleBulkDelete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
-    Alert.alert(
-      'Delete Tasks',
-      `Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? 'task' : 'tasks'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            for (const taskId of selectedTaskIds) {
-              deleteTaskMutation.mutate(taskId);
-            }
-            clearSelectedBatchTasks();
-          },
-        },
-      ]
-    );
-  }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks]);
+    showConfirmDialog({
+      title: 'Delete Tasks',
+      message: `Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? 'task' : 'tasks'}?`,
+      type: 'danger',
+      confirmLabel: 'Delete Tasks',
+      onConfirm: () => {
+        for (const taskId of selectedTaskIds) {
+          deleteTaskMutation.mutate(taskId);
+        }
+        clearSelectedBatchTasks();
+      },
+    });
+  }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks, showConfirmDialog]);
 
   const handleExecuteLongPressShare = useCallback(() => {
     if (!activeList) return;
@@ -815,7 +912,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     }
 
     if (targetTasks.length === 0) {
-      Alert.alert('No Tasks', 'There are no tasks matching the selected filter.');
+      showAlertDialog('No Tasks', 'There are no tasks matching the selected filter.');
       return;
     }
 
@@ -826,8 +923,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     if (recipientPhone) {
       openWhatsAppWithMessage(recipientPhone, message);
     } else {
-      pendingShareTasksRef.current = targetTasks;
-      pendingShareScopeRef.current = shareScope;
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
     }
@@ -1370,6 +1465,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
         ListFooterComponent={ListFooter}
+        initialNumToRender={15}
+        maxToRenderPerBatch={15}
+        windowSize={5}
+        removeClippedSubviews={Platform.OS === 'android'}
+        updateCellsBatchingPeriod={30}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -1386,31 +1486,33 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       />
 
       {/* Floating Action Button (FAB) for WhatsApp Share (above Add New Task) */}
-      <TouchableOpacity
-        onPress={handleWhatsAppList}
-        onLongPress={handleLongPressWhatsApp}
-        delayLongPress={350}
-        activeOpacity={0.85}
-        style={{
-          position: 'absolute',
-          bottom: 82,
-          right: 23,
-          width: 50,
-          height: 50,
-          borderRadius: 25,
-          backgroundColor: '#25D366',
-          alignItems: 'center',
-          justifyContent: 'center',
-          shadowColor: '#25D366',
-          shadowOffset: { width: 0, height: 4 },
-          shadowOpacity: 0.35,
-          shadowRadius: 6,
-          elevation: 6,
-          zIndex: 40,
-        }}
-      >
-        <WhatsAppIcon size={26} color="#ffffff" />
-      </TouchableOpacity>
+      {tasks.length > 0 && (
+        <TouchableOpacity
+          onPress={handleWhatsAppList}
+          onLongPress={handleLongPressWhatsApp}
+          delayLongPress={350}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            bottom: 82,
+            right: 23,
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            backgroundColor: '#25D366',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#25D366',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 6,
+            elevation: 6,
+            zIndex: 40,
+          }}
+        >
+          <WhatsAppIcon size={26} color="#ffffff" />
+        </TouchableOpacity>
+      )}
 
       {/* Floating Action Button (FAB) for Adding New Task */}
       <TouchableOpacity
@@ -1478,7 +1580,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
               onPress={() => {
                 setShowMoreMenu(false);
                 setIsSharingFromPicker(false);
-                setTimeout(() => setShowContactPicker(true), 150);
+                setShowContactPicker(true);
               }}
               style={{
                 flexDirection: 'row',
@@ -1509,11 +1611,46 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             {/* Divider */}
             <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
 
+            {/* Option 2: Tasks to Send Scope */}
+            <TouchableOpacity
+              onPress={() => {
+                setShowMoreMenu(false);
+                setShowScopePickerModal(true);
+              }}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                paddingHorizontal: 16,
+                paddingVertical: 12,
+              }}
+              activeOpacity={0.7}
+            >
+              <ListTodo size={18} color="#0078d4" />
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  Tasks to Send
+                </Text>
+                <Text style={{ fontSize: 11, color: '#0078d4', fontWeight: '700', marginTop: 1 }}>
+                  {activeList?.default_whatsapp_share_scope === 'all'
+                    ? 'All Tasks'
+                    : activeList?.default_whatsapp_share_scope === 'current_view'
+                    ? 'Current View'
+                    : activeList?.default_whatsapp_share_scope === 'pending'
+                    ? 'Pending Tasks'
+                    : 'Not set (Ask on send)'}
+                </Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* Divider */}
+            <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
+
             {/* Option 2: Rename List */}
             <TouchableOpacity
               onPress={() => {
                 setShowMoreMenu(false);
-                setTimeout(() => handleOpenEditTitle(), 150);
+                handleOpenEditTitle();
               }}
               style={{
                 flexDirection: 'row',
@@ -1537,7 +1674,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             <TouchableOpacity
               onPress={() => {
                 setShowMoreMenu(false);
-                setTimeout(() => setShowThemePicker(true), 150);
+                setShowThemePicker(true);
               }}
               style={{
                 flexDirection: 'row',
@@ -1561,7 +1698,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             <TouchableOpacity
               onPress={() => {
                 setShowMoreMenu(false);
-                setTimeout(() => handleDeleteList(), 150);
+                handleDeleteList();
               }}
               style={{
                 flexDirection: 'row',
@@ -1945,7 +2082,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       if (/^#[0-9A-Fa-f]{6}$/.test(customColorHex)) {
                         handleUpdateTheme(customColorHex);
                       } else {
-                        Alert.alert('Invalid Color', 'Please enter a valid 6-digit hex code (e.g. #8B5CF6)');
+                        showAlertDialog('Invalid Color', 'Please enter a valid 6-digit hex code (e.g. #8B5CF6)');
                       }
                     }}
                     disabled={!/^#[0-9A-Fa-f]{6}$/.test(customColorHex)}
@@ -2103,6 +2240,58 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 </TouchableOpacity>
               )}
 
+              {/* WhatsApp Group Option */}
+              <TouchableOpacity
+                onPress={() => {
+                  setShowContactPicker(false);
+                  setShowGroupModal(true);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingVertical: 12,
+                  paddingHorizontal: 12,
+                  borderRadius: 16,
+                  backgroundColor: defaultContact?.is_group
+                    ? (isDarkMode ? 'rgba(37, 211, 102, 0.22)' : '#ecfdf5')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: 1.5,
+                  borderColor: defaultContact?.is_group ? '#25D366' : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                  marginBottom: 8,
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Users size={18} color="#25D366" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        WhatsApp Group
+                      </Text>
+                      <View style={{ backgroundColor: 'rgba(37, 211, 102, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366' }}>Group</Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                      {defaultContact?.is_group ? `Selected: ${defaultContact.name}` : 'Set a WhatsApp Group as default'}
+                    </Text>
+                  </View>
+                </View>
+                {Boolean(defaultContact?.is_group) && <Check size={18} color="#25D366" strokeWidth={3} />}
+              </TouchableOpacity>
+
               {filteredContacts.length === 0 ? (
                 <View style={{ paddingVertical: 24, alignItems: 'center' }}>
                   <Text style={{ fontSize: 13, color: isDarkMode ? '#71717a' : '#94a3b8' }}>
@@ -2143,16 +2332,27 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                             justifyContent: 'center',
                           }}
                         >
-                          <Text style={{ fontSize: 14, fontWeight: '800', color: isSelected ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a') }}>
-                            {contact.name.charAt(0).toUpperCase()}
-                          </Text>
+                          {contact.is_group ? (
+                            <Users size={18} color={isSelected ? '#ffffff' : '#25D366'} />
+                          ) : (
+                            <Text style={{ fontSize: 14, fontWeight: '800', color: isSelected ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a') }}>
+                              {contact.name.charAt(0).toUpperCase()}
+                            </Text>
+                          )}
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
-                            {contact.name}
-                          </Text>
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                            <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
+                              {contact.name}
+                            </Text>
+                            {Boolean(contact.is_group) && (
+                              <View style={{ backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
+                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
+                              </View>
+                            )}
+                          </View>
                           <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                            {contact.phone}
+                            {contact.is_group ? 'WhatsApp Group' : (contact.phone || 'No phone')}
                           </Text>
                         </View>
                       </View>
@@ -2176,6 +2376,194 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 })
               )}
             </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Tasks to Send (Share Scope) Modal - First Time Setup */}
+      <Modal
+        visible={showScopePickerModal}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowScopePickerModal(false)}
+      >
+        <View
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+        >
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowScopePickerModal(false)}
+          />
+          <View
+            style={{
+              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            }}
+          >
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  Tasks to Send
+                </Text>
+                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                  Choose which tasks to include when sharing this list on WhatsApp
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowScopePickerModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ padding: 4 }}
+              >
+                <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scope Options */}
+            <View style={{ gap: 10, marginTop: 6 }}>
+              {/* Option 1: Pending tasks */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('pending')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1.5,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <ListTodo size={20} color="#0078d4" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        Pending Tasks
+                      </Text>
+                      <View style={{ backgroundColor: 'rgba(0, 120, 212, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>DEFAULT</Text>
+                      </View>
+                    </View>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Only incomplete tasks in this list
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    {pendingTasks.length}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Option 2: All tasks */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('all')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1.5,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(37, 211, 102, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <CheckSquare size={20} color="#25D366" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      All Tasks
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Both pending and completed tasks
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    {tasks.length}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Option 3: Current view tasks */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('current_view')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1.5,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(245, 158, 11, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <SlidersHorizontal size={20} color="#f59e0b" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Current View Tasks
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Tasks matching current search & filters
+                    </Text>
+                  </View>
+                </View>
+                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    {filteredTasks.length}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -2233,7 +2621,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
               onPress={() => {
                 setShowLongPressShareModal(false);
                 setIsSharingFromPicker(false);
-                setTimeout(() => setShowContactPicker(true), 150);
+                setShowContactPicker(true);
               }}
               style={{
                 flexDirection: 'row',
@@ -2487,6 +2875,20 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         themePrimary={themePrimary}
         onClose={() => setShowBulkAssigneeModal(false)}
         onSelectAssignee={handleBulkAssignee}
+        onCreateGroup={handleCreateGroup}
+      />
+
+      {/* WhatsApp Group Selection & Creation Modal */}
+      <WhatsAppGroupModal
+        visible={showGroupModal}
+        onClose={() => setShowGroupModal(false)}
+        onSelectGroup={(group) => {
+          handleSelectDefaultContact(group);
+        }}
+        onCreateGroup={handleCreateGroup}
+        existingGroups={existingGroups}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
       />
 
       {/* 300ms Task Loading HUD */}

@@ -21,9 +21,10 @@ import {
   Share2,
   X
 } from 'lucide-react-native';
-import { List, THEME_PALETTES, ThemeColor, SMART_VIEWS } from '@shared/todo';
+import { List, THEME_PALETTES, ThemeColor, SMART_VIEWS, fuzzyMatch, getSearchMatchScore } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+import { useUiStore } from '../store/useUiStore';
 
 interface ListsPageProps {
   lists: List[];
@@ -55,6 +56,8 @@ export default function ListsPage({
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
 
   const handleCreate = async () => {
     if (!newListTitle.trim()) return;
@@ -63,37 +66,43 @@ export default function ListsPage({
       setNewListTitle('');
       setIsCreateModalOpen(false);
     } else {
-      Alert.alert('Error', 'Failed to create list.');
+      showAlertDialog('Error', 'Failed to create list.');
     }
   };
 
   const handleDelete = (list: List) => {
     const listTitle = list.title || (list as any).name || 'Untitled list';
-    Alert.alert(
-      'Delete List',
-      `Are you sure you want to delete "${listTitle}"? All tasks in this list will also be removed.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: async () => {
-            await onDeleteList(list.id);
-            if (activeListId === list.id) {
-              setActiveListId(null);
-              setActiveView('all-tasks');
-            }
-          }
+    showConfirmDialog({
+      title: 'Delete List',
+      message: `Are you sure you want to delete "${listTitle}"?`,
+      type: 'danger',
+      confirmLabel: 'Delete List',
+      onConfirm: async () => {
+        await onDeleteList(list.id);
+        if (activeListId === list.id) {
+          setActiveListId(null);
+          setActiveView('all-tasks');
         }
-      ]
-    );
+      },
+    });
   };
 
-  const filteredLists = (lists || []).filter((l) => {
-    if (!l) return false;
-    const title = l.title || (l as any).name || '';
-    return title.toLowerCase().includes((searchQuery || '').toLowerCase().trim());
-  });
+  const q = (searchQuery || '').trim();
+  const filteredLists = (lists || [])
+    .filter((l) => {
+      if (!l) return false;
+      const title = l.title || (l as any).name || '';
+      return fuzzyMatch(title, q);
+    })
+    .sort((a, b) => {
+      if (!q) return 0;
+      const scoreA = getSearchMatchScore(a.title || (a as any).name || '', q);
+      const scoreB = getSearchMatchScore(b.title || (b as any).name || '', q);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      return 0;
+    });
 
   return (
     <View

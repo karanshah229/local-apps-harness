@@ -1,16 +1,53 @@
-export function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  const cleanText = (text || '').toLowerCase();
-  const cleanQuery = query.toLowerCase().trim();
-  if (cleanText.includes(cleanQuery)) return true;
+/**
+ * Calculates a search relevance score:
+ * - 4.0: Exact full match
+ * - 3.5: Starts with query (prefix match)
+ * - 3.0: Word starts with query (word boundary prefix match)
+ * - 2.0: Exact substring match anywhere
+ * - 1.0: Fuzzy subsequence match (characters in sequence)
+ * - 0.0: No match
+ */
+export function getSearchMatchScore(text: string | null | undefined, query: string): number {
+  if (!query || !query.trim()) return 1.0;
+  if (!text) return 0.0;
 
+  const cleanText = text.toLowerCase().trim();
+  const cleanQuery = query.toLowerCase().trim();
+
+  if (cleanText === cleanQuery) return 4.0;
+  if (cleanText.startsWith(cleanQuery)) return 3.5;
+
+  const words = cleanText.split(/\s+/);
+  for (const word of words) {
+    if (word.startsWith(cleanQuery)) return 3.0;
+  }
+
+  if (cleanText.includes(cleanQuery)) return 2.0;
+
+  // Fuzzy match (characters in sequence)
   let queryIdx = 0;
   for (let i = 0; i < cleanText.length && queryIdx < cleanQuery.length; i++) {
     if (cleanText[i] === cleanQuery[queryIdx]) {
       queryIdx++;
     }
   }
-  return queryIdx === cleanQuery.length;
+  if (queryIdx === cleanQuery.length) return 1.0;
+
+  return 0.0;
+}
+
+export function fuzzyMatch(text: string | null | undefined, query: string): boolean {
+  return getSearchMatchScore(text, query) > 0;
+}
+
+export function getMultiFieldSearchScore(fields: (string | null | undefined)[], query: string): number {
+  if (!query || !query.trim()) return 1.0;
+  let maxScore = 0.0;
+  for (const f of fields) {
+    const score = getSearchMatchScore(f, query);
+    if (score > maxScore) maxScore = score;
+  }
+  return maxScore;
 }
 
 export function hexToRgba(hex: string, alpha: number): string {
@@ -25,15 +62,47 @@ export function hexToRgba(hex: string, alpha: number): string {
   return hex;
 }
 
+/**
+ * Formats a YYYY-MM-DD date string into DD-MM-YY format.
+ * E.g., '2026-07-08' -> '08-07-26'
+ */
+export function formatDueDateDDMMYY(dueDate?: string | null): string {
+  if (!dueDate) return '';
+  try {
+    const parts = dueDate.split('-');
+    if (parts.length === 3) {
+      const year = parts[0].trim();
+      const month = parts[1].trim().padStart(2, '0');
+      const day = parts[2].trim().padStart(2, '0');
+      const yy = year.length === 4 ? year.slice(2) : year;
+      return `${day}-${month}-${yy}`;
+    }
+    return dueDate;
+  } catch {
+    return dueDate || '';
+  }
+}
+
+/**
+ * Checks if a task is overdue (due_date is in the past and task is not completed).
+ */
+export function isTaskOverdue(dueDate?: string | null, isCompleted?: boolean | number): boolean {
+  if (!dueDate || isCompleted) return false;
+  const todayStr = new Date().toISOString().split('T')[0];
+  return dueDate < todayStr;
+}
+
 export interface DueDateDisplay {
   label: string;
+  formattedDDMMYY: string;
   isOverdue: boolean;
   isToday: boolean;
   isTomorrow: boolean;
 }
 
-export function formatDueDateDisplay(dueDate?: string | null): DueDateDisplay | null {
+export function formatDueDateDisplay(dueDate?: string | null, isCompleted?: boolean | number): DueDateDisplay | null {
   if (!dueDate) return null;
+  const ddmmyy = formatDueDateDDMMYY(dueDate);
   try {
     const parts = dueDate.split('-').map(Number);
     if (parts.length === 3) {
@@ -43,18 +112,25 @@ export function formatDueDateDisplay(dueDate?: string | null): DueDateDisplay | 
       const target = new Date(d);
       target.setHours(0, 0, 0, 0);
       const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      const formatted = d.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-      });
-      if (diffDays === 0) return { label: 'Today', isOverdue: false, isToday: true, isTomorrow: false };
-      if (diffDays === 1) return { label: 'Tomorrow', isOverdue: false, isToday: false, isTomorrow: true };
-      if (diffDays < 0) return { label: `Overdue, ${formatted}`, isOverdue: true, isToday: false, isTomorrow: false };
-      return { label: formatted, isOverdue: false, isToday: false, isTomorrow: false };
+      
+      const isOverdue = !isCompleted && diffDays < 0;
+      const isToday = diffDays === 0;
+      const isTomorrow = diffDays === 1;
+
+      if (isToday) {
+        return { label: `Today • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: true, isTomorrow: false };
+      }
+      if (isTomorrow) {
+        return { label: `Tomorrow • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: true };
+      }
+      if (isOverdue) {
+        return { label: `Overdue • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: true, isToday: false, isTomorrow: false };
+      }
+      return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
     }
-    return { label: dueDate, isOverdue: false, isToday: false, isTomorrow: false };
+    return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
   } catch {
-    return { label: dueDate, isOverdue: false, isToday: false, isTomorrow: false };
+    return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
   }
 }
 

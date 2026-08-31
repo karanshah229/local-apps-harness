@@ -31,8 +31,13 @@ import {
   ChevronRight,
   ChevronLeft,
   AlertCircle,
+  UserCheck,
+  UserX,
+  Star,
+  Users,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from '../../src/components/WhatsAppIcon';
+import { WhatsAppGroupModal } from '../../src/components/WhatsAppGroupModal';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useTasksQuery,
@@ -46,9 +51,33 @@ import {
   useAddSubtaskMutation,
   useUpdateSubtaskMutation,
   useDeleteSubtaskMutation,
+  useAddUserMutation,
 } from '../../src/hooks/useTodoQueries';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../../src/hooks/useThrottledTaskAutosave';
-import { Task, User, List, formatSingleTaskMessage, generateWhatsAppDeepLink, generateWhatsAppWebLink } from '@shared/todo';
+import {
+  Task,
+  User,
+  List,
+  formatSingleTaskMessage,
+  generateWhatsAppDeepLink,
+  generateWhatsAppWebLink,
+  fuzzyMatch,
+  getSearchMatchScore,
+  getMultiFieldSearchScore,
+  formatDueDateDisplay,
+  formatDueDateDDMMYY,
+  isTaskOverdue,
+  getThemePrimary,
+} from '@shared/todo';
+
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#')) return `rgba(0, 120, 212, ${alpha})`;
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 interface LocalStep {
   id: number;
@@ -60,11 +89,13 @@ const AssigneePickerItem = React.memo(({
   user,
   isSelected,
   isDarkMode,
+  themePrimary = '#0078d4',
   onSelect,
 }: {
   user: User;
   isSelected: boolean;
   isDarkMode: boolean;
+  themePrimary?: string;
   onSelect: (userId: number) => void;
 }) => {
   return (
@@ -80,38 +111,47 @@ const AssigneePickerItem = React.memo(({
         minHeight: 54,
         borderRadius: 16,
         backgroundColor: isSelected
-          ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+          ? (isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.08))
           : (isDarkMode ? '#27272a' : '#f8fafc'),
         borderWidth: 1,
         borderColor: isSelected
-          ? '#0078d4'
+          ? themePrimary
           : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
         marginBottom: 8,
       }}
     >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-        {user.avatar ? (
+        {user.is_group ? (
+          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7', alignItems: 'center', justifyContent: 'center' }}>
+            <Users size={18} color="#25D366" />
+          </View>
+        ) : user.avatar ? (
           <Image source={{ uri: user.avatar }} style={{ width: 34, height: 34, borderRadius: 17 }} />
         ) : (
-          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(0,120,212,0.12)', alignItems: 'center', justifyContent: 'center' }}>
-            <Text style={{ color: '#0078d4', fontWeight: '800', fontSize: 13 }}>
+          <View style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: hexToRgba(themePrimary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+            <Text style={{ color: themePrimary, fontWeight: '800', fontSize: 13 }}>
               {user.name ? user.name.slice(0, 2).toUpperCase() : '??'}
             </Text>
           </View>
         )}
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
-            {user.name}
-          </Text>
-          {user.phone && (
-            <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-              {user.phone}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
+              {user.name}
             </Text>
-          )}
+            {Boolean(user.is_group) && (
+              <View style={{ backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7', paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
+              </View>
+            )}
+          </View>
+          <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+            {user.is_group ? 'WhatsApp Group' : (user.phone || 'No phone')}
+          </Text>
         </View>
       </View>
 
-      {isSelected && <Check size={18} color="#0078d4" />}
+      {isSelected && <Check size={18} color={themePrimary} />}
     </TouchableOpacity>
   );
 });
@@ -194,11 +234,20 @@ const ListPickerItem = React.memo(({
 
 export default function TaskDetailScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ id: string; listId?: string; isImportant?: string }>();
+  const params = useLocalSearchParams<{
+    id: string;
+    listId?: string;
+    isImportant?: string;
+    view?: string;
+    themeColor?: string;
+    assignedToUserId?: string;
+  }>();
   const isNewTask = params.id === 'new';
   const taskId = isNewTask ? 0 : Number(params.id);
 
-  const { isDarkMode } = useUiStore();
+  const isDarkMode = useUiStore((s) => s.isDarkMode);
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
 
   const { data: directTask, isLoading: isDirectTaskLoading } = useTaskQuery(isNewTask ? null : taskId);
   const { data: tasks = [], isLoading: isTasksLoading } = useTasksQuery({});
@@ -231,38 +280,46 @@ export default function TaskDetailScreen() {
     save: saveExistingTask,
   });
 
+  const shouldBeImportant = params.isImportant === '1' || params.view === 'important';
+  const shouldBeAssignedToMe = params.view === 'assigned-to-me' || params.assignedToUserId === '1';
+
   // Form State
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
   const [newStep, setNewStep] = useState('');
   const [localSteps, setLocalSteps] = useState<LocalStep[]>([]);
-  const [selectedListIds, setSelectedListIds] = useState<number[]>([]);
-  const [assignedUserId, setAssignedUserId] = useState<number | null>(null);
+  const [selectedListIds, setSelectedListIds] = useState<number[]>(params.listId ? [Number(params.listId)] : []);
+  const [assignedUserId, setAssignedUserId] = useState<number | null>(shouldBeAssignedToMe ? 1 : (params.assignedToUserId ? Number(params.assignedToUserId) : null));
   const [dueDate, setDueDate] = useState<string | null>(null);
   const [isCompleted, setIsCompleted] = useState<boolean>(false);
-  const [isImportant, setIsImportant] = useState<boolean>(params.isImportant === '1');
+  const [isImportant, setIsImportant] = useState<boolean>(shouldBeImportant);
 
   // Modals & Pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showListsModal, setShowListsModal] = useState(false);
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
+  const [showWhatsAppGroupModal, setShowWhatsAppGroupModal] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState('');
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
 
-  // Initialize state
+  const addUserMutation = useAddUserMutation();
+  const initializedTaskIdRef = useRef<number | string | null>(null);
+
+  // Initialize state once per task identity
   useEffect(() => {
     if (isNewTask) {
-      setTitle('');
-      setNotes('');
-      setLocalSteps([]);
-      setIsCompleted(false);
-      setIsImportant(params.isImportant === '1');
-      if (params.listId) {
-        setSelectedListIds([Number(params.listId)]);
-      } else {
-        setSelectedListIds([]);
+      if (initializedTaskIdRef.current !== 'new') {
+        initializedTaskIdRef.current = 'new';
+        setTitle('');
+        setNotes('');
+        setLocalSteps([]);
+        setIsCompleted(false);
+        setIsImportant(shouldBeImportant);
+        setAssignedUserId(shouldBeAssignedToMe ? 1 : (params.assignedToUserId ? Number(params.assignedToUserId) : null));
+        setSelectedListIds(params.listId ? [Number(params.listId)] : []);
       }
-    } else if (task) {
+    } else if (task && initializedTaskIdRef.current !== task.id) {
+      initializedTaskIdRef.current = task.id;
       setTitle(task.title || '');
       setNotes(task.notes || '');
       setDueDate(task.due_date || null);
@@ -277,7 +334,7 @@ export default function TaskDetailScreen() {
           : (task.list_id ? [task.list_id] : []));
       setSelectedListIds(initialListIds);
     }
-  }, [isNewTask, task?.id, params.listId, params.isImportant]);
+  }, [isNewTask, task?.id, params.listId, shouldBeImportant, shouldBeAssignedToMe, params.assignedToUserId]);
 
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
@@ -296,6 +353,12 @@ export default function TaskDetailScreen() {
     const nextValue = !isCompleted;
     setIsCompleted(nextValue);
     if (!isNewTask) queueSave({ is_completed: nextValue ? 1 : 0 });
+  };
+
+  const handleToggleImportant = () => {
+    const nextValue = !isImportant;
+    setIsImportant(nextValue);
+    if (!isNewTask) queueSave({ is_important: nextValue ? 1 : 0 });
   };
 
   const handleToggleList = (targetListId: number) => {
@@ -409,9 +472,22 @@ export default function TaskDetailScreen() {
     }
   };
 
+  const handleCreateWhatsAppGroup = async (groupName: string) => {
+    try {
+      const created = await addUserMutation.mutateAsync({
+        name: groupName,
+        phone: '',
+        is_group: 1,
+      });
+      return created;
+    } catch {
+      return null;
+    }
+  };
+
   const handleSaveNewTask = async () => {
     if (!title.trim()) {
-      Alert.alert('Required', 'Please enter a task title.');
+      showAlertDialog('Required', 'Please enter a task title.');
       return;
     }
 
@@ -438,7 +514,7 @@ export default function TaskDetailScreen() {
 
       router.back();
     } catch {
-      Alert.alert('Error', 'Failed to create task.');
+      showAlertDialog('Error', 'Failed to create task.');
     }
   };
 
@@ -481,30 +557,72 @@ export default function TaskDetailScreen() {
   const completedSteps = effectiveSteps.filter((s) => s.is_completed).length;
 
   const selectedLists = lists.filter((l) => selectedListIds.includes(l.id));
+  const primaryList = selectedLists[0] || (params.listId ? lists.find((l) => l.id === Number(params.listId)) : null);
+
+  const activeThemeColor = useMemo(() => {
+    if (params.themeColor) return params.themeColor;
+    if (params.view === 'important' || params.isImportant === '1' || isImportant) return 'orange';
+    if (params.view === 'assigned-to-me') return 'purple';
+    if (primaryList?.color_theme) return primaryList.color_theme;
+    if (task?.is_important) return 'orange';
+    return 'blue';
+  }, [params.themeColor, params.view, params.isImportant, isImportant, primaryList?.color_theme, task?.is_important]);
+
+  const themePrimary = useMemo(() => {
+    return getThemePrimary(activeThemeColor, isDarkMode);
+  }, [activeThemeColor, isDarkMode]);
+
   const selectedListsSummary = selectedLists.length > 0
     ? selectedLists.map((l) => l.title).join(', ')
     : 'None (Tasks)';
 
   const filteredLists = useMemo(() => {
-    if (!listSearchQuery.trim()) return lists;
-    const q = listSearchQuery.toLowerCase().trim();
-    return lists.filter((l) => l.title.toLowerCase().includes(q));
+    const q = listSearchQuery.trim();
+    if (!q) return lists;
+    return lists
+      .filter((l) => fuzzyMatch(l.title, q))
+      .sort((a, b) => {
+        const scoreA = getSearchMatchScore(a.title, q);
+        const scoreB = getSearchMatchScore(b.title, q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [lists, listSearchQuery]);
 
   const assignedUser = useMemo(() => users.find((u) => u.id === assignedUserId), [users, assignedUserId]);
+  const assignedLabel = useMemo(() => {
+    if (!assignedUserId) return 'Unassigned';
+    if (assignedUserId === 1) return 'Self (You)';
+    if (assignedUser?.is_group) return `${assignedUser.name} (Group)`;
+    return assignedUser ? assignedUser.name : 'Assigned';
+  }, [assignedUserId, assignedUser]);
+
+  const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
+  const contactUsers = useMemo(() => users.filter((u) => u.id !== 1), [users]);
 
   const filteredUsers = useMemo(() => {
-    if (!assigneeSearchQuery.trim()) return users;
-    const q = assigneeSearchQuery.toLowerCase().trim();
-    return users.filter((u) => u.name.toLowerCase().includes(q) || (u.phone && u.phone.includes(q)));
-  }, [users, assigneeSearchQuery]);
+    const q = assigneeSearchQuery.trim();
+    if (!q) return contactUsers;
+    return contactUsers
+      .filter((u) => fuzzyMatch(u.name, q) || fuzzyMatch(u.phone, q))
+      .sort((a, b) => {
+        const scoreA = getMultiFieldSearchScore([a.name, a.phone], q);
+        const scoreB = getMultiFieldSearchScore([b.name, b.phone], q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
+  }, [contactUsers, assigneeSearchQuery]);
 
   const isTaskLoading = !isNewTask && !task && (isDirectTaskLoading || isTasksLoading);
 
   if (isTaskLoading) {
     return (
       <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', alignItems: 'center', justifyContent: 'center', paddingTop: topInset }}>
-        <ActivityIndicator size="large" color="#0078d4" />
+        <ActivityIndicator size="large" color={themePrimary} />
       </View>
     );
   }
@@ -514,7 +632,7 @@ export default function TaskDetailScreen() {
       <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', alignItems: 'center', justifyContent: 'center', paddingTop: topInset }}>
         <Text style={{ color: isDarkMode ? '#ffffff' : '#0f172a', fontWeight: '700' }}>Task not found</Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 12, padding: 8 }}>
-          <Text style={{ color: '#0078d4', fontWeight: '800' }}>Go back</Text>
+          <Text style={{ color: themePrimary, fontWeight: '800' }}>Go back</Text>
         </TouchableOpacity>
       </View>
     );
@@ -573,7 +691,7 @@ export default function TaskDetailScreen() {
               disabled={!title.trim()}
               activeOpacity={0.8}
               style={{
-                backgroundColor: '#0078d4',
+                backgroundColor: themePrimary,
                 paddingHorizontal: 16,
                 paddingVertical: 10,
                 minHeight: 40,
@@ -589,17 +707,16 @@ export default function TaskDetailScreen() {
             <TouchableOpacity
               onPress={() => {
                 if (!task) return;
-                Alert.alert('Delete Task', 'Are you sure you want to delete this task?', [
-                  { text: 'Cancel', style: 'cancel' },
-                  {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                      deleteTaskMutation.mutate(task.id);
-                      router.back();
-                    },
+                showConfirmDialog({
+                  title: 'Delete Task',
+                  message: `Are you sure you want to delete "${task.title}"?`,
+                  type: 'danger',
+                  confirmLabel: 'Delete Task',
+                  onConfirm: () => {
+                    deleteTaskMutation.mutate(task.id);
+                    router.back();
                   },
-                ]);
+                });
               }}
               activeOpacity={0.7}
               hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
@@ -639,14 +756,14 @@ export default function TaskDetailScreen() {
                 borderRadius: 20,
                 backgroundColor:
                   feedbackType === 'loading'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    ? (isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.08))
                     : feedbackType === 'success'
                     ? (isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#f0fdf4')
                     : (isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2'),
                 borderWidth: 1,
                 borderColor:
                   feedbackType === 'loading'
-                    ? (isDarkMode ? '#1e3a8a' : '#bfdbfe')
+                    ? themePrimary
                     : feedbackType === 'success'
                     ? (isDarkMode ? '#065f46' : '#bbf7d0')
                     : (isDarkMode ? '#991b1b' : '#fecaca'),
@@ -654,8 +771,8 @@ export default function TaskDetailScreen() {
             >
               {feedbackType === 'loading' && (
                 <>
-                  <ActivityIndicator size="small" color="#0078d4" />
-                  <Text style={{ fontSize: 13, fontWeight: '700', color: '#0078d4' }}>
+                  <ActivityIndicator size="small" color={themePrimary} />
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: themePrimary }}>
                     Saving changes…
                   </Text>
                 </>
@@ -710,8 +827,8 @@ export default function TaskDetailScreen() {
                   height: 24,
                   borderRadius: 7,
                   borderWidth: 2,
-                  borderColor: isCompleted ? '#0078d4' : (isDarkMode ? '#52525b' : '#94a3b8'),
-                  backgroundColor: isCompleted ? '#0078d4' : 'transparent',
+                  borderColor: isCompleted ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
+                  backgroundColor: isCompleted ? themePrimary : 'transparent',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
@@ -736,6 +853,28 @@ export default function TaskDetailScreen() {
                 textDecorationLine: isCompleted ? 'line-through' : 'none',
               }}
             />
+
+            <TouchableOpacity
+              onPress={handleToggleImportant}
+              activeOpacity={0.7}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: isImportant
+                  ? (isDarkMode ? 'rgba(249, 115, 22, 0.2)' : '#fff7ed')
+                  : 'transparent',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Star
+                size={22}
+                color={isImportant ? '#f97316' : (isDarkMode ? '#71717a' : '#94a3b8')}
+                fill={isImportant ? '#f97316' : 'transparent'}
+              />
+            </TouchableOpacity>
           </View>
 
           {/* Steps Checklist */}
@@ -776,8 +915,8 @@ export default function TaskDetailScreen() {
                       height: 20,
                       borderRadius: 6,
                       borderWidth: 2,
-                      borderColor: step.is_completed ? '#0078d4' : (isDarkMode ? '#52525b' : '#94a3b8'),
-                      backgroundColor: step.is_completed ? '#0078d4' : 'transparent',
+                      borderColor: step.is_completed ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
+                      backgroundColor: step.is_completed ? themePrimary : 'transparent',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
@@ -807,7 +946,7 @@ export default function TaskDetailScreen() {
             ))}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 42, marginTop: 4 }}>
-              <Plus size={18} color="#0078d4" />
+              <Plus size={18} color={themePrimary} />
               <TextInput
                 placeholder="Add next step..."
                 placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
@@ -844,8 +983,8 @@ export default function TaskDetailScreen() {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, marginRight: 8 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(0,120,212,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                <ListTodo size={20} color="#0078d4" />
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: hexToRgba(themePrimary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                <ListTodo size={20} color={themePrimary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
@@ -871,14 +1010,14 @@ export default function TaskDetailScreen() {
               <View
                 style={{
                   backgroundColor: selectedListIds.length > 0
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.2)' : '#eff6ff')
+                    ? (isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.08))
                     : (isDarkMode ? '#27272a' : '#f1f5f9'),
                   paddingHorizontal: 8,
                   paddingVertical: 3,
                   borderRadius: 8,
                 }}
               >
-                <Text style={{ fontSize: 11, fontWeight: '800', color: selectedListIds.length > 0 ? '#0078d4' : (isDarkMode ? '#71717a' : '#94a3b8') }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: selectedListIds.length > 0 ? themePrimary : (isDarkMode ? '#71717a' : '#94a3b8') }}>
                   {selectedListIds.length}
                 </Text>
               </View>
@@ -906,15 +1045,15 @@ export default function TaskDetailScreen() {
             }}
           >
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(2,132,199,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                <UserIcon size={20} color="#0284c7" />
+              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: hexToRgba(themePrimary, 0.12), alignItems: 'center', justifyContent: 'center' }}>
+                <UserIcon size={20} color={themePrimary} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase' }}>
                   Assign To
                 </Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: assignedUser ? '#0284c7' : (isDarkMode ? '#71717a' : '#94a3b8'), marginTop: 2 }}>
-                  {assignedUser ? assignedUser.name : 'Unassigned'}
+                <Text style={{ fontSize: 14, fontWeight: '700', color: assignedUserId ? themePrimary : (isDarkMode ? '#71717a' : '#94a3b8'), marginTop: 2 }}>
+                  {assignedLabel}
                 </Text>
               </View>
             </View>
@@ -955,19 +1094,34 @@ export default function TaskDetailScreen() {
               borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: 'rgba(0,120,212,0.1)', alignItems: 'center', justifyContent: 'center' }}>
-                <Calendar size={20} color="#0078d4" />
-              </View>
-              <View>
-                <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase' }}>
-                  Due Date
-                </Text>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: dueDate ? '#0078d4' : (isDarkMode ? '#71717a' : '#94a3b8'), marginTop: 2 }}>
-                  {dueDate || 'Set due date'}
-                </Text>
-              </View>
-            </View>
+            {(() => {
+              const dueInfo = formatDueDateDisplay(dueDate, task?.is_completed);
+              const isOverdue = dueInfo?.isOverdue;
+              return (
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 12,
+                      backgroundColor: isOverdue ? 'rgba(239, 68, 68, 0.15)' : hexToRgba(themePrimary, 0.12),
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Calendar size={20} color={isOverdue ? '#ef4444' : themePrimary} />
+                  </View>
+                  <View>
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: isOverdue ? '#ef4444' : (isDarkMode ? '#a1a1aa' : '#64748b'), textTransform: 'uppercase' }}>
+                      {isOverdue ? 'Due Date (Overdue)' : 'Due Date'}
+                    </Text>
+                    <Text style={{ fontSize: 14, fontWeight: '700', color: isOverdue ? '#ef4444' : (dueDate ? themePrimary : (isDarkMode ? '#71717a' : '#94a3b8')), marginTop: 2 }}>
+                      {dueInfo?.label || 'Set due date'}
+                    </Text>
+                  </View>
+                </View>
+              );
+            })()}
 
             {dueDate ? (
               <TouchableOpacity
@@ -1130,7 +1284,7 @@ export default function TaskDetailScreen() {
                     activeOpacity={0.8}
                     style={{
                       marginTop: 18,
-                      backgroundColor: '#0078d4',
+                      backgroundColor: themePrimary,
                       height: 52,
                       borderRadius: 16,
                       alignItems: 'center',
@@ -1237,38 +1391,178 @@ export default function TaskDetailScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     ListHeaderComponent={
-                      <TouchableOpacity
-                        onPress={() => handleSelectAssignee(null)}
-                        activeOpacity={0.7}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          paddingHorizontal: 16,
-                          paddingVertical: 14,
-                          minHeight: 54,
-                          borderRadius: 16,
-                          backgroundColor: assignedUserId === null
-                            ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                            : (isDarkMode ? '#27272a' : '#f8fafc'),
-                          borderWidth: 1,
-                          borderColor: assignedUserId === null
-                            ? '#0078d4'
-                            : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                          marginBottom: 8,
-                        }}
-                      >
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                          Unassigned
-                        </Text>
-                        {assignedUserId === null && <Check size={18} color="#0078d4" />}
-                      </TouchableOpacity>
+                      <View style={{ gap: 8, marginBottom: 8 }}>
+                        {/* Self Option (First Option with Distinctive Styling) */}
+                        <TouchableOpacity
+                          onPress={() => handleSelectAssignee(1)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: 16,
+                            paddingVertical: 14,
+                            minHeight: 56,
+                            borderRadius: 16,
+                            backgroundColor: assignedUserId === 1
+                              ? (isDarkMode ? hexToRgba(themePrimary, 0.25) : hexToRgba(themePrimary, 0.12))
+                              : (isDarkMode ? '#27272a' : '#f1f5f9'),
+                            borderWidth: 1.5,
+                            borderColor: assignedUserId === 1
+                              ? themePrimary
+                              : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                            <View
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.3) : hexToRgba(themePrimary, 0.15),
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <UserCheck size={20} color={themePrimary} />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontSize: 15, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                                  Self
+                                </Text>
+                                <View
+                                  style={{
+                                    backgroundColor: hexToRgba(themePrimary, 0.18),
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                                    You
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                                Assign task to yourself
+                              </Text>
+                            </View>
+                          </View>
+
+                          {assignedUserId === 1 && <Check size={18} color={themePrimary} strokeWidth={3} />}
+                        </TouchableOpacity>
+
+                        {/* WhatsApp Group Option */}
+                        <TouchableOpacity
+                          onPress={() => {
+                            setShowAssigneeModal(false);
+                            setShowWhatsAppGroupModal(true);
+                          }}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: 16,
+                            paddingVertical: 14,
+                            minHeight: 56,
+                            borderRadius: 16,
+                            backgroundColor: assignedUser?.is_group
+                              ? (isDarkMode ? 'rgba(37, 211, 102, 0.22)' : '#ecfdf5')
+                              : (isDarkMode ? '#27272a' : '#f1f5f9'),
+                            borderWidth: 1.5,
+                            borderColor: assignedUser?.is_group ? '#25D366' : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                            <View
+                              style={{
+                                width: 36,
+                                height: 36,
+                                borderRadius: 18,
+                                backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <Users size={20} color="#25D366" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                                <Text style={{ fontSize: 15, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                                  WhatsApp Group
+                                </Text>
+                                <View
+                                  style={{
+                                    backgroundColor: 'rgba(37, 211, 102, 0.2)',
+                                    paddingHorizontal: 6,
+                                    paddingVertical: 2,
+                                    borderRadius: 6,
+                                  }}
+                                >
+                                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366' }}>
+                                    Group
+                                  </Text>
+                                </View>
+                              </View>
+                              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                                {assignedUser?.is_group ? `Selected: ${assignedUser.name}` : 'Assign to a team or group'}
+                              </Text>
+                            </View>
+                          </View>
+
+                          {Boolean(assignedUser?.is_group) && <Check size={18} color="#25D366" strokeWidth={3} />}
+                        </TouchableOpacity>
+
+                        {/* Unassigned Option */}
+                        <TouchableOpacity
+                          onPress={() => handleSelectAssignee(null)}
+                          activeOpacity={0.7}
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            paddingHorizontal: 16,
+                            paddingVertical: 12,
+                            minHeight: 48,
+                            borderRadius: 16,
+                            backgroundColor: assignedUserId === null
+                              ? (isDarkMode ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2')
+                              : (isDarkMode ? '#27272a' : '#f8fafc'),
+                            borderWidth: 1,
+                            borderColor: assignedUserId === null
+                              ? '#ef4444'
+                              : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                            <View
+                              style={{
+                                width: 32,
+                                height: 32,
+                                borderRadius: 16,
+                                backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <UserX size={16} color={assignedUserId === null ? '#ef4444' : (isDarkMode ? '#a1a1aa' : '#64748b')} />
+                            </View>
+                            <Text style={{ fontSize: 14, fontWeight: '700', color: assignedUserId === null ? '#ef4444' : (isDarkMode ? '#ffffff' : '#0f172a') }}>
+                              Unassigned
+                            </Text>
+                          </View>
+                          {assignedUserId === null && <Check size={18} color="#ef4444" />}
+                        </TouchableOpacity>
+                      </View>
                     }
                     renderItem={({ item }) => (
                       <AssigneePickerItem
                         user={item}
                         isSelected={assignedUserId === item.id}
                         isDarkMode={isDarkMode}
+                        themePrimary={themePrimary}
                         onSelect={handleSelectAssignee}
                       />
                     )}
@@ -1428,16 +1722,16 @@ export default function TaskDetailScreen() {
                             justifyContent: 'center',
                           }}
                         >
-                          <View
-                            style={{
-                              width: 34,
-                              height: 34,
-                              borderRadius: 17,
-                              backgroundColor: isSelected ? '#0078d4' : 'transparent',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                            }}
-                          >
+                            <View
+                              style={{
+                                width: 34,
+                                height: 34,
+                                borderRadius: 17,
+                                backgroundColor: isSelected ? themePrimary : 'transparent',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
                             <Text
                               style={{
                                 fontSize: 14,
@@ -1477,6 +1771,19 @@ export default function TaskDetailScreen() {
             </View>
           </TouchableWithoutFeedback>
         </Modal>
+
+        {/* WhatsApp Group Selection & Creation Modal */}
+        <WhatsAppGroupModal
+          visible={showWhatsAppGroupModal}
+          onClose={() => setShowWhatsAppGroupModal(false)}
+          onSelectGroup={(group) => {
+            handleSelectAssignee(group.id);
+          }}
+          onCreateGroup={handleCreateWhatsAppGroup}
+          existingGroups={existingGroups}
+          isDarkMode={isDarkMode}
+          themePrimary={themePrimary}
+        />
 
         {/* WhatsApp Floating Action Button (Only for existing tasks) */}
         {!isNewTask && task && (

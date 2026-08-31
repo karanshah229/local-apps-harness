@@ -47,6 +47,7 @@ import {
   useUpdateTaskMutation,
   useDeleteTaskMutation,
   useUpdateUserPreferencesMutation,
+  useAddUserMutation,
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
@@ -64,6 +65,12 @@ import {
   getSortDisplayLabel,
   formatBatchTasksMessage,
   generateWhatsAppWebLink,
+  fuzzyMatch,
+  getSearchMatchScore,
+  getMultiFieldSearchScore,
+  formatDueDateDisplay,
+  formatDueDateDDMMYY,
+  isTaskOverdue,
 } from '@shared/todo';
 import { SortModal } from './SortModal';
 import { FilterBottomSheet } from './FilterBottomSheet';
@@ -165,12 +172,39 @@ const TaskItem = React.memo(({
 
           {(task.due_date || (task.lists && task.lists.length > 0)) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              {task.due_date && (
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Calendar size={12} color={themePrimary} />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: themePrimary }}>{task.due_date}</Text>
-                </View>
-              )}
+              {task.due_date && (() => {
+                const dueInfo = formatDueDateDisplay(task.due_date, task.is_completed);
+                if (!dueInfo) return null;
+                const isOverdue = dueInfo.isOverdue;
+                return (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: isOverdue
+                        ? 'rgba(239, 68, 68, 0.15)'
+                        : isDarkMode ? '#27272a' : '#f1f5f9',
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      borderWidth: isOverdue ? 1 : 0,
+                      borderColor: isOverdue ? 'rgba(239, 68, 68, 0.4)' : 'transparent',
+                    }}
+                  >
+                    <Calendar size={11} color={isOverdue ? '#ef4444' : themePrimary} />
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: isOverdue ? '#ef4444' : (isDarkMode ? '#d4d4d8' : '#334155'),
+                      }}
+                    >
+                      {dueInfo.label}
+                    </Text>
+                  </View>
+                );
+              })()}
               {task.lists?.map((l) => (
                 <View
                   key={l.id}
@@ -288,20 +322,7 @@ const CompletedTaskItem = React.memo(({
   );
 });
 
-function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  const cleanText = text.toLowerCase();
-  const cleanQuery = query.toLowerCase().trim();
-  if (cleanText.includes(cleanQuery)) return true;
 
-  let queryIdx = 0;
-  for (let i = 0; i < cleanText.length && queryIdx < cleanQuery.length; i++) {
-    if (cleanText[i] === cleanQuery[queryIdx]) {
-      queryIdx++;
-    }
-  }
-  return queryIdx === cleanQuery.length;
-}
 
 export function TasksView({ fixedView }: TasksViewProps) {
   const router = useRouter();
@@ -327,6 +348,8 @@ export function TasksView({ fixedView }: TasksViewProps) {
   const selectAllTasks = useUiStore((s) => s.selectAllTasks);
   const clearSelectedBatchTasks = useUiStore((s) => s.clearSelectedBatchTasks);
   const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
   const activeListId = useUiStore((s) => s.activeListId);
   const storeView = useUiStore((s) => s.activeView);
   const sortPreferences = useUiStore((s) => s.sortPreferences);
@@ -377,7 +400,21 @@ export function TasksView({ fixedView }: TasksViewProps) {
 
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
+  const addUserMutation = useAddUserMutation();
   const { openTask, TaskLoadingIndicator } = useTaskNavigation();
+
+  const handleCreateGroup = useCallback(async (groupName: string) => {
+    try {
+      const created = await addUserMutation.mutateAsync({
+        name: groupName,
+        phone: '',
+        is_group: 1,
+      });
+      return created;
+    } catch {
+      return null;
+    }
+  }, [addUserMutation]);
 
   // Pre-fetch all tasks and subtasks whenever tasks in view load
   useEffect(() => {
@@ -453,9 +490,9 @@ export function TasksView({ fixedView }: TasksViewProps) {
     if (isMultiSelectMode) {
       toggleSelectTaskForBatch(task.id);
     } else {
-      openTask(task.id, themePrimary);
+      openTask(task.id, currentViewTheme);
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, themePrimary]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, currentViewTheme]);
 
   const handleTaskLongPress = useCallback((task: Task) => {
     if (!isMultiSelectMode) {
@@ -476,9 +513,9 @@ export function TasksView({ fixedView }: TasksViewProps) {
     const phone = firstWithPhone?.assignee_phone || '';
     const waLink = generateWhatsAppWebLink(phone, message);
     Linking.openURL(waLink).catch(() => {
-      Alert.alert('Error', 'Unable to open WhatsApp on this device');
+      showAlertDialog('Error', 'Unable to open WhatsApp on this device');
     });
-  }, [selectedTaskIds, tasks]);
+  }, [selectedTaskIds, tasks, showAlertDialog]);
 
   const handleBulkComplete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
@@ -522,36 +559,40 @@ export function TasksView({ fixedView }: TasksViewProps) {
 
   const handleBulkDelete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
-    Alert.alert(
-      'Delete Tasks',
-      `Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? 'task' : 'tasks'}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            for (const taskId of selectedTaskIds) {
-              deleteTaskMutation.mutate(taskId);
-            }
-            clearSelectedBatchTasks();
-          },
-        },
-      ]
-    );
-  }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks]);
+    showConfirmDialog({
+      title: 'Delete Tasks',
+      message: `Are you sure you want to delete ${selectedTaskIds.length} selected ${selectedTaskIds.length === 1 ? 'task' : 'tasks'}?`,
+      type: 'danger',
+      confirmLabel: 'Delete Tasks',
+      onConfirm: () => {
+        for (const taskId of selectedTaskIds) {
+          deleteTaskMutation.mutate(taskId);
+        }
+        clearSelectedBatchTasks();
+      },
+    });
+  }, [selectedTaskIds, deleteTaskMutation, clearSelectedBatchTasks, showConfirmDialog]);
 
   const handleOpenNewTask = useCallback(() => {
     const params = new URLSearchParams();
     if (effectiveListId) {
       params.append('listId', String(effectiveListId));
     }
+    if (effectiveView) {
+      params.append('view', effectiveView);
+    }
+    if (currentViewTheme) {
+      params.append('themeColor', currentViewTheme);
+    }
     if (effectiveView === 'important') {
       params.append('isImportant', '1');
     }
+    if (effectiveView === 'assigned-to-me') {
+      params.append('assignedToUserId', '1');
+    }
     const query = params.toString();
     router.push(`/task/new${query ? `?${query}` : ''}`);
-  }, [effectiveListId, effectiveView, router]);
+  }, [effectiveListId, effectiveView, currentViewTheme, router]);
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -642,8 +683,21 @@ export function TasksView({ fixedView }: TasksViewProps) {
   }, [tasks, searchQuery, filterStatus, filterImportance, filterDue, filterListId, filterAssigneeId, effectiveView]);
 
   const sortedTasks = useMemo(() => {
-    return sortTasks(filteredTasks, currentSort);
-  }, [filteredTasks, currentSort]);
+    const baseSorted = sortTasks(filteredTasks, currentSort);
+    const q = searchQuery.trim();
+    if (!q) return baseSorted;
+
+    return [...baseSorted].sort((a, b) => {
+      const aFields = [a.title, a.notes, a.assignee_name, a.due_date, ...(a.lists || []).map((l) => l.title)];
+      const bFields = [b.title, b.notes, b.assignee_name, b.due_date, ...(b.lists || []).map((l) => l.title)];
+      const scoreA = getMultiFieldSearchScore(aFields, q);
+      const scoreB = getMultiFieldSearchScore(bFields, q);
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+      return 0;
+    });
+  }, [filteredTasks, currentSort, searchQuery]);
 
   const pendingTasks = useMemo(() => sortedTasks.filter((t) => !t.is_completed), [sortedTasks]);
   const completedTasks = useMemo(() => sortedTasks.filter((t) => t.is_completed), [sortedTasks]);
@@ -1244,6 +1298,7 @@ export function TasksView({ fixedView }: TasksViewProps) {
         themePrimary={themePrimary}
         onClose={() => setShowBulkAssigneeModal(false)}
         onSelectAssignee={handleBulkAssignee}
+        onCreateGroup={handleCreateGroup}
       />
 
       {/* 300ms Task Loading HUD */}

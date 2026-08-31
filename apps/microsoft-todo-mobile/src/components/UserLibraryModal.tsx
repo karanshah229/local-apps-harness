@@ -35,6 +35,7 @@ import {
 import { getDeviceContacts } from '../services/nativeContacts';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+import { useUiStore } from '../store/useUiStore';
 
 interface UserLibraryModalProps {
   isOpen: boolean;
@@ -131,22 +132,19 @@ export default function UserLibraryModal({
     }
   };
 
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+
   const handleDelete = (u: UserType) => {
-    Alert.alert(
-      'Delete Contact',
-      `Are you sure you want to remove "${u.name}" from your library?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => {
-            onDeleteUser(u.id);
-            if (editingUserId === u.id) handleCancelEdit();
-          }
-        }
-      ]
-    );
+    showConfirmDialog({
+      title: 'Delete Contact',
+      message: `Are you sure you want to remove "${u.name}" from your library?`,
+      type: 'danger',
+      confirmLabel: 'Delete Contact',
+      onConfirm: () => {
+        onDeleteUser(u.id);
+        if (editingUserId === u.id) handleCancelEdit();
+      },
+    });
   };
 
   // Native Device Contacts Import using expo-contacts

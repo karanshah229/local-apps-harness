@@ -43,10 +43,25 @@ interface UiState {
   isListsSheetOpen: boolean;
   setIsListsSheetOpen: (open: boolean) => void;
 
+  dialogConfig: DialogConfig | null;
+  showConfirmDialog: (config: DialogConfig) => void;
+  showAlertDialog: (title: string, message: string, onOk?: () => void) => void;
+  closeDialog: () => void;
+
   sortPreferences: SortPreferences;
   getViewSort: (viewKey: string) => ViewSortConfig;
   setViewSort: (viewKey: string, config: ViewSortConfig) => void;
   setAllSortPreferences: (prefs: SortPreferences) => void;
+}
+
+export interface DialogConfig {
+  title: string;
+  message: string;
+  type?: 'danger' | 'warning' | 'info' | 'default';
+  confirmLabel?: string;
+  cancelLabel?: string;
+  onConfirm?: () => void | Promise<void>;
+  onCancel?: () => void;
 }
 
 export const useUiStore = create<UiState>((set, get) => ({
@@ -98,6 +113,21 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   isListsSheetOpen: false,
   setIsListsSheetOpen: (open) => set({ isListsSheetOpen: open }),
+
+  dialogConfig: null,
+  showConfirmDialog: (config) => set({ dialogConfig: config }),
+  showAlertDialog: (title, message, onOk) =>
+    set({
+      dialogConfig: {
+        title,
+        message,
+        type: 'info',
+        confirmLabel: 'OK',
+        cancelLabel: '',
+        onConfirm: onOk,
+      },
+    }),
+  closeDialog: () => set({ dialogConfig: null }),
 
   sortPreferences: {},
   getViewSort: (viewKey: string) => {

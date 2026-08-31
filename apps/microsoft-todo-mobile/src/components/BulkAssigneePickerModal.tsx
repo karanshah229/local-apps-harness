@@ -9,22 +9,17 @@ import {
   FlatList,
   Image,
 } from 'react-native';
-import { X, Search, UserCheck, UserX, User as UserIcon } from 'lucide-react-native';
-import { User } from '@shared/todo';
+import { X, Search, UserCheck, UserX, User as UserIcon, Users } from 'lucide-react-native';
+import { User, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
+import { WhatsAppGroupModal } from './WhatsAppGroupModal';
 
-function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  const cleanText = text.toLowerCase();
-  const cleanQuery = query.toLowerCase().trim();
-  if (cleanText.includes(cleanQuery)) return true;
-
-  let queryIdx = 0;
-  for (let i = 0; i < cleanText.length && queryIdx < cleanQuery.length; i++) {
-    if (cleanText[i] === cleanQuery[queryIdx]) {
-      queryIdx++;
-    }
-  }
-  return queryIdx === cleanQuery.length;
+function hexToRgba(hex: string, alpha: number): string {
+  if (!hex || !hex.startsWith('#')) return `rgba(0, 120, 212, ${alpha})`;
+  const clean = hex.replace('#', '');
+  const r = parseInt(clean.substring(0, 2), 16) || 0;
+  const g = parseInt(clean.substring(2, 4), 16) || 0;
+  const b = parseInt(clean.substring(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 interface BulkAssigneePickerModalProps {
@@ -35,6 +30,7 @@ interface BulkAssigneePickerModalProps {
   themePrimary: string;
   onClose: () => void;
   onSelectAssignee: (userId: number | null) => void;
+  onCreateGroup?: (groupName: string) => Promise<User | null> | User | null;
 }
 
 export const BulkAssigneePickerModal = ({
@@ -45,20 +41,36 @@ export const BulkAssigneePickerModal = ({
   themePrimary,
   onClose,
   onSelectAssignee,
+  onCreateGroup,
 }: BulkAssigneePickerModalProps) => {
   const [search, setSearch] = useState('');
+  const [showGroupModal, setShowGroupModal] = useState(false);
+
+  const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
+  const contactUsers = useMemo(() => users.filter((u) => u.id !== 1), [users]);
 
   const filteredUsers = useMemo(() => {
-    if (!search.trim()) return users;
-    return users.filter(
-      (u) =>
-        fuzzyMatch(u.name || '', search) ||
-        fuzzyMatch(u.phone || '', search) ||
-        fuzzyMatch(u.email || '', search)
-    );
-  }, [users, search]);
+    const q = search.trim();
+    if (!q) return contactUsers;
+    return contactUsers
+      .filter(
+        (u) =>
+          fuzzyMatch(u.name || '', q) ||
+          fuzzyMatch(u.phone || '', q) ||
+          fuzzyMatch(u.email || '', q)
+      )
+      .sort((a, b) => {
+        const scoreA = getMultiFieldSearchScore([a.name, a.phone, a.email], q);
+        const scoreB = getMultiFieldSearchScore([b.name, b.phone, b.email], q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
+  }, [contactUsers, search]);
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -142,6 +154,108 @@ export const BulkAssigneePickerModal = ({
                 />
               </View>
 
+              {/* Self Option (First Option with Distinctive Styling) */}
+              <TouchableOpacity
+                onPress={() => { onSelectAssignee(1); onClose(); }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 12,
+                  borderRadius: 14,
+                  backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.08),
+                  borderWidth: 1.5,
+                  borderColor: themePrimary,
+                  marginBottom: 8,
+                  gap: 12,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.3) : hexToRgba(themePrimary, 0.15),
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <UserCheck size={18} color={themePrimary} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Self
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: hexToRgba(themePrimary, 0.18),
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                        You
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                    Assign selected tasks to yourself
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* WhatsApp Group Option */}
+              <TouchableOpacity
+                onPress={() => setShowGroupModal(true)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  padding: 12,
+                  borderRadius: 14,
+                  backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#ecfdf5',
+                  borderWidth: 1.5,
+                  borderColor: '#25D366',
+                  marginBottom: 8,
+                  gap: 12,
+                }}
+              >
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Users size={18} color="#25D366" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      WhatsApp Group
+                    </Text>
+                    <View
+                      style={{
+                        backgroundColor: 'rgba(37, 211, 102, 0.2)',
+                        paddingHorizontal: 6,
+                        paddingVertical: 2,
+                        borderRadius: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366' }}>
+                        Group
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                    Assign selected tasks to a team or group
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
               {/* Unassigned Option */}
               <TouchableOpacity
                 onPress={() => { onSelectAssignee(null); onClose(); }}
@@ -151,6 +265,8 @@ export const BulkAssigneePickerModal = ({
                   padding: 12,
                   borderRadius: 14,
                   backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
                   marginBottom: 8,
                   gap: 12,
                 }}
@@ -239,5 +355,19 @@ export const BulkAssigneePickerModal = ({
         </View>
       </TouchableWithoutFeedback>
     </Modal>
+
+    <WhatsAppGroupModal
+      visible={showGroupModal}
+      onClose={() => setShowGroupModal(false)}
+      onSelectGroup={(group) => {
+        onSelectAssignee(group.id);
+        onClose();
+      }}
+      onCreateGroup={onCreateGroup || (async () => null)}
+      existingGroups={existingGroups}
+      isDarkMode={isDarkMode}
+      themePrimary={themePrimary}
+    />
+    </>
   );
 };

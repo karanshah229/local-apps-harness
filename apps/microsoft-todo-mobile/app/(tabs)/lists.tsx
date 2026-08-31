@@ -12,33 +12,17 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import { Plus, Trash2, CheckSquare, Star, UserCheck, Search, X } from 'lucide-react-native';
+import { Plus, Trash2, CheckSquare, Star, UserCheck, Search, X, Check } from 'lucide-react-native';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useListsQuery,
   useCreateListMutation,
   useDeleteListMutation,
   useTaskCountsQuery,
-  useUserPreferencesQuery,
-  useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
-import { THEME_PALETTES, ThemeColor, getThemePrimary } from '@shared/todo';
+import { localTodoDb } from '../../src/db/sqlite';
+import { THEME_PALETTES, ThemeColor, CUSTOM_LIST_THEMES, getThemePrimary, fuzzyMatch, getSearchMatchScore } from '@shared/todo';
 import { SingleListView } from '../../src/components/SingleListView';
-
-function fuzzyMatch(text: string, query: string): boolean {
-  if (!query) return true;
-  const cleanText = text.toLowerCase();
-  const cleanQuery = query.toLowerCase().trim();
-  if (cleanText.includes(cleanQuery)) return true;
-
-  let queryIdx = 0;
-  for (let i = 0; i < cleanText.length && queryIdx < cleanQuery.length; i++) {
-    if (cleanText[i] === cleanQuery[queryIdx]) {
-      queryIdx++;
-    }
-  }
-  return queryIdx === cleanQuery.length;
-}
 
 interface ListsDirectoryViewProps {
   onSelectList: (id: number) => void;
@@ -48,9 +32,12 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
   const router = useRouter();
   const [newListTitle, setNewListTitle] = useState('');
   const [showAddList, setShowAddList] = useState(false);
+  const [newListTheme, setNewListTheme] = useState<string>(CUSTOM_LIST_THEMES[0] || 'teal');
   const [searchQuery, setSearchQuery] = useState('');
 
   const isDarkMode = useUiStore((s) => s.isDarkMode);
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
@@ -75,12 +62,18 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
   const createListMutation = useCreateListMutation();
   const deleteListMutation = useDeleteListMutation();
 
+  const handleStartNewList = useCallback(() => {
+    const chosen = CUSTOM_LIST_THEMES[lists.length % CUSTOM_LIST_THEMES.length] || 'teal';
+    setNewListTheme(chosen);
+    setShowAddList(true);
+  }, [lists.length]);
+
   const handleCreateList = async () => {
     if (!newListTitle.trim()) return;
     try {
       const newList = await createListMutation.mutateAsync({
         title: newListTitle.trim(),
-        color_theme: 'blue',
+        color_theme: newListTheme,
         created_by: 1,
       });
       setNewListTitle('');
@@ -89,7 +82,7 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
         onSelectList(newList.id);
       }
     } catch (err: any) {
-      Alert.alert('Error', err.message || 'Failed to create list');
+      showAlertDialog('Error', err.message || 'Failed to create list');
     }
   };
 
@@ -100,13 +93,33 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
   ], [taskCounts]);
 
   const filteredSmartViews = useMemo(() => {
-    if (!searchQuery.trim()) return smartViews;
-    return smartViews.filter((v) => fuzzyMatch(v.label, searchQuery));
+    const q = searchQuery.trim();
+    if (!q) return smartViews;
+    return smartViews
+      .filter((v) => fuzzyMatch(v.label, q))
+      .sort((a, b) => {
+        const scoreA = getSearchMatchScore(a.label, q);
+        const scoreB = getSearchMatchScore(b.label, q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [smartViews, searchQuery]);
 
   const filteredCustomLists = useMemo(() => {
-    if (!searchQuery.trim()) return lists;
-    return lists.filter((l) => fuzzyMatch(l.title, searchQuery));
+    const q = searchQuery.trim();
+    if (!q) return lists;
+    return lists
+      .filter((l) => fuzzyMatch(l.title, q))
+      .sort((a, b) => {
+        const scoreA = getSearchMatchScore(a.title, q);
+        const scoreB = getSearchMatchScore(b.title, q);
+        if (scoreB !== scoreA) {
+          return scoreB - scoreA;
+        }
+        return 0;
+      });
   }, [lists, searchQuery]);
 
   return (
@@ -255,7 +268,7 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
             My Lists ({filteredCustomLists.length})
           </Text>
           <TouchableOpacity
-            onPress={() => setShowAddList(true)}
+            onPress={handleStartNewList}
             activeOpacity={0.7}
             style={{
               flexDirection: 'row',
@@ -273,49 +286,87 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
           </TouchableOpacity>
         </View>
 
-        {showAddList && (
-          <View
-            style={{
-              padding: 16,
-              borderRadius: 18,
-              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-              borderWidth: 2,
-              borderColor: '#0078d4',
-              marginBottom: 14,
-            }}
-          >
-            <TextInput
-              placeholder="Enter list name..."
-              placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-              value={newListTitle}
-              onChangeText={setNewListTitle}
-              autoFocus
-              onSubmitEditing={handleCreateList}
+        {showAddList && (() => {
+          const activeNewThemePrimary = getThemePrimary(newListTheme, isDarkMode);
+          return (
+            <View
               style={{
-                fontSize: 15,
-                fontWeight: '600',
-                color: isDarkMode ? '#ffffff' : '#0f172a',
-                paddingVertical: 8,
+                flexDirection: 'row',
+                alignItems: 'center',
+                paddingHorizontal: 14,
+                minHeight: 56,
+                borderRadius: 18,
+                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                borderWidth: 1.5,
+                borderColor: activeNewThemePrimary,
+                marginBottom: 10,
+                gap: 10,
               }}
-            />
-            <View style={{ flexDirection: 'row', justifyContent: 'flex-end', gap: 10, marginTop: 12 }}>
+            >
+              <View
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 5,
+                  backgroundColor: activeNewThemePrimary,
+                  marginLeft: 2,
+                }}
+              />
+              <TextInput
+                placeholder="List name..."
+                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                value={newListTitle}
+                onChangeText={setNewListTitle}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleCreateList}
+                style={{
+                  flex: 1,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                  paddingVertical: 10,
+                }}
+              />
+              {/* Cancel (Cross) Button */}
               <TouchableOpacity
-                onPress={() => setShowAddList(false)}
+                onPress={() => {
+                  setShowAddList(false);
+                  setNewListTitle('');
+                }}
                 activeOpacity={0.7}
-                style={{ paddingHorizontal: 14, paddingVertical: 10, minHeight: 40, justifyContent: 'center' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>Cancel</Text>
+                <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
               </TouchableOpacity>
+
+              {/* Submit (Check) Button */}
               <TouchableOpacity
                 onPress={handleCreateList}
                 activeOpacity={0.8}
-                style={{ backgroundColor: '#0078d4', paddingHorizontal: 18, paddingVertical: 10, minHeight: 40, borderRadius: 12, justifyContent: 'center' }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: activeNewThemePrimary,
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
-                <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Create</Text>
+                <Check size={18} color="#ffffff" strokeWidth={2.8} />
               </TouchableOpacity>
             </View>
-          </View>
-        )}
+          );
+        })()}
 
         {/* Custom Lists List */}
         <View style={{ gap: 8 }}>
@@ -364,20 +415,21 @@ function ListsDirectoryView({ onSelectList }: ListsDirectoryViewProps) {
                         </Text>
                       </View>
                     )}
-                    {!list.is_default && (
-                      <TouchableOpacity
-                        onPress={() => {
-                          Alert.alert('Delete List', `Delete list "${list.title}"?`, [
-                            { text: 'Cancel', style: 'cancel' },
-                            { text: 'Delete', style: 'destructive', onPress: () => deleteListMutation.mutate(list.id) },
-                          ]);
-                        }}
-                        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                        style={{ padding: 6 }}
-                      >
-                        <Trash2 size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
-                      </TouchableOpacity>
-                    )}
+                    <TouchableOpacity
+                      onPress={() => {
+                        showConfirmDialog({
+                          title: 'Delete List',
+                          message: `Are you sure you want to delete "${list.title}"?`,
+                          type: 'danger',
+                          confirmLabel: 'Delete List',
+                          onConfirm: () => deleteListMutation.mutate(list.id),
+                        });
+                      }}
+                      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                      style={{ padding: 6 }}
+                    >
+                      <Trash2 size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                    </TouchableOpacity>
                   </View>
                 </TouchableOpacity>
               );
@@ -393,18 +445,17 @@ export default function ListsScreen() {
   const activeListId = useUiStore((s) => s.activeListId);
   const setActiveListId = useUiStore((s) => s.setActiveListId);
 
-  const { data: prefs } = useUserPreferencesQuery(1);
-  const updatePrefs = useUpdateUserPreferencesMutation();
-
-  React.useEffect(() => {
-    if (!activeListId && prefs?.remember_last_view && (prefs?.last_view_id !== 'lists' || prefs?.last_view_type !== 'tab')) {
-      updatePrefs.mutate({ last_view_type: 'tab', last_view_id: 'lists' });
-    }
-  }, [activeListId, prefs?.remember_last_view, prefs?.last_view_id, prefs?.last_view_type]);
+  const handleSelectList = (id: number) => {
+    setActiveListId(id);
+    localTodoDb.updateUserPreferences({
+      last_view_type: 'list',
+      last_view_id: String(id),
+    });
+  };
 
   if (activeListId) {
     return <SingleListView listId={activeListId} onBack={() => setActiveListId(null)} />;
   }
 
-  return <ListsDirectoryView onSelectList={(id) => setActiveListId(id)} />;
+  return <ListsDirectoryView onSelectList={handleSelectList} />;
 }

@@ -3,8 +3,16 @@ import { BatchImportContact, normalizeToE164 } from '@shared/todo';
 
 let memoryLastSyncDate: string | null = null;
 
+function formatPhoneLabel(rawLabel?: string, index: number = 0): string {
+  if (!rawLabel) return `Phone ${index + 1}`;
+  const clean = String(rawLabel).replace(/[_\$!<>]/g, '').trim();
+  if (!clean) return `Phone ${index + 1}`;
+  return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
+}
+
 /**
  * Requests device contacts permission and returns formatted contacts from Android or iOS address book.
+ * When a contact has multiple phone numbers, creates dedicated number-specific entries (e.g. "Ramesh (Mobile)", "Ramesh (Work)").
  */
 export async function getDeviceContacts(): Promise<{
   granted: boolean;
@@ -40,20 +48,51 @@ export async function getDeviceContacts(): Promise<{
     const formatted: BatchImportContact[] = [];
 
     for (const item of data) {
-      const name = item.fullName || `${item.givenName || ''} ${item.familyName || ''}`.trim() || 'Unnamed Contact';
-      const rawPhone = item.phones && item.phones.length > 0 ? item.phones[0].number || '' : '';
-      const phone = normalizeToE164(rawPhone) || rawPhone;
-      const email = item.emails && item.emails.length > 0 ? item.emails[0].address || '' : '';
+      const baseName = item.fullName || `${item.givenName || ''} ${item.familyName || ''}`.trim() || 'Unnamed Contact';
+      const baseEmail = item.emails && item.emails.length > 0 ? item.emails[0].address || '' : '';
       const avatar = item.image || undefined;
 
-      if (!name && !phone && !email) continue;
+      const phones = item.phones || [];
 
-      formatted.push({
-        name,
-        phone,
-        email,
-        avatar
-      });
+      if (phones.length === 0) {
+        if (baseName || baseEmail) {
+          formatted.push({
+            name: baseName,
+            phone: '',
+            email: baseEmail,
+            avatar,
+          });
+        }
+        continue;
+      }
+
+      if (phones.length === 1) {
+        const rawPhone = phones[0].number || '';
+        const phone = normalizeToE164(rawPhone) || rawPhone;
+        formatted.push({
+          name: baseName,
+          phone,
+          email: baseEmail,
+          avatar,
+        });
+      } else {
+        // Multiple phone numbers -> create an entry per phone number with label
+        phones.forEach((p, idx) => {
+          const rawPhone = p.number || '';
+          const phone = normalizeToE164(rawPhone) || rawPhone;
+          if (!phone) return;
+
+          const label = formatPhoneLabel(p.label, idx);
+          const entryName = `${baseName} (${label})`;
+
+          formatted.push({
+            name: entryName,
+            phone,
+            email: idx === 0 ? baseEmail : '',
+            avatar,
+          });
+        });
+      }
     }
 
     return {

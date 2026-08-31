@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { CheckSquare, Star, UserCheck, ListTodo, Settings } from 'lucide-react-native';
 import { useUiStore } from '../store/useUiStore';
 import { useTaskCountsQuery, useListsQuery } from '../hooks/useTodoQueries';
+import { localTodoDb } from '../db/sqlite';
 import { getThemePrimary } from '@shared/todo';
 
 export interface AppBottomBarProps {
@@ -104,6 +105,12 @@ export function AppBottomBar(props: AppBottomBarProps) {
         setActiveListId(null);
       }
     }
+
+    const viewId = tab.name === 'index' ? 'all-tasks' : (tab.name === 'assigned' ? 'assigned-to-me' : tab.name);
+    localTodoDb.updateUserPreferences({
+      last_view_type: 'tab',
+      last_view_id: viewId,
+    });
 
     if (props.navigation && props.state) {
       const isFocused = currentTabName === tab.name;

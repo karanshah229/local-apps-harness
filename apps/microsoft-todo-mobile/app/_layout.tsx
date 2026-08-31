@@ -3,23 +3,21 @@ import { View, useColorScheme, Platform } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { QueryClientProvider } from '@tanstack/react-query';
 import * as SplashScreen from 'expo-splash-screen';
 import {
-  queryClient,
-  useMobileSocketSync,
   useBatchImportUsersMutation,
   useUserPreferencesQuery,
 } from '../src/hooks/useTodoQueries';
+import { getDatabase } from '../src/db/sqlite';
 import { useUiStore } from '../src/store/useUiStore';
 import { autoSyncDeviceContacts } from '../src/services/nativeContacts';
+import { ThemedConfirmModal } from '../src/components/ThemedConfirmModal';
 import '../global.css';
 
 // Keep the splash screen visible while loading initial route
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 function RootLayoutNav() {
-  useMobileSocketSync();
   const router = useRouter();
 
   const { isDarkMode, themeMode, setIsDarkMode } = useUiStore();
@@ -27,8 +25,17 @@ function RootLayoutNav() {
   const systemColorScheme = useColorScheme();
 
   const [isReady, setIsReady] = useState(false);
-  const { data: preferences, isSuccess: isPrefsLoaded, isError: isPrefsError } = useUserPreferencesQuery(1);
+  const { data: preferences, isSuccess: isPrefsLoaded } = useUserPreferencesQuery(1);
   const hasRestoredView = useRef(false);
+
+  // Initialize SQLite database synchronously on startup
+  useEffect(() => {
+    try {
+      getDatabase();
+    } catch (e) {
+      console.error('Failed to initialize local SQLite database:', e);
+    }
+  }, []);
 
   useEffect(() => {
     if (themeMode === 'system') {
@@ -46,7 +53,7 @@ function RootLayoutNav() {
   }, [outerBgColor]);
 
   useEffect(() => {
-    // Auto sync contacts on first open of the day in background
+    // Auto sync device contacts on first open of the day into local SQLite in background
     autoSyncDeviceContacts(async (contacts) => {
       try {
         await batchImportMutation.mutateAsync(contacts);
@@ -99,14 +106,10 @@ function RootLayoutNav() {
       // Unveil the app cleanly directly on the target screen
       setIsReady(true);
       SplashScreen.hideAsync().catch(() => {});
-    } else if (isPrefsError) {
-      hasRestoredView.current = true;
-      setIsReady(true);
-      SplashScreen.hideAsync().catch(() => {});
     }
-  }, [isPrefsLoaded, isPrefsError, preferences, router]);
+  }, [isPrefsLoaded, preferences, router]);
 
-  // Safety fallback: ensure screen is unveiled within 1s even if preferences network query hangs
+  // Safety fallback: ensure screen is unveiled within 800ms
   useEffect(() => {
     const timer = setTimeout(() => {
       if (!hasRestoredView.current) {
@@ -114,7 +117,7 @@ function RootLayoutNav() {
         setIsReady(true);
         SplashScreen.hideAsync().catch(() => {});
       }
-    }, 1000);
+    }, 800);
     return () => clearTimeout(timer);
   }, []);
 
@@ -208,6 +211,7 @@ function RootLayoutNav() {
             }}
           />
         </Stack>
+        <ThemedConfirmModal />
       </View>
     </View>
   );
@@ -216,9 +220,7 @@ function RootLayoutNav() {
 export default function RootLayout() {
   return (
     <SafeAreaProvider>
-      <QueryClientProvider client={queryClient}>
-        <RootLayoutNav />
-      </QueryClientProvider>
+      <RootLayoutNav />
     </SafeAreaProvider>
   );
 }

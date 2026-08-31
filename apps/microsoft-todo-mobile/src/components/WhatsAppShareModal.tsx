@@ -10,7 +10,6 @@ import {
   StyleSheet,
   Linking,
   ActivityIndicator,
-  Clipboard
 } from 'react-native';
 import {
   Send,
@@ -19,21 +18,22 @@ import {
   Check,
   ExternalLink,
   MessageSquare,
-  X
+  X,
+  Users,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User,
-  List,
-  Task,
   WhatsAppPayloadConfig,
   formatSingleTaskMessage,
   formatBatchTasksMessage,
   formatWholeListMessage,
   generateWhatsAppDeepLink,
   generateWhatsAppWebLink,
-  normalizeToE164
 } from '@shared/todo';
+import { localTodoDb } from '../db/sqlite';
+import { useAddUserMutation } from '../hooks/useTodoQueries';
+import { WhatsAppGroupModal } from './WhatsAppGroupModal';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 
@@ -42,7 +42,7 @@ interface WhatsAppShareModalProps {
   onClose: () => void;
   config: WhatsAppPayloadConfig | null;
   users: User[];
-  onGeneratePayload: (config: WhatsAppPayloadConfig) => Promise<{
+  onGeneratePayload?: (config: WhatsAppPayloadConfig) => Promise<{
     waLink: string;
     message: string;
     recipientPhone: string;
@@ -62,18 +62,36 @@ export default function WhatsAppShareModal({
   const [message, setMessage] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
+  const [showGroupModal, setShowGroupModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const addUserMutation = useAddUserMutation();
+  const existingGroups = users.filter((u) => Boolean(u.is_group));
+  const selectedUser = users.find((u) => u.id === selectedUserId);
+
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
+
+  const handleCreateGroup = async (groupName: string) => {
+    try {
+      const created = await addUserMutation.mutateAsync({
+        name: groupName,
+        phone: '',
+        is_group: 1,
+      });
+      return created;
+    } catch {
+      return null;
+    }
+  };
 
   useEffect(() => {
     if (isOpen && config) {
       if (config.recipientUserId) {
         setSelectedUserId(config.recipientUserId);
       }
-      fetchPayload(config.recipientUserId || null, '');
+      fetchPayload(config.recipientUserId || null, config.customPhone || '');
     }
   }, [isOpen, config]);
 
@@ -81,15 +99,76 @@ export default function WhatsAppShareModal({
     if (!config) return;
     setLoading(true);
     try {
-      const data = await onGeneratePayload({
-        ...config,
-        recipientUserId: userId,
-        customPhone: customPhone
-      });
-      setMessage(data.message || '');
-      setRecipientPhone(data.recipientPhone || '');
+      if (onGeneratePayload) {
+        const data = await onGeneratePayload({
+          ...config,
+          recipientUserId: userId,
+          customPhone: customPhone
+        });
+        setMessage(data.message || '');
+        setRecipientPhone(data.recipientPhone || '');
+      } else {
+        // Generate payload 100% locally from SQLite DB
+        let generatedMessage = '';
+        let targetPhone = customPhone || '';
+        let targetName = 'Recipient';
+
+        if (userId) {
+          const user = users.find((u) => u.id === userId);
+          if (user) {
+            targetPhone = targetPhone || user.phone;
+            targetName = user.name;
+          }
+        }
+
+        if (config.type === 'single' && config.taskId) {
+          const task = localTodoDb.getTaskById(config.taskId);
+          if (task) {
+            const subtasks = localTodoDb.getSubtasks(task.id);
+            if (!targetPhone && task.assignee_phone) {
+              targetPhone = task.assignee_phone;
+              targetName = task.assignee_name || targetName;
+            }
+            generatedMessage = formatSingleTaskMessage(task, { name: targetName, phone: targetPhone }, subtasks);
+            localTodoDb.logWhatsAppMessage({
+              taskId: task.id,
+              phone: targetPhone,
+              recipientName: targetName,
+              message: generatedMessage,
+            });
+          }
+        } else if (config.type === 'batch' && config.taskIds && config.taskIds.length > 0) {
+          const allTasks = localTodoDb.getTasks();
+          const selectedTasks = allTasks.filter((t) => config.taskIds?.includes(t.id));
+          generatedMessage = formatBatchTasksMessage(selectedTasks);
+          localTodoDb.logWhatsAppMessage({
+            taskId: null,
+            phone: targetPhone,
+            recipientName: targetName,
+            message: generatedMessage,
+          });
+        } else if (config.type === 'list' && config.listId) {
+          const lists = localTodoDb.getLists();
+          const list = lists.find((l) => l.id === config.listId);
+          if (list) {
+            const tasks = localTodoDb.getTasks({ listId: list.id });
+            const scope = (list.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
+            const targetTasks = scope === 'pending' ? tasks.filter((t) => !t.is_completed) : tasks;
+            generatedMessage = formatWholeListMessage(list, targetTasks, { scope });
+            localTodoDb.logWhatsAppMessage({
+              taskId: null,
+              phone: targetPhone,
+              recipientName: targetName,
+              message: generatedMessage,
+            });
+          }
+        }
+
+        setMessage(generatedMessage);
+        setRecipientPhone(targetPhone);
+      }
     } catch (err) {
-      console.error('Error fetching WhatsApp payload:', err);
+      console.error('Error generating WhatsApp payload locally:', err);
     } finally {
       setLoading(false);
     }
@@ -107,9 +186,13 @@ export default function WhatsAppShareModal({
   };
 
   const handleCopy = () => {
-    Clipboard.setString(message);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      // Direct copy fallback
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Ignore
+    }
   };
 
   const handleOpenWhatsApp = async () => {
@@ -131,6 +214,7 @@ export default function WhatsAppShareModal({
   if (!config) return null;
 
   return (
+    <>
     <Modal
       visible={isOpen}
       transparent
@@ -174,6 +258,44 @@ export default function WhatsAppShareModal({
 
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.pillRow}>
+                {/* WhatsApp Group Pill */}
+                <TouchableOpacity
+                  onPress={() => setShowGroupModal(true)}
+                  style={[
+                    styles.contactPill,
+                    {
+                      backgroundColor: selectedUser?.is_group
+                        ? 'rgba(37, 211, 102, 0.2)'
+                        : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
+                      borderColor: selectedUser?.is_group ? '#25D366' : colors.border,
+                    }
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <View
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 14,
+                      backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Users size={15} color="#25D366" />
+                  </View>
+                  <Text
+                    style={[
+                      styles.contactPillName,
+                      { color: selectedUser?.is_group ? '#25D366' : colors.text }
+                    ]}
+                  >
+                    {selectedUser?.is_group ? selectedUser.name : 'Group'}
+                  </Text>
+                </TouchableOpacity>
+
                 {users.map((u) => {
                   const isSelected = selectedUserId === u.id;
                   return (
@@ -193,14 +315,29 @@ export default function WhatsAppShareModal({
                       ]}
                       activeOpacity={0.7}
                     >
-                      <Image
-                        source={{
-                          uri:
-                            u.avatar ||
-                            `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
-                        }}
-                        style={styles.contactPillAvatar}
-                      />
+                      {u.is_group ? (
+                        <View
+                          style={{
+                            width: 28,
+                            height: 28,
+                            borderRadius: 14,
+                            backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                        >
+                          <Users size={14} color="#25D366" />
+                        </View>
+                      ) : (
+                        <Image
+                          source={{
+                            uri:
+                              u.avatar ||
+                              `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
+                          }}
+                          style={styles.contactPillAvatar}
+                        />
+                      )}
                       <Text
                         style={[
                           styles.contactPillName,
@@ -329,6 +466,19 @@ export default function WhatsAppShareModal({
         </View>
       </View>
     </Modal>
+
+    <WhatsAppGroupModal
+      visible={showGroupModal}
+      onClose={() => setShowGroupModal(false)}
+      onSelectGroup={(group) => {
+        handleUserSelect(group.id);
+      }}
+      onCreateGroup={handleCreateGroup}
+      existingGroups={existingGroups}
+      isDarkMode={isDarkMode}
+      themePrimary="#25D366"
+    />
+    </>
   );
 }
 

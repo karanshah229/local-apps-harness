@@ -1,10 +1,8 @@
 import { Task, Subtask, List, User } from './types.js';
-
-export const DEFAULT_APP_BASE_URL = 'https://kamdhenu-todo.local/todo';
+import { formatDueDateDDMMYY } from './helpers.js';
 
 export interface WhatsAppFormatOptions {
-  baseUrl?: string;
-  appScheme?: string;
+  scope?: 'pending' | 'all' | 'current_view';
 }
 
 /**
@@ -24,7 +22,6 @@ export function getFriendlyDueText(dueDateStr?: string | null): { text: string; 
     const year = parseInt(parts[0], 10);
     const month = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
-
     const targetDate = new Date(year, month, day);
     if (isNaN(targetDate.getTime())) {
       return { text: raw, isOverdue: false };
@@ -35,31 +32,21 @@ export function getFriendlyDueText(dueDateStr?: string | null): { text: string; 
 
     const diffMs = targetDate.getTime() - today.getTime();
     const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const formattedShort = `${monthNames[targetDate.getMonth()]} ${targetDate.getDate()}`;
-    const formattedWithDay = `${dayNames[targetDate.getDay()]}, ${formattedShort}`;
+    const ddmmyy = formatDueDateDDMMYY(datePart);
 
     if (diffDays < 0) {
       if (diffDays === -1) {
-        return { text: '⚠️ Overdue (Yesterday)', isOverdue: true };
+        return { text: `⚠️ Overdue (Yesterday • ${ddmmyy})`, isOverdue: true };
       }
-      return { text: `⚠️ Overdue (${formattedShort})`, isOverdue: true };
+      return { text: `⚠️ Overdue (${ddmmyy})`, isOverdue: true };
     }
     if (diffDays === 0) {
-      return { text: 'Today', isOverdue: false };
+      return { text: `Today (${ddmmyy})`, isOverdue: false };
     }
     if (diffDays === 1) {
-      return { text: 'Tomorrow', isOverdue: false };
+      return { text: `Tomorrow (${ddmmyy})`, isOverdue: false };
     }
-    if (diffDays > 1 && diffDays <= 6) {
-      return { text: formattedWithDay, isOverdue: false };
-    }
-    if (targetDate.getFullYear() === today.getFullYear()) {
-      return { text: formattedShort, isOverdue: false };
-    }
-    return { text: `${formattedShort}, ${targetDate.getFullYear()}`, isOverdue: false };
+    return { text: ddmmyy, isOverdue: false };
   } catch {
     return { text: String(dueDateStr), isOverdue: false };
   }
@@ -78,15 +65,14 @@ export function getTaskListsSummary(task: Task): string | null {
 }
 
 /**
- * Format a single task into a concise, actionable WhatsApp message.
+ * Format a single delegated task into a clean, direct WhatsApp message.
+ * Pure task details with no external links or app references.
  */
 export function formatSingleTaskMessage(
   task: Task,
   recipient?: { name?: string; phone?: string },
-  subtasks: Subtask[] = [],
-  options?: WhatsAppFormatOptions
+  subtasks: Subtask[] = []
 ): string {
-  const baseUrl = options?.baseUrl || DEFAULT_APP_BASE_URL;
   const star = task.is_important ? ' ⭐' : '';
   const statusEmoji = task.is_completed ? '✅' : '📋';
 
@@ -101,7 +87,7 @@ export function formatSingleTaskMessage(
     message += `⏰ *Reminder:* ${task.reminder_time}\n`;
   }
 
-  // Lists (multi-list support)
+  // Lists
   const listsStr = getTaskListsSummary(task);
   if (listsStr) {
     const isMulti = listsStr.includes(',');
@@ -109,54 +95,46 @@ export function formatSingleTaskMessage(
   }
 
   // Assignee
+  const isGroup = Boolean(task.assignee_is_group);
   const assigneeName = recipient?.name || task.assignee_name;
   if (assigneeName && assigneeName !== 'Unassigned') {
-    message += `👤 *Assigned to:* ${assigneeName}\n`;
+    if (isGroup) {
+      message += `👥 *Group:* ${assigneeName}\n`;
+    } else {
+      message += `👤 *Assigned to:* ${assigneeName}\n`;
+    }
   }
 
-  // Checklist / Steps
+  // Checklist / Steps (full list of steps)
   if (subtasks && subtasks.length > 0) {
     const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
     message += `\n▫️ *Steps (${completedCount}/${subtasks.length}):*\n`;
 
-    const maxToShow = subtasks.length <= 5 ? subtasks.length : 4;
-    const slice = subtasks.slice(0, maxToShow);
-
-    slice.forEach((st) => {
+    subtasks.forEach((st) => {
       const icon = st.is_completed ? '✅' : '⬜';
       message += `${icon} ${st.title}\n`;
     });
-
-    if (subtasks.length > maxToShow) {
-      const remaining = subtasks.length - maxToShow;
-      message += `_...and ${remaining} more steps in app_\n`;
-    }
   }
 
-  // Notes (concise)
+  // Notes
   if (task.notes && task.notes.trim()) {
-    const cleanNotes = task.notes.trim();
-    const preview = cleanNotes.length > 120 ? `${cleanNotes.slice(0, 117)}...` : cleanNotes;
-    message += `\n💬 *Note:* "${preview}"\n`;
+    message += `\n💬 *Note:* ${task.notes.trim()}\n`;
   }
 
-  message += `\n🔗 *Open task:* ${baseUrl}/task/${task.id}`;
-
-  return message;
+  return message.trim();
 }
 
 /**
- * Format multiple selected tasks into a succinct digest.
+ * Format multiple delegated tasks into a clean task list.
+ * Pure task details with no external links or app references.
  */
 export function formatBatchTasksMessage(
-  tasks: Task[],
-  options?: WhatsAppFormatOptions
+  tasks: Task[]
 ): string {
-  const baseUrl = options?.baseUrl || DEFAULT_APP_BASE_URL;
   const pendingCount = tasks.filter((t) => !t.is_completed).length;
   const completedCount = tasks.filter((t) => Boolean(t.is_completed)).length;
 
-  let header = `📋 *Kamdhenu ToDo • ${tasks.length} Tasks Shared*\n`;
+  let header = `📋 *Tasks (${tasks.length})*\n`;
   if (completedCount > 0 && pendingCount > 0) {
     header += `_(${pendingCount} pending, ${completedCount} completed)_\n\n`;
   } else {
@@ -185,7 +163,8 @@ export function formatBatchTasksMessage(
     }
 
     if (task.assignee_name && task.assignee_name !== 'Unassigned') {
-      tags.push(`👤 ${task.assignee_name}`);
+      const icon = task.assignee_is_group ? '👥' : '👤';
+      tags.push(`${icon} ${task.assignee_name}`);
     }
 
     if (tags.length > 0) {
@@ -195,30 +174,26 @@ export function formatBatchTasksMessage(
     message += `\n`;
   });
 
-  message += `🔗 *Open in app:* ${baseUrl}`;
-
   return message.trim();
 }
 
-export interface WhatsAppListFormatOptions extends WhatsAppFormatOptions {
-  scope?: 'pending' | 'all' | 'current_view';
-}
+export type WhatsAppListFormatOptions = WhatsAppFormatOptions;
 
 /**
- * Format an entire list or filtered scope into a succinct summary for team/group sharing.
+ * Format an entire list of delegated tasks for WhatsApp.
+ * Pure task details with no external links or app references.
  */
 export function formatWholeListMessage(
   list: List,
   tasks: Task[],
   options?: WhatsAppListFormatOptions
 ): string {
-  const baseUrl = options?.baseUrl || DEFAULT_APP_BASE_URL;
   const scope = options?.scope || 'all';
 
   const pending = tasks.filter((t) => !t.is_completed);
   const completed = tasks.filter((t) => Boolean(t.is_completed));
 
-  let header = `📁 *List: ${list.title}*`;
+  let header = `📁 *${list.title}*`;
   if (scope === 'pending') {
     header += ` • Pending Tasks (${pending.length})\n\n`;
   } else if (scope === 'current_view') {
@@ -239,7 +214,10 @@ export function formatWholeListMessage(
 
       const dueInfo = getFriendlyDueText(t.due_date);
       if (dueInfo) tags.push(`📅 ${dueInfo.text}`);
-      if (t.assignee_name && t.assignee_name !== 'Unassigned') tags.push(`👤 ${t.assignee_name}`);
+      if (t.assignee_name && t.assignee_name !== 'Unassigned') {
+        const icon = t.assignee_is_group ? '👥' : '👤';
+        tags.push(`${icon} ${t.assignee_name}`);
+      }
 
       const meta = tags.length > 0 ? ` (${tags.join(' • ')})` : '';
       message += `• ⬜ ${star}*${t.title}*${meta}\n`;
@@ -254,8 +232,6 @@ export function formatWholeListMessage(
     });
     message += `\n`;
   }
-
-  message += `🔗 *Open list:* ${baseUrl}/list/${list.id}`;
 
   return message.trim();
 }
@@ -277,4 +253,3 @@ export function generateWhatsAppDeepLink(phone: string, message: string): string
   }
   return `whatsapp://send?text=${encodedText}`;
 }
-

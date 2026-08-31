@@ -4,6 +4,7 @@ export interface User {
   email: string;
   phone: string;
   avatar?: string | null;
+  is_group?: number | boolean;
   active?: number | boolean;
   created_at?: string;
 }
@@ -45,6 +46,7 @@ export interface Task {
   assignee_name?: string | null;
   assignee_phone?: string | null;
   assignee_avatar?: string | null;
+  assignee_is_group?: number | boolean;
   list_title?: string | null;
   list_color?: string | null;
   list_ids?: number[];

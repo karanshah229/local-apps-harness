@@ -1,17 +1,19 @@
-import { ThemeColor } from './types.js';
+export const SYSTEM_VIEW_THEMES = ['blue', 'orange', 'purple'] as const;
 
-export const THEME_COLORS: string[] = [
-  'blue',
-  'indigo',
-  'purple',
-  'pink',
-  'red',
-  'orange',
-  'amber',
-  'green',
-  'teal',
-  'dark',
+export const CUSTOM_LIST_THEMES: string[] = [
+  'green',    // 1: Emerald Green
+  'pink',     // 2: Rose Pink
+  'amber',    // 3: Golden Amber
+  'indigo',   // 4: Deep Indigo
+  'cyan',     // 5: Aqua Cyan
+  'red',      // 6: Crimson Red
+  'lime',     // 7: Vivid Lime
+  'fuchsia',  // 8: Deep Fuchsia
+  'teal',     // 9: Ocean Teal
+  'dark',     // 10: Slate Charcoal
 ];
+
+export const THEME_COLORS: string[] = CUSTOM_LIST_THEMES;
 
 export interface ThemePaletteDefinition {
   name: string;
@@ -114,6 +116,39 @@ export const THEME_PALETTES: Record<string, ThemePaletteDefinition> = {
     nativeGradient: ['#059669', '#065f46'],
     darkNativeGradient: ['#34d399', '#059669'],
   },
+  cyan: {
+    name: 'Cyan',
+    primary: '#0891b2',
+    darkPrimary: '#22d3ee',
+    gradientStart: '#0891b2',
+    gradientEnd: '#164e63',
+    darkGradientStart: '#22d3ee',
+    darkGradientEnd: '#0891b2',
+    nativeGradient: ['#0891b2', '#164e63'],
+    darkNativeGradient: ['#22d3ee', '#0891b2'],
+  },
+  lime: {
+    name: 'Lime',
+    primary: '#65a30d',
+    darkPrimary: '#a3e635',
+    gradientStart: '#65a30d',
+    gradientEnd: '#365314',
+    darkGradientStart: '#a3e635',
+    darkGradientEnd: '#65a30d',
+    nativeGradient: ['#65a30d', '#365314'],
+    darkNativeGradient: ['#a3e635', '#65a30d'],
+  },
+  fuchsia: {
+    name: 'Fuchsia',
+    primary: '#c026d3',
+    darkPrimary: '#e879f9',
+    gradientStart: '#c026d3',
+    gradientEnd: '#701a75',
+    darkGradientStart: '#e879f9',
+    darkGradientEnd: '#c026d3',
+    nativeGradient: ['#c026d3', '#701a75'],
+    darkNativeGradient: ['#e879f9', '#c026d3'],
+  },
   teal: {
     name: 'Teal',
     primary: '#0d9488',
@@ -139,14 +174,12 @@ export const THEME_PALETTES: Record<string, ThemePaletteDefinition> = {
 };
 
 export const PRESET_CUSTOM_COLORS: string[] = [
-  '#0284c7', // Sky Blue
-  '#6366f1', // Indigo Violet
-  '#8b5cf6', // Electric Purple
-  '#ec4899', // Hot Pink
-  '#f43f5e', // Rose Coral
-  '#f97316', // Bright Orange
-  '#eab308', // Sun Yellow
+  '#0d9488', // Teal
   '#10b981', // Emerald Mint
+  '#ec4899', // Hot Pink
+  '#4f46e5', // Deep Indigo
+  '#e11d48', // Crimson Red
+  '#d97706', // Amber Gold
   '#06b6d4', // Aqua Cyan
   '#64748b', // Slate Gray
 ];

@@ -39,6 +39,7 @@ import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../hooks/useThrottledTaskAutosave';
 import { WhatsAppIcon } from './WhatsAppIcon';
+import { useUiStore } from '../store/useUiStore';
 
 interface TaskDetailDrawerProps {
   task: Task | null;
@@ -233,23 +234,20 @@ export default function TaskDetailDrawer({
     if (!isDraft) queueSave({ is_important: nextValue });
   };
 
+  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+
   const confirmDelete = () => {
     if (isDraft) {
       onClose();
       return;
     }
-    Alert.alert(
-      'Delete Task',
-      `Are you sure you want to delete "${task.title}"?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Delete',
-          style: 'destructive',
-          onPress: () => onDeleteTask(task.id)
-        }
-      ]
-    );
+    showConfirmDialog({
+      title: 'Delete Task',
+      message: `Are you sure you want to delete "${task.title}"?`,
+      type: 'danger',
+      confirmLabel: 'Delete Task',
+      onConfirm: () => onDeleteTask(task.id),
+    });
   };
 
   // Date helper formatting

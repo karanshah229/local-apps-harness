@@ -8,6 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Calendar, X, Sun, Sunrise, CalendarDays, Ban } from 'lucide-react-native';
+import { formatDueDateDDMMYY } from '@shared/todo';
 
 interface BulkDueDatePickerModalProps {
   visible: boolean;
@@ -123,8 +124,8 @@ export const BulkDueDatePickerModal = ({
                       Today
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                    {today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                    {formatDueDateDDMMYY(todayStr)}
                   </Text>
                 </TouchableOpacity>
 
@@ -145,8 +146,8 @@ export const BulkDueDatePickerModal = ({
                       Tomorrow
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                    {tomorrow.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                    {formatDueDateDDMMYY(tomorrowStr)}
                   </Text>
                 </TouchableOpacity>
 
@@ -167,8 +168,8 @@ export const BulkDueDatePickerModal = ({
                       Next Week
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                    {nextMonday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                    {formatDueDateDDMMYY(nextMondayStr)}
                   </Text>
                 </TouchableOpacity>
 

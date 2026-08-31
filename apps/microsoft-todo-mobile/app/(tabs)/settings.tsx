@@ -34,11 +34,6 @@ export default function SettingsScreen() {
   const { data: prefs } = useUserPreferencesQuery(1);
   const updatePrefs = useUpdateUserPreferencesMutation();
 
-  useEffect(() => {
-    if (prefs?.remember_last_view && (prefs?.last_view_id !== 'settings' || prefs?.last_view_type !== 'tab')) {
-      updatePrefs.mutate({ last_view_type: 'tab', last_view_id: 'settings' });
-    }
-  }, [prefs?.remember_last_view, prefs?.last_view_id, prefs?.last_view_type]);
 
   const THEME_OPTIONS = [
     { id: 'light' as const, label: 'Light', icon: Sun },
@@ -274,11 +269,11 @@ export default function SettingsScreen() {
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>Application</Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>Kamdhenu ToDo Mobile</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>Kamdhenu Delegator</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>Version</Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>1.0.0 (2026 Edition)</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>1.0.0</Text>
           </View>
         </View>
       </ScrollView>

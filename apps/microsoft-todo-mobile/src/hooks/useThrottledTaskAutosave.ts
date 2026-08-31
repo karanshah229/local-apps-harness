@@ -13,8 +13,8 @@ interface UseThrottledTaskAutosaveOptions {
   slowThresholdMs?: number;
 }
 
-const DEFAULT_WAIT_MS = 600;
-const DEFAULT_SLOW_THRESHOLD_MS = 1000;
+const DEFAULT_WAIT_MS = 50;
+const DEFAULT_SLOW_THRESHOLD_MS = 5000;
 
 export function useThrottledTaskAutosave({
   taskId,
@@ -204,11 +204,10 @@ export function useThrottledTaskAutosave({
 
   useEffect(() => {
     queuedTaskIdRef.current = taskId;
-    setStatus(enabled ? 'saved' : 'draft');
     return () => {
       void flush();
     };
-  }, [enabled, taskId, flush]);
+  }, [taskId, flush]);
 
   useEffect(() => {
     mountedRef.current = true;
