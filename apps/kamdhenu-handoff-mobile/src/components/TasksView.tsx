@@ -986,22 +986,22 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         return;
       }
 
-      const styleToUse = overrideStyle || (customView as any).whatsapp_message_style || defaultWhatsAppStyle || 'modern';
+      const styleToUse = overrideStyle || (customView as any).whatsapp_message_style || defaultWhatsAppStyle || 'executive';
       const notesToUse = overrideNotes !== undefined
         ? (typeof overrideNotes === 'object' ? overrideNotes.includeNotes : overrideNotes)
-        : (customView as any).whatsapp_include_notes !== 0;
+        : ((customView as any).whatsapp_include_notes != null ? (customView as any).whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes);
       const assigneeToUse = typeof overrideNotes === 'object' && overrideNotes.includeAssignee !== undefined
         ? overrideNotes.includeAssignee
-        : (customView as any).whatsapp_include_assignee !== 0;
+        : ((customView as any).whatsapp_include_assignee != null ? (customView as any).whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee);
       const importantToUse = typeof overrideNotes === 'object' && overrideNotes.includeImportant !== undefined
         ? overrideNotes.includeImportant
-        : (customView as any).whatsapp_include_important !== 0;
+        : ((customView as any).whatsapp_include_important != null ? (customView as any).whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant);
       const stepsToUse = typeof overrideNotes === 'object' && overrideNotes.includeSteps !== undefined
         ? overrideNotes.includeSteps
-        : (customView as any).whatsapp_include_steps !== 0;
+        : ((customView as any).whatsapp_include_steps != null ? (customView as any).whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps);
       const dueDateToUse = typeof overrideNotes === 'object' && overrideNotes.includeDueDate !== undefined
         ? overrideNotes.includeDueDate
-        : (customView as any).whatsapp_include_due_date !== 0;
+        : ((customView as any).whatsapp_include_due_date != null ? (customView as any).whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate);
 
       const message = formatWholeListMessage(customView, targetTasks, {
         scope: chosenScope,
@@ -1165,13 +1165,17 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const handleCloseFormatPicker = useCallback(() => {
     setShowFormatPickerModal(false);
+    if (!hasChosenWhatsAppFormat) {
+      setHasChosenWhatsAppFormat(true);
+      updatePrefsMutation.mutate({ has_chosen_whatsapp_format: 1 });
+    }
     const contact = pendingContactRef.current;
     pendingContactRef.current = null;
     if (contact) {
       const scope = (customView?.default_whatsapp_share_scope || 'current_view') as 'pending' | 'all' | 'current_view';
       executeShareWithContactAndScope(contact, scope);
     }
-  }, [customView?.default_whatsapp_share_scope, executeShareWithContactAndScope]);
+  }, [hasChosenWhatsAppFormat, setHasChosenWhatsAppFormat, updatePrefsMutation, customView?.default_whatsapp_share_scope, executeShareWithContactAndScope]);
 
   const handleSelectShareScope = useCallback(
     (scope: 'pending' | 'all' | 'current_view') => {
@@ -2129,12 +2133,12 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       <WhatsAppFormatBottomSheet
         visible={showFormatPickerModal}
         onClose={handleCloseFormatPicker}
-        currentStyle={((customView as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern'}
-        includeNotes={(customView as any)?.whatsapp_include_notes !== 0}
-        includeAssignee={(customView as any)?.whatsapp_include_assignee !== 0}
-        includeImportant={(customView as any)?.whatsapp_include_important !== 0}
-        includeSteps={(customView as any)?.whatsapp_include_steps !== 0}
-        includeDueDate={(customView as any)?.whatsapp_include_due_date !== 0}
+        currentStyle={((customView as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'executive'}
+        includeNotes={(customView as any)?.whatsapp_include_notes != null ? (customView as any)?.whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes}
+        includeAssignee={(customView as any)?.whatsapp_include_assignee != null ? (customView as any)?.whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee}
+        includeImportant={(customView as any)?.whatsapp_include_important != null ? (customView as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
+        includeSteps={(customView as any)?.whatsapp_include_steps != null ? (customView as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
+        includeDueDate={(customView as any)?.whatsapp_include_due_date != null ? (customView as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${customView?.title || 'View'}`}
         isDarkMode={isDarkMode}

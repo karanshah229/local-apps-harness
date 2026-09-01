@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -18,8 +18,11 @@ import {
   Users,
   ChevronRight,
   BookmarkCheck,
+  MessageSquare,
 } from 'lucide-react-native';
+import { WhatsAppMessageStyle } from '@shared/todo';
 import { useUiStore } from '../../src/store/useUiStore';
+import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
 import Constants from 'expo-constants';
 import appConfig from '../../app.json';
 import {
@@ -32,11 +35,48 @@ export default function SettingsScreen() {
   const router = useRouter();
   const appVersion = appConfig.expo?.version ?? Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.3';
   const appName = appConfig.expo?.name ?? Constants.expoConfig?.name ?? 'Kamdhenu Handoff';
-  const { themeMode, setThemeMode, isDarkMode, setIsDarkMode } = useUiStore();
+  const {
+    themeMode,
+    setThemeMode,
+    isDarkMode,
+    setIsDarkMode,
+    defaultWhatsAppStyle,
+    setDefaultWhatsAppStyle,
+    defaultWhatsAppIncludeNotes,
+    setDefaultWhatsAppIncludeNotes,
+    defaultWhatsAppIncludeAssignee,
+    setDefaultWhatsAppIncludeAssignee,
+    defaultWhatsAppIncludeImportant,
+    setDefaultWhatsAppIncludeImportant,
+    defaultWhatsAppIncludeSteps,
+    setDefaultWhatsAppIncludeSteps,
+    defaultWhatsAppIncludeDueDate,
+    setDefaultWhatsAppIncludeDueDate,
+  } = useUiStore();
   const systemColorScheme = useColorScheme();
   const { data: users = [] } = useUsersQuery();
   const { data: prefs } = useUserPreferencesQuery(1);
   const updatePrefs = useUpdateUserPreferencesMutation();
+
+  const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+
+  const handleSaveGlobalFormat = (style: WhatsAppMessageStyle, options: WhatsAppFormatOptions) => {
+    setDefaultWhatsAppStyle(style);
+    setDefaultWhatsAppIncludeNotes(options.includeNotes);
+    setDefaultWhatsAppIncludeAssignee(options.includeAssignee);
+    setDefaultWhatsAppIncludeImportant(options.includeImportant);
+    setDefaultWhatsAppIncludeSteps(options.includeSteps);
+    setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
+
+    updatePrefs.mutate({
+      default_whatsapp_style: style,
+      default_whatsapp_include_notes: options.includeNotes ? 1 : 0,
+      default_whatsapp_include_assignee: options.includeAssignee ? 1 : 0,
+      default_whatsapp_include_important: options.includeImportant ? 1 : 0,
+      default_whatsapp_include_steps: options.includeSteps ? 1 : 0,
+      default_whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+    });
+  };
 
 
   const THEME_OPTIONS = [
@@ -230,7 +270,7 @@ export default function SettingsScreen() {
             backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
             borderWidth: 1,
             borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-            marginBottom: 24,
+            marginBottom: 12,
           }}
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -257,6 +297,53 @@ export default function SettingsScreen() {
           </View>
         </View>
 
+        {/* Global WhatsApp Message Format Card */}
+        <TouchableOpacity
+          onPress={() => setShowFormatPickerModal(true)}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            borderRadius: 20,
+            backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+            borderWidth: 1,
+            borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            marginBottom: 24,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 8 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(37, 211, 102, 0.12)', alignItems: 'center', justifyContent: 'center' }}>
+              <MessageSquare size={18} color="#25D366" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                Default Message Format
+              </Text>
+              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                Global format and field settings for WhatsApp sharing
+              </Text>
+            </View>
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View
+              style={{
+                backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                paddingHorizontal: 8,
+                paddingVertical: 3,
+                borderRadius: 8,
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366', textTransform: 'capitalize' }}>
+                {defaultWhatsAppStyle || 'executive'}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+          </View>
+        </TouchableOpacity>
+
         {/* About Section */}
         <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4 }}>
           About
@@ -281,6 +368,23 @@ export default function SettingsScreen() {
           </View>
         </View>
       </ScrollView>
+
+      {/* Global WhatsApp Message Format Bottom Sheet */}
+      <WhatsAppFormatBottomSheet
+        visible={showFormatPickerModal}
+        onClose={() => setShowFormatPickerModal(false)}
+        currentStyle={defaultWhatsAppStyle || 'executive'}
+        includeNotes={defaultWhatsAppIncludeNotes !== false}
+        includeAssignee={defaultWhatsAppIncludeAssignee !== false}
+        includeImportant={defaultWhatsAppIncludeImportant === true}
+        includeSteps={defaultWhatsAppIncludeSteps !== false}
+        includeDueDate={defaultWhatsAppIncludeDueDate !== false}
+        onSave={handleSaveGlobalFormat}
+        title="Default Message Format"
+        subtitle="Global format applied to all lists without custom style"
+        isDarkMode={isDarkMode}
+        themePrimary="#0078d4"
+      />
     </View>
   );
 }

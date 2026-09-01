@@ -28,12 +28,12 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
       is_default BOOLEAN DEFAULT 0,
       default_whatsapp_contact_id INTEGER,
       default_whatsapp_share_scope TEXT DEFAULT 'pending',
-      whatsapp_message_style TEXT DEFAULT 'modern',
-      whatsapp_include_notes BOOLEAN DEFAULT 1,
-      whatsapp_include_assignee BOOLEAN DEFAULT 1,
-      whatsapp_include_important BOOLEAN DEFAULT 1,
-      whatsapp_include_steps BOOLEAN DEFAULT 1,
-      whatsapp_include_due_date BOOLEAN DEFAULT 1,
+      whatsapp_message_style TEXT DEFAULT NULL,
+      whatsapp_include_notes BOOLEAN DEFAULT NULL,
+      whatsapp_include_assignee BOOLEAN DEFAULT NULL,
+      whatsapp_include_important BOOLEAN DEFAULT NULL,
+      whatsapp_include_steps BOOLEAN DEFAULT NULL,
+      whatsapp_include_due_date BOOLEAN DEFAULT NULL,
       whatsapp_list_layout TEXT DEFAULT 'compact',
       active BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -108,10 +108,10 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
       sort_preferences TEXT DEFAULT '{}',
       pinned_views TEXT DEFAULT '["important","assigned-to-me"]',
       has_chosen_whatsapp_format BOOLEAN DEFAULT 0,
-      default_whatsapp_style TEXT DEFAULT 'modern',
+      default_whatsapp_style TEXT DEFAULT 'executive',
       default_whatsapp_include_notes BOOLEAN DEFAULT 1,
       default_whatsapp_include_assignee BOOLEAN DEFAULT 1,
-      default_whatsapp_include_important BOOLEAN DEFAULT 1,
+      default_whatsapp_include_important BOOLEAN DEFAULT 0,
       default_whatsapp_include_steps BOOLEAN DEFAULT 1,
       default_whatsapp_include_due_date BOOLEAN DEFAULT 1,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -126,12 +126,12 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
       sort_config TEXT DEFAULT '{"field":"smart","direction":"asc"}',
       default_whatsapp_contact_id INTEGER,
       default_whatsapp_share_scope TEXT,
-      whatsapp_message_style TEXT DEFAULT 'modern',
-      whatsapp_include_notes BOOLEAN DEFAULT 1,
-      whatsapp_include_assignee BOOLEAN DEFAULT 1,
-      whatsapp_include_important BOOLEAN DEFAULT 1,
-      whatsapp_include_steps BOOLEAN DEFAULT 1,
-      whatsapp_include_due_date BOOLEAN DEFAULT 1,
+      whatsapp_message_style TEXT DEFAULT NULL,
+      whatsapp_include_notes BOOLEAN DEFAULT NULL,
+      whatsapp_include_assignee BOOLEAN DEFAULT NULL,
+      whatsapp_include_important BOOLEAN DEFAULT NULL,
+      whatsapp_include_steps BOOLEAN DEFAULT NULL,
+      whatsapp_include_due_date BOOLEAN DEFAULT NULL,
       whatsapp_list_layout TEXT DEFAULT 'compact',
       position INTEGER DEFAULT 0,
       active BOOLEAN DEFAULT 1,
@@ -368,23 +368,60 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
   assert.equal(updatedFormatList.whatsapp_include_steps, 1);
   assert.equal(updatedFormatList.whatsapp_include_due_date, 0);
 
-  // Test User Preferences Format Inclusions
+  // Test User Preferences Format Inclusions Default State
+  const defaultGlobalPrefs = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  assert.equal(defaultGlobalPrefs.default_whatsapp_style, 'executive');
+  assert.equal(defaultGlobalPrefs.default_whatsapp_include_notes, 1);
+  assert.equal(defaultGlobalPrefs.default_whatsapp_include_assignee, 1);
+  assert.equal(defaultGlobalPrefs.default_whatsapp_include_important, 0);
+  assert.equal(defaultGlobalPrefs.default_whatsapp_include_steps, 1);
+  assert.equal(defaultGlobalPrefs.default_whatsapp_include_due_date, 1);
+
+  // Test List Runtime Inheritance (New list has NULL format and inherits global preferences)
+  const freshListResult = db.prepare(`INSERT INTO lists (title, color_theme) VALUES ('Inherited List', 'indigo')`).run();
+  const freshList = db.prepare('SELECT * FROM lists WHERE id = ?').get(freshListResult.lastInsertRowid);
+  assert.equal(freshList.whatsapp_message_style, null);
+  assert.equal(freshList.whatsapp_include_notes, null);
+  assert.equal(freshList.whatsapp_include_assignee, null);
+  assert.equal(freshList.whatsapp_include_important, null);
+  assert.equal(freshList.whatsapp_include_steps, null);
+  assert.equal(freshList.whatsapp_include_due_date, null);
+
+  // Helper simulating runtime fallback resolution in app
+  const resolveListFormat = (list, globalPrefs) => ({
+    style: list.whatsapp_message_style ?? globalPrefs.default_whatsapp_style,
+    includeNotes: list.whatsapp_include_notes != null ? (list.whatsapp_include_notes !== 0) : (globalPrefs.default_whatsapp_include_notes !== 0),
+    includeAssignee: list.whatsapp_include_assignee != null ? (list.whatsapp_include_assignee !== 0) : (globalPrefs.default_whatsapp_include_assignee !== 0),
+    includeImportant: list.whatsapp_include_important != null ? (list.whatsapp_include_important !== 0) : (globalPrefs.default_whatsapp_include_important !== 0),
+    includeSteps: list.whatsapp_include_steps != null ? (list.whatsapp_include_steps !== 0) : (globalPrefs.default_whatsapp_include_steps !== 0),
+    includeDueDate: list.whatsapp_include_due_date != null ? (list.whatsapp_include_due_date !== 0) : (globalPrefs.default_whatsapp_include_due_date !== 0),
+  });
+
+  const resolvedInitial = resolveListFormat(freshList, defaultGlobalPrefs);
+  assert.equal(resolvedInitial.style, 'executive');
+  assert.equal(resolvedInitial.includeImportant, false);
+  assert.equal(resolvedInitial.includeNotes, true);
+  assert.equal(resolvedInitial.includeAssignee, true);
+  assert.equal(resolvedInitial.includeSteps, true);
+  assert.equal(resolvedInitial.includeDueDate, true);
+
+  // Change Global Format in Preferences -> Uncustomized list dynamically reflects change
   db.prepare(`
     UPDATE user_preferences
-    SET default_whatsapp_style = 'executive',
-        default_whatsapp_include_notes = 1,
-        default_whatsapp_include_assignee = 0,
-        default_whatsapp_include_important = 1,
-        default_whatsapp_include_steps = 0,
-        default_whatsapp_include_due_date = 1
+    SET default_whatsapp_style = 'crisp',
+        default_whatsapp_include_notes = 0,
+        default_whatsapp_include_important = 1
     WHERE user_id = 1
   `).run();
-  const formatPrefs = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
-  assert.equal(formatPrefs.default_whatsapp_style, 'executive');
-  assert.equal(formatPrefs.default_whatsapp_include_notes, 1);
-  assert.equal(formatPrefs.default_whatsapp_include_assignee, 0);
-  assert.equal(formatPrefs.default_whatsapp_include_important, 1);
-  assert.equal(formatPrefs.default_whatsapp_include_steps, 0);
-  assert.equal(formatPrefs.default_whatsapp_include_due_date, 1);
+  const updatedGlobalPrefs = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  const resolvedAfterGlobalUpdate = resolveListFormat(freshList, updatedGlobalPrefs);
+  assert.equal(resolvedAfterGlobalUpdate.style, 'crisp');
+  assert.equal(resolvedAfterGlobalUpdate.includeNotes, false);
+  assert.equal(resolvedAfterGlobalUpdate.includeImportant, true);
+
+  // Explicitly customized list preserves its custom values
+  const resolvedCustomList = resolveListFormat(updatedFormatList, updatedGlobalPrefs);
+  assert.equal(resolvedCustomList.style, 'crisp');
+  assert.equal(resolvedCustomList.includeImportant, false); // Explicitly 0 on groupListId
 });
 

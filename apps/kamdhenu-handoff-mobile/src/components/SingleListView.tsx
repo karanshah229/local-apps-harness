@@ -713,22 +713,22 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         return;
       }
 
-      const styleToUse = overrideStyle || (activeList as any).whatsapp_message_style || defaultWhatsAppStyle || 'modern';
+      const styleToUse = overrideStyle || (activeList as any).whatsapp_message_style || defaultWhatsAppStyle || 'executive';
       const notesToUse = overrideNotes !== undefined
         ? (typeof overrideNotes === 'object' ? overrideNotes.includeNotes : overrideNotes)
-        : (activeList as any).whatsapp_include_notes !== 0;
+        : ((activeList as any).whatsapp_include_notes != null ? (activeList as any).whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes);
       const assigneeToUse = typeof overrideNotes === 'object' && overrideNotes.includeAssignee !== undefined
         ? overrideNotes.includeAssignee
-        : (activeList as any).whatsapp_include_assignee !== 0;
+        : ((activeList as any).whatsapp_include_assignee != null ? (activeList as any).whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee);
       const importantToUse = typeof overrideNotes === 'object' && overrideNotes.includeImportant !== undefined
         ? overrideNotes.includeImportant
-        : (activeList as any).whatsapp_include_important !== 0;
+        : ((activeList as any).whatsapp_include_important != null ? (activeList as any).whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant);
       const stepsToUse = typeof overrideNotes === 'object' && overrideNotes.includeSteps !== undefined
         ? overrideNotes.includeSteps
-        : (activeList as any).whatsapp_include_steps !== 0;
+        : ((activeList as any).whatsapp_include_steps != null ? (activeList as any).whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps);
       const dueDateToUse = typeof overrideNotes === 'object' && overrideNotes.includeDueDate !== undefined
         ? overrideNotes.includeDueDate
-        : (activeList as any).whatsapp_include_due_date !== 0;
+        : ((activeList as any).whatsapp_include_due_date != null ? (activeList as any).whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate);
 
       const message = formatWholeListMessage(activeList, targetTasks, {
         scope: chosenScope,
@@ -893,6 +893,10 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleCloseFormatPicker = useCallback(() => {
     setShowFormatPickerModal(false);
+    if (!hasChosenWhatsAppFormat) {
+      setHasChosenWhatsAppFormat(true);
+      updatePrefs.mutate({ has_chosen_whatsapp_format: 1 });
+    }
     const contact = pendingContactRef.current;
     pendingContactRef.current = null;
     if (contact) {
@@ -901,7 +905,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         (activeList?.default_whatsapp_share_scope as any) || shareScope || 'pending'
       );
     }
-  }, [activeList?.default_whatsapp_share_scope, shareScope, executeShareWithContactAndScope]);
+  }, [hasChosenWhatsAppFormat, setHasChosenWhatsAppFormat, updatePrefs, activeList?.default_whatsapp_share_scope, shareScope, executeShareWithContactAndScope]);
 
   const handleSelectShareScope = useCallback(
     (scope: 'pending' | 'all' | 'current_view') => {
@@ -2400,12 +2404,12 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       <WhatsAppFormatBottomSheet
         visible={showFormatPickerModal}
         onClose={handleCloseFormatPicker}
-        currentStyle={((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern'}
-        includeNotes={(activeList as any)?.whatsapp_include_notes !== 0}
-        includeAssignee={(activeList as any)?.whatsapp_include_assignee !== 0}
-        includeImportant={(activeList as any)?.whatsapp_include_important !== 0}
-        includeSteps={(activeList as any)?.whatsapp_include_steps !== 0}
-        includeDueDate={(activeList as any)?.whatsapp_include_due_date !== 0}
+        currentStyle={((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'executive'}
+        includeNotes={(activeList as any)?.whatsapp_include_notes != null ? (activeList as any)?.whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes}
+        includeAssignee={(activeList as any)?.whatsapp_include_assignee != null ? (activeList as any)?.whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee}
+        includeImportant={(activeList as any)?.whatsapp_include_important != null ? (activeList as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
+        includeSteps={(activeList as any)?.whatsapp_include_steps != null ? (activeList as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
+        includeDueDate={(activeList as any)?.whatsapp_include_due_date != null ? (activeList as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${activeList?.title || 'List'}`}
         isDarkMode={isDarkMode}

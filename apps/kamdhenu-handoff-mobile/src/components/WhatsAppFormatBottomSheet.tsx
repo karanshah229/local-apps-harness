@@ -52,10 +52,10 @@ interface WhatsAppFormatBottomSheetProps {
 export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps> = ({
   visible,
   onClose,
-  currentStyle = 'modern',
+  currentStyle = 'executive',
   includeNotes = true,
   includeAssignee = true,
-  includeImportant = true,
+  includeImportant = false,
   includeSteps = true,
   includeDueDate = true,
   onSave,
@@ -66,19 +66,19 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   sampleTask,
 }) => {
   const insets = useSafeAreaInsets();
-  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(currentStyle || 'modern');
+  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(currentStyle || 'executive');
   const [notesEnabled, setNotesEnabled] = useState<boolean>(includeNotes !== false);
   const [assigneeEnabled, setAssigneeEnabled] = useState<boolean>(includeAssignee !== false);
-  const [importantEnabled, setImportantEnabled] = useState<boolean>(includeImportant !== false);
+  const [importantEnabled, setImportantEnabled] = useState<boolean>(includeImportant === true);
   const [stepsEnabled, setStepsEnabled] = useState<boolean>(includeSteps !== false);
   const [dueDateEnabled, setDueDateEnabled] = useState<boolean>(includeDueDate !== false);
 
   useEffect(() => {
     if (visible) {
-      setSelectedStyle(currentStyle || 'modern');
+      setSelectedStyle(currentStyle || 'executive');
       setNotesEnabled(includeNotes !== false);
       setAssigneeEnabled(includeAssignee !== false);
-      setImportantEnabled(includeImportant !== false);
+      setImportantEnabled(includeImportant === true);
       setStepsEnabled(includeSteps !== false);
       setDueDateEnabled(includeDueDate !== false);
     }
@@ -158,13 +158,13 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     {
       id: 'modern',
       label: 'Modern',
-      badge: 'DEFAULT',
       description: 'Sleek bullets (○, ✓) with compact inline metadata',
       icon: Sparkles,
     },
     {
       id: 'executive',
       label: 'Executive',
+      badge: 'DEFAULT',
       description: 'Structured layout with header bar and [ ] checkboxes',
       icon: FileText,
     },

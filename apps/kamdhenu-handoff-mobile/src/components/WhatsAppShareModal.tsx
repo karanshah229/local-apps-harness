@@ -40,6 +40,7 @@ import {
   generateWhatsAppWebLink,
 } from '@shared/todo';
 import { localTodoDb } from '../db/sqlite';
+import { useUiStore } from '../store/useUiStore';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 
@@ -65,17 +66,24 @@ export default function WhatsAppShareModal({
   onGeneratePayload,
   isDarkMode
 }: WhatsAppShareModalProps) {
+  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
+
   const [message, setMessage] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>('modern');
-  const [includeNotes, setIncludeNotes] = useState<boolean>(true);
-  const [includeAssignee, setIncludeAssignee] = useState<boolean>(true);
-  const [includeImportant, setIncludeImportant] = useState<boolean>(true);
-  const [includeSteps, setIncludeSteps] = useState<boolean>(true);
-  const [includeDueDate, setIncludeDueDate] = useState<boolean>(true);
+  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(defaultWhatsAppStyle || 'executive');
+  const [includeNotes, setIncludeNotes] = useState<boolean>(defaultWhatsAppIncludeNotes !== false);
+  const [includeAssignee, setIncludeAssignee] = useState<boolean>(defaultWhatsAppIncludeAssignee !== false);
+  const [includeImportant, setIncludeImportant] = useState<boolean>(defaultWhatsAppIncludeImportant === true);
+  const [includeSteps, setIncludeSteps] = useState<boolean>(defaultWhatsAppIncludeSteps !== false);
+  const [includeDueDate, setIncludeDueDate] = useState<boolean>(defaultWhatsAppIncludeDueDate !== false);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -87,15 +95,29 @@ export default function WhatsAppShareModal({
       if (config.recipientUserId) {
         setSelectedUserId(config.recipientUserId);
       }
-      fetchPayload(config.recipientUserId || null, config.customPhone || '', selectedStyle, {
-        includeNotes,
-        includeAssignee,
-        includeImportant,
-        includeSteps,
-        includeDueDate,
+      const initialStyle = defaultWhatsAppStyle || 'executive';
+      const initialNotes = defaultWhatsAppIncludeNotes !== false;
+      const initialAssignee = defaultWhatsAppIncludeAssignee !== false;
+      const initialImportant = defaultWhatsAppIncludeImportant === true;
+      const initialSteps = defaultWhatsAppIncludeSteps !== false;
+      const initialDueDate = defaultWhatsAppIncludeDueDate !== false;
+
+      setSelectedStyle(initialStyle);
+      setIncludeNotes(initialNotes);
+      setIncludeAssignee(initialAssignee);
+      setIncludeImportant(initialImportant);
+      setIncludeSteps(initialSteps);
+      setIncludeDueDate(initialDueDate);
+
+      fetchPayload(config.recipientUserId || null, config.customPhone || '', initialStyle, {
+        includeNotes: initialNotes,
+        includeAssignee: initialAssignee,
+        includeImportant: initialImportant,
+        includeSteps: initialSteps,
+        includeDueDate: initialDueDate,
       });
     }
-  }, [isOpen, config]);
+  }, [isOpen, config, defaultWhatsAppStyle, defaultWhatsAppIncludeNotes, defaultWhatsAppIncludeAssignee, defaultWhatsAppIncludeImportant, defaultWhatsAppIncludeSteps, defaultWhatsAppIncludeDueDate]);
 
   const fetchPayload = async (
     userId: number | null,

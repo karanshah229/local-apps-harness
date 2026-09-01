@@ -54,6 +54,7 @@ import {
   useUpdateSubtaskMutation,
   useDeleteSubtaskMutation,
   useAddUserMutation,
+  useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../../src/hooks/useThrottledTaskAutosave';
 import {
@@ -341,6 +342,7 @@ export default function TaskDetailScreen() {
   const addSubtaskMutation = useAddSubtaskMutation();
   const updateSubtaskMutation = useUpdateSubtaskMutation();
   const deleteSubtaskMutation = useDeleteSubtaskMutation();
+  const updatePrefs = useUpdateUserPreferencesMutation();
 
   const task = isNewTask ? null : (directTask || tasks.find((t) => t.id === taskId));
 
@@ -1852,7 +1854,7 @@ export default function TaskDetailScreen() {
                     Message Format
                   </Text>
                   <Text style={{ fontSize: 11, color: '#8b5cf6', fontWeight: '700', marginTop: 1 }}>
-                    {defaultWhatsAppStyle === 'executive' ? 'Executive' : defaultWhatsAppStyle === 'crisp' ? 'Crisp' : 'Modern (Default)'}
+                    {defaultWhatsAppStyle === 'executive' ? 'Executive' : defaultWhatsAppStyle === 'crisp' ? 'Crisp' : defaultWhatsAppStyle === 'modern' ? 'Modern' : 'Default'}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -1898,10 +1900,10 @@ export default function TaskDetailScreen() {
         <WhatsAppFormatBottomSheet
           visible={showFormatPickerModal}
           onClose={() => setShowFormatPickerModal(false)}
-          currentStyle={defaultWhatsAppStyle || 'modern'}
+          currentStyle={defaultWhatsAppStyle || 'executive'}
           includeNotes={defaultWhatsAppIncludeNotes !== false}
           includeAssignee={defaultWhatsAppIncludeAssignee !== false}
-          includeImportant={defaultWhatsAppIncludeImportant !== false}
+          includeImportant={defaultWhatsAppIncludeImportant === true}
           includeSteps={defaultWhatsAppIncludeSteps !== false}
           includeDueDate={defaultWhatsAppIncludeDueDate !== false}
           sampleTask={task}
@@ -1912,6 +1914,14 @@ export default function TaskDetailScreen() {
             setDefaultWhatsAppIncludeImportant(options.includeImportant);
             setDefaultWhatsAppIncludeSteps(options.includeSteps);
             setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
+            updatePrefs.mutate({
+              default_whatsapp_style: style,
+              default_whatsapp_include_notes: options.includeNotes ? 1 : 0,
+              default_whatsapp_include_assignee: options.includeAssignee ? 1 : 0,
+              default_whatsapp_include_important: options.includeImportant ? 1 : 0,
+              default_whatsapp_include_steps: options.includeSteps ? 1 : 0,
+              default_whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+            });
           }}
           title="WhatsApp Message Format"
           isDarkMode={isDarkMode}

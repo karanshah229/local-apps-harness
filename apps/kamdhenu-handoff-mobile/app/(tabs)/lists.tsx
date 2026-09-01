@@ -163,6 +163,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const addUserMutation = useAddUserMutation();
   const updateUserMutation = useUpdateUserMutation();
 
+  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
+
   // WhatsApp Contact, Scope & Format Picker Modal States for Lists and Views
   const [dropdownY, setDropdownY] = useState(150);
   const [selectedItemForConfig, setSelectedItemForConfig] = useState<{
@@ -174,6 +181,10 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     default_whatsapp_share_scope?: string | null;
     whatsapp_message_style?: string | null;
     whatsapp_include_notes?: number | boolean | null;
+    whatsapp_include_assignee?: number | boolean | null;
+    whatsapp_include_important?: number | boolean | null;
+    whatsapp_include_steps?: number | boolean | null;
+    whatsapp_include_due_date?: number | boolean | null;
   } | null>(null);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactPickerSearch, setContactPickerSearch] = useState('');
@@ -1471,12 +1482,12 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
       <WhatsAppFormatBottomSheet
         visible={showFormatPickerModal}
         onClose={() => setShowFormatPickerModal(false)}
-        currentStyle={((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) || 'modern'}
-        includeNotes={(liveConfigItem as any)?.whatsapp_include_notes !== 0}
-        includeAssignee={(liveConfigItem as any)?.whatsapp_include_assignee !== 0}
-        includeImportant={(liveConfigItem as any)?.whatsapp_include_important !== 0}
-        includeSteps={(liveConfigItem as any)?.whatsapp_include_steps !== 0}
-        includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date !== 0}
+        currentStyle={((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'executive'}
+        includeNotes={(liveConfigItem as any)?.whatsapp_include_notes != null ? (liveConfigItem as any)?.whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes}
+        includeAssignee={(liveConfigItem as any)?.whatsapp_include_assignee != null ? (liveConfigItem as any)?.whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee}
+        includeImportant={(liveConfigItem as any)?.whatsapp_include_important != null ? (liveConfigItem as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
+        includeSteps={(liveConfigItem as any)?.whatsapp_include_steps != null ? (liveConfigItem as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
+        includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date != null ? (liveConfigItem as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${liveConfigItem?.title || ''}`}
         isDarkMode={isDarkMode}

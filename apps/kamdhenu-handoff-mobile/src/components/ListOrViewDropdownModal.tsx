@@ -90,7 +90,9 @@ export function ListOrViewDropdownModal({
     ? 'Executive'
     : (item as any).whatsapp_message_style === 'crisp'
     ? 'Crisp'
-    : 'Modern (Default)';
+    : (item as any).whatsapp_message_style === 'modern'
+    ? 'Modern'
+    : 'Default';
 
   const calculatedPaddingTop = topOffset !== undefined
     ? Math.max(topInset + 40, Math.min(topOffset - 10, 480))
