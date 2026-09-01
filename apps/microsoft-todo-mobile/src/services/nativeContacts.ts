@@ -1,7 +1,5 @@
-import * as Contacts from 'expo-contacts';
+import * as Contacts from 'expo-contacts/legacy';
 import { BatchImportContact, normalizeToE164 } from '@shared/todo';
-
-let memoryLastSyncDate: string | null = null;
 
 function formatPhoneLabel(rawLabel?: string, index: number = 0): string {
   if (!rawLabel) return `Phone ${index + 1}`;
@@ -11,35 +9,37 @@ function formatPhoneLabel(rawLabel?: string, index: number = 0): string {
 }
 
 /**
- * Requests device contacts permission and returns formatted contacts from Android or iOS address book.
+ * Requests device contacts permission if needed and returns formatted contacts from Android/iOS address book.
  * When a contact has multiple phone numbers, creates dedicated number-specific entries (e.g. "Ramesh (Mobile)", "Ramesh (Work)").
  */
-export async function getDeviceContacts(): Promise<{
+export async function getDeviceContacts(shouldRequest: boolean = true): Promise<{
   granted: boolean;
   contacts: BatchImportContact[];
   error?: string;
 }> {
   try {
-    const { status } = await Contacts.requestPermissionsAsync();
-    if (status !== 'granted') {
+    let permission = await Contacts.getPermissionsAsync();
+    if (permission.status !== 'granted' && shouldRequest) {
+      permission = await Contacts.requestPermissionsAsync();
+    }
+
+    if (permission.status !== 'granted') {
       return {
         granted: false,
         contacts: [],
-        error: 'Permission to access device contacts was denied.'
+        error: 'Permission to access device contacts was denied.',
       };
     }
 
-    const data = await Contacts.Contact.getAllDetails(
-      [
-        Contacts.ContactField.FULL_NAME,
-        Contacts.ContactField.GIVEN_NAME,
-        Contacts.ContactField.FAMILY_NAME,
-        Contacts.ContactField.PHONES,
-        Contacts.ContactField.EMAILS,
-        Contacts.ContactField.IMAGE
+    const { data } = await Contacts.getContactsAsync({
+      fields: [
+        Contacts.Fields.Name,
+        Contacts.Fields.PhoneNumbers,
+        Contacts.Fields.Emails,
+        Contacts.Fields.Image,
       ],
-      { sortOrder: Contacts.ContactsSortOrder.GivenName }
-    );
+      sort: Contacts.SortTypes.FirstName,
+    });
 
     if (!data || data.length === 0) {
       return { granted: true, contacts: [] };
@@ -48,14 +48,14 @@ export async function getDeviceContacts(): Promise<{
     const formatted: BatchImportContact[] = [];
 
     for (const item of data) {
-      const baseName = item.fullName || `${item.givenName || ''} ${item.familyName || ''}`.trim() || 'Unnamed Contact';
-      const baseEmail = item.emails && item.emails.length > 0 ? item.emails[0].address || '' : '';
-      const avatar = item.image || undefined;
+      const baseName = item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unnamed Contact';
+      const baseEmail = item.emails && item.emails.length > 0 ? item.emails[0].email || '' : '';
+      const avatar = (item.imageAvailable && item.image && item.image.uri) ? item.image.uri : undefined;
 
-      const phones = item.phones || [];
+      const phones = item.phoneNumbers || [];
 
       if (phones.length === 0) {
-        if (baseName || baseEmail) {
+        if (baseName && baseName !== 'Unnamed Contact') {
           formatted.push({
             name: baseName,
             phone: '',
@@ -97,39 +97,52 @@ export async function getDeviceContacts(): Promise<{
 
     return {
       granted: true,
-      contacts: formatted
+      contacts: formatted,
     };
   } catch (err: any) {
     console.error('Error reading native device contacts:', err);
     return {
       granted: false,
       contacts: [],
-      error: err?.message || 'Failed to read contacts.'
+      error: err?.message || 'Failed to read contacts.',
     };
   }
 }
 
 /**
- * Automatically syncs device contacts if today is a new day and the app was opened for the first time.
+ * Checks permissions, fetches device contacts, and imports/updates them into local SQLite.
+ */
+export async function syncDeviceContacts(
+  batchImportFn: (contacts: BatchImportContact[]) => Promise<any>,
+  promptPermission: boolean = true
+): Promise<{ success: boolean; count: number; error?: string }> {
+  try {
+    const result = await getDeviceContacts(promptPermission);
+    if (!result.granted) {
+      return { success: false, count: 0, error: result.error || 'Permission denied.' };
+    }
+
+    if (result.contacts.length === 0) {
+      return { success: true, count: 0 };
+    }
+
+    const res = await batchImportFn(result.contacts);
+    const count = (res?.importedCount || 0) + (res?.updatedCount || 0);
+    return { success: true, count: count || result.contacts.length };
+  } catch (err: any) {
+    console.warn('Sync device contacts error:', err);
+    return { success: false, count: 0, error: err?.message || 'Failed to sync contacts.' };
+  }
+}
+
+/**
+ * Automatically syncs device contacts on app open after a delay.
  */
 export async function autoSyncDeviceContacts(
   batchImportFn: (contacts: BatchImportContact[]) => Promise<any>
 ): Promise<void> {
-  const today = new Date().toISOString().split('T')[0];
-  if (memoryLastSyncDate === today) {
-    return;
-  }
-
   try {
-    const { status } = await Contacts.getPermissionsAsync();
-    // Only attempt silent auto-sync if permission is granted
-    if (status === 'granted') {
-      const result = await getDeviceContacts();
-      if (result.granted && result.contacts.length > 0) {
-        await batchImportFn(result.contacts);
-        memoryLastSyncDate = today;
-      }
-    }
+    await syncDeviceContacts(batchImportFn, true);
   } catch (err) {
     console.warn('Auto contact sync skipped or failed:', err);
   }

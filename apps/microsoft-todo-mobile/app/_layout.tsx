@@ -53,14 +53,18 @@ function RootLayoutNav() {
   }, [outerBgColor]);
 
   useEffect(() => {
-    // Auto sync device contacts on first open of the day into local SQLite in background
-    autoSyncDeviceContacts(async (contacts) => {
-      try {
-        await batchImportMutation.mutateAsync(contacts);
-      } catch (err) {
-        console.warn('Auto contact sync failed:', err);
-      }
-    });
+    // Every time the app opens, start a delayed background task (2s) to check and import contact updates
+    const syncTimer = setTimeout(() => {
+      autoSyncDeviceContacts(async (contacts) => {
+        try {
+          await batchImportMutation.mutateAsync(contacts);
+        } catch (err) {
+          console.warn('Delayed contact sync failed:', err);
+        }
+      });
+    }, 2000);
+
+    return () => clearTimeout(syncTimer);
   }, []);
 
   // Directly navigate to last saved view before revealing the app

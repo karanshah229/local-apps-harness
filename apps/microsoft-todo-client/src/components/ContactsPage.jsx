@@ -338,23 +338,6 @@ export default function ContactsPage({
 
               <div className="space-y-1">
                 <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
-                  Email Address
-                </label>
-                <div className="relative">
-                  <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-3.5" />
-                  <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 h-11 rounded-xl font-medium"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
                   Phone (E.164 Format)
                 </label>
                 <div className="relative">

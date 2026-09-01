@@ -231,7 +231,7 @@ export default function SettingsPage({
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Version</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>1.0.0</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>1.0.1</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Platform</Text>

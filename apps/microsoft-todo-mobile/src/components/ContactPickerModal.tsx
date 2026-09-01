@@ -7,10 +7,13 @@ import {
   Modal,
   ScrollView,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Search, X, Users, Phone, Check, User as UserIcon } from 'lucide-react-native';
+import { Search, X, Users, Phone, Check, User as UserIcon, RefreshCw } from 'lucide-react-native';
 import { User, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
+import { syncDeviceContacts } from '../services/nativeContacts';
+import { useBatchImportUsersMutation } from '../hooks/useTodoQueries';
 
 export const WHATSAPP_GROUP_USER: User = {
   id: -1,
@@ -56,6 +59,21 @@ export function ContactPickerModal({
 }: ContactPickerModalProps) {
   const insets = useSafeAreaInsets();
   const [searchQuery, setSearchQuery] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const batchImportMutation = useBatchImportUsersMutation();
+
+  const handleRefreshContacts = async () => {
+    setIsRefreshing(true);
+    try {
+      await syncDeviceContacts(async (contacts) => {
+        await batchImportMutation.mutateAsync(contacts);
+      }, true);
+    } catch (err) {
+      console.warn('Refresh contacts failed:', err);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   const isGroupSelected = selectedContactId === -1;
   const isSelfSelected = selectedContactId === 1;
@@ -117,20 +135,43 @@ export function ContactPickerModal({
                 {subtitle}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={onClose}
-              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity
+                onPress={handleRefreshContacts}
+                disabled={isRefreshing}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityLabel="Refresh contacts"
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {isRefreshing ? (
+                  <ActivityIndicator size="small" color="#25D366" />
+                ) : (
+                  <RefreshCw size={15} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onClose}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
           </View>
 
           {/* Search Box */}

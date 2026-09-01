@@ -296,17 +296,6 @@ export default function UserLibraryModal({
                 </div>
 
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-muted-foreground absolute left-3 top-3.5" />
-                  <Input
-                    type="email"
-                    placeholder="Email Address"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-9 h-11"
-                  />
-                </div>
-
-                <div className="relative">
                   <Phone className="w-4 h-4 text-[#25D366] absolute left-3 top-3.5" />
                   <Input
                     type="tel"

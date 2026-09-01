@@ -25,7 +25,8 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  Search
+  Search,
+  RefreshCw
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -408,19 +409,6 @@ export default function ContactsPage({
             />
           </View>
 
-          <View style={styles.inputWrap}>
-            <Mail size={16} color={colors.textMuted} style={styles.inputIcon} />
-            <TextInput
-              placeholder="Email (Optional)"
-              placeholderTextColor={colors.textMuted}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              style={[styles.formInput, { color: colors.text, borderColor: colors.border }]}
-            />
-          </View>
-
           <View style={styles.formActionsRow}>
             <TouchableOpacity
               onPress={handleCancelEdit}
@@ -622,21 +610,41 @@ export default function ContactsPage({
           </Text>
         </View>
 
-        <TouchableOpacity
-          onPress={() => {
-            if (isFormOpen && !editingUserId) {
-              setIsFormOpen(false);
-            } else {
-              handleCancelEdit();
-              setIsFormOpen(true);
-            }
-          }}
-          style={styles.addContactHeaderBtn}
-          activeOpacity={0.8}
-        >
-          <UserPlus size={18} color="#ffffff" />
-          <Text style={styles.addContactHeaderBtnText}>Add</Text>
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <TouchableOpacity
+            onPress={handleImportNativeContacts}
+            disabled={isImporting}
+            style={[
+              styles.refreshHeaderBtn,
+              { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+            ]}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            accessibilityLabel="Refresh contacts"
+          >
+            {isImporting ? (
+              <ActivityIndicator size="small" color="#0078d4" />
+            ) : (
+              <RefreshCw size={18} color={colors.text} />
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => {
+              if (isFormOpen && !editingUserId) {
+                setIsFormOpen(false);
+              } else {
+                handleCancelEdit();
+                setIsFormOpen(true);
+              }
+            }}
+            style={styles.addContactHeaderBtn}
+            activeOpacity={0.8}
+          >
+            <UserPlus size={18} color="#ffffff" />
+            <Text style={styles.addContactHeaderBtnText}>Add</Text>
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Virtualized Contact List */}
@@ -648,6 +656,8 @@ export default function ContactsPage({
           data={filteredUsers}
           keyExtractor={(item) => String(item.id)}
           renderItem={renderContactItem}
+          refreshing={isImporting}
+          onRefresh={handleImportNativeContacts}
           ListHeaderComponent={renderHeaderComponent}
           ListEmptyComponent={renderEmptyComponent}
           contentContainerStyle={[
@@ -696,6 +706,14 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: fontSizes.caption
+  },
+  refreshHeaderBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   addContactHeaderBtn: {
     flexDirection: 'row',

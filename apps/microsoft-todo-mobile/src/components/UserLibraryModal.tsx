@@ -325,24 +325,6 @@ export default function UserLibraryModal({
                       { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
                     ]}
                   >
-                    <Mail size={16} color={colors.textMuted} />
-                    <TextInput
-                      placeholder="Email Address"
-                      placeholderTextColor={colors.textMuted}
-                      value={email}
-                      onChangeText={setEmail}
-                      keyboardType="email-address"
-                      autoCapitalize="none"
-                      style={[styles.formTextInput, { color: colors.text }]}
-                    />
-                  </View>
-
-                  <View
-                    style={[
-                      styles.inputWrap,
-                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
-                    ]}
-                  >
                     <Phone size={16} color="#25D366" />
                     <TextInput
                       placeholder="WhatsApp Phone (e.g. +919876543210)"
