@@ -60,18 +60,6 @@ async function runServerJourney({ directory, env }) {
   }
 }
 
-test("Kamdhenu ToDo API starts with disposable data and reports healthy", async () => {
-  const directory = mkdtempSync(resolve(tmpdir(), "todo-journey-"));
-  try {
-    await runServerJourney({
-      directory: "apps/microsoft-todo-server",
-      env: { DATABASE_PATH: resolve(directory, "todo.db") },
-    });
-  } finally {
-    rmSync(directory, { recursive: true, force: true });
-  }
-});
-
 test("Stock Manager API starts with disposable data/uploads and reports healthy", async () => {
   const directory = mkdtempSync(resolve(tmpdir(), "stock-journey-"));
   const uploads = resolve(directory, "uploads");

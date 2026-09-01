@@ -9,7 +9,6 @@ services:
     ports:
       - "0.0.0.0:80:80"
     depends_on:
-      - todo
       - stock
       - gold
 
@@ -30,23 +29,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-
-  # Kamdhenu ToDo (Express API + React static frontend)
-  todo:
-    build:
-      context: ..
-      dockerfile: apps/microsoft-todo-server/Dockerfile
-    container_name: todo-app
-    restart: unless-stopped
-    expose:
-      - "5005"
-    volumes:
-      - todo-data:/app/data
-    healthcheck:
-      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:5005/healthz').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
 
   # Stock Manager App (Express API + React static frontend)
   stock:
@@ -82,8 +64,6 @@ services:
 
 volumes:
   postgres-data:
-    driver: local
-  todo-data:
     driver: local
   stock-data:
     driver: local

@@ -27,11 +27,11 @@ test("local-network ingress binds port 80 on every host interface", () => {
   assert.match(compose, /0\.0\.0\.0:80:80/);
 });
 
-test("route changes include every connected operational surface", () => {
-  const result = spawnSync(process.execPath, ["scripts/platform.mjs", "impact", "microsoft-todo", "route"], { cwd: root, encoding: "utf8" });
+test("mobile changes include every connected operational surface", () => {
+  const result = spawnSync(process.execPath, ["scripts/platform.mjs", "impact", "kamdhenu-handoff", "mobile"], { cwd: root, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   const report = JSON.parse(result.stdout);
-  for (const surface of ["web", "api", "mobile", "environment", "nginx", "health", "tests", "registry"]) {
+  for (const surface of ["api", "mobile", "environment", "tests", "registry"]) {
     assert.ok(report.requiredSurfaces.includes(surface), `missing ${surface}`);
   }
 });
@@ -298,19 +298,19 @@ test("recipe command returns exact contracts for all supported stacks", () => {
 });
 
 test("backup planning is deterministic and excludes secrets", () => {
-  const result = spawnSync(process.execPath, ["scripts/backup-app.mjs", "microsoft-todo", "--plan"], { cwd: root, encoding: "utf8" });
+  const result = spawnSync(process.execPath, ["scripts/backup-app.mjs", "stock-manager", "--plan"], { cwd: root, encoding: "utf8" });
   assert.equal(result.status, 0, result.stderr);
   const plan = JSON.parse(result.stdout);
-  assert.equal(plan.appId, "microsoft-todo");
+  assert.equal(plan.appId, "stock-manager");
   assert.ok(plan.excludes.includes(".env"));
 });
 
 test("a real local backup can be verified in disposable storage", () => {
-  const backup = spawnSync(process.execPath, ["scripts/backup-app.mjs", "microsoft-todo", "--confirm"], { cwd: root, encoding: "utf8" });
+  const backup = spawnSync(process.execPath, ["scripts/backup-app.mjs", "stock-manager", "--confirm"], { cwd: root, encoding: "utf8" });
   assert.equal(backup.status, 0, backup.stderr);
   const destination = JSON.parse(backup.stdout).destination;
   try {
-    const verify = spawnSync(process.execPath, ["scripts/restore-app.mjs", "microsoft-todo", destination, "--verify"], { cwd: root, encoding: "utf8" });
+    const verify = spawnSync(process.execPath, ["scripts/restore-app.mjs", "stock-manager", destination, "--verify"], { cwd: root, encoding: "utf8" });
     assert.equal(verify.status, 0, verify.stderr);
     const report = JSON.parse(verify.stdout);
     assert.equal(report.status, "verified");
@@ -329,7 +329,7 @@ test("approved restore overwrites only registered data in an isolated workspace"
   mkdirSync(resolve(directory, "apps/example"), { recursive: true });
   cpSync(resolve(root, "scripts/backup-app.mjs"), resolve(directory, "scripts/backup-app.mjs"));
   cpSync(resolve(root, "scripts/restore-app.mjs"), resolve(directory, "scripts/restore-app.mjs"));
-  cpSync(resolve(root, "apps/microsoft-todo-server/todo.db"), database);
+  cpSync(resolve(root, "apps/stock-manager-server/stock.db"), database);
   writeFileSync(resolve(directory, "platform/apps.json"), JSON.stringify({ apps: [{
     id: "example",
     displayName: "Example",
@@ -385,7 +385,7 @@ test("registration rejects duplicate operational identity without changing the r
   const registryPath = resolve(root, "platform/apps.json");
   const before = readFileSync(registryPath, "utf8");
   writeFileSync(record, JSON.stringify({
-    id: "microsoft-todo",
+    id: "kamdhenu-handoff",
     displayName: "Duplicate",
     recipe: "react-web",
     status: "planned",

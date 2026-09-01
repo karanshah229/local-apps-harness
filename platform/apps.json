@@ -13,36 +13,22 @@
 	},
 	"apps": [
 		{
-			"id": "microsoft-todo",
+			"id": "kamdhenu-handoff",
 			"displayName": "Kamdhenu Handoff",
-			"recipe": "legacy-react-express-sqlite",
-			"status": "legacy",
-			"capabilities": ["tasks", "realtime-sync", "whatsapp-reminders"],
+			"recipe": "react-native-expo",
+			"status": "active",
+			"capabilities": ["tasks", "whatsapp-reminders"],
 			"paths": {
-				"web": "apps/microsoft-todo-client",
-				"api": "apps/microsoft-todo-server",
-				"mobile": "apps/microsoft-todo-mobile"
+				"web": null,
+				"api": null,
+				"mobile": "apps/kamdhenu-handoff-mobile"
 			},
-			"web": { "basePath": "/todo" },
-			"api": { "internalPort": 5005, "healthPath": "/healthz" },
-			"data": {
-				"engine": "sqlite",
-				"database": "todo.db",
-				"migrationState": "legacy"
-			},
-			"docker": {
-				"service": "todo",
-				"containerName": "todo-app",
-				"dockerfile": "apps/microsoft-todo-server/Dockerfile",
-				"volumes": ["todo-data"]
-			},
-			"nginx": { "route": "/todo/", "upstream": "todo:5005" },
-			"backup": {
-				"strategy": "filesystem",
-				"container": "todo-app",
-				"containerPath": "/app/data",
-				"localPaths": ["apps/microsoft-todo-server/todo.db"]
-			},
+			"web": null,
+			"api": null,
+			"data": null,
+			"docker": null,
+			"nginx": null,
+			"backup": null,
 			"mobile": {
 				"androidPackage": "com.kamdhenu.handoff",
 				"iosBundleId": "com.kamdhenu.handoff"

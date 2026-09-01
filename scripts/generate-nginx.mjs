@@ -6,7 +6,7 @@ import { resolve } from "node:path";
 const root = resolve(import.meta.dirname, "..");
 const registry = JSON.parse(readFileSync(resolve(root, "platform/apps.json"), "utf8"));
 
-const blocks = registry.apps.filter((app) => app.status !== "archived").map((app) => {
+const blocks = registry.apps.filter((app) => app.status !== "archived" && app.web && app.nginx).map((app) => {
   const base = app.web.basePath;
   const websocket = app.capabilities.includes("realtime-sync") ? `
             proxy_set_header Upgrade $http_upgrade;

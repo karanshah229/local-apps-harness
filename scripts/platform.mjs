@@ -91,15 +91,23 @@ function validate() {
     for (const path of Object.values(app.paths).filter(Boolean)) {
       if (!existsSync(resolve(root, path))) errors.push(`${app.id}: missing path ${path}`);
     }
-    if (!existsSync(resolve(root, app.docker.dockerfile))) errors.push(`${app.id}: missing ${app.docker.dockerfile}`);
-    if (!compose.match(new RegExp(`^  ${escapeRegex(app.docker.service)}:`, "m"))) errors.push(`${app.id}: Docker service is absent from Compose`);
-    if (!compose.includes(`container_name: ${app.docker.containerName}`)) errors.push(`${app.id}: container name ${app.docker.containerName} is absent from Compose`);
-    for (const volume of app.docker.volumes) {
-      if (!compose.match(new RegExp(`^  ${escapeRegex(volume)}:`, "m"))) errors.push(`${app.id}: volume ${volume} is not declared in Compose`);
+    if (app.docker) {
+      if (!existsSync(resolve(root, app.docker.dockerfile))) errors.push(`${app.id}: missing ${app.docker.dockerfile}`);
+      if (!compose.match(new RegExp(`^  ${escapeRegex(app.docker.service)}:`, "m"))) errors.push(`${app.id}: Docker service is absent from Compose`);
+      if (!compose.includes(`container_name: ${app.docker.containerName}`)) errors.push(`${app.id}: container name ${app.docker.containerName} is absent from Compose`);
+      for (const volume of app.docker.volumes) {
+        if (!compose.match(new RegExp(`^  ${escapeRegex(volume)}:`, "m"))) errors.push(`${app.id}: volume ${volume} is not declared in Compose`);
+      }
+      if (app.backup && app.backup.container !== app.docker.containerName) errors.push(`${app.id}: backup container does not match registered container name`);
+    } else if (app.web || app.api || app.backup) {
+      errors.push(`${app.id}: hosted web, API, or backup wiring requires a Docker service`);
     }
-    if (app.backup && app.backup.container !== app.docker.containerName) errors.push(`${app.id}: backup container does not match registered container name`);
-    if (!nginx.includes(`location ${app.nginx.route}`)) errors.push(`${app.id}: Nginx route ${app.nginx.route} is absent`);
-    if (!nginx.includes(app.nginx.upstream)) errors.push(`${app.id}: Nginx upstream ${app.nginx.upstream} is absent`);
+    if (app.nginx) {
+      if (!nginx.includes(`location ${app.nginx.route}`)) errors.push(`${app.id}: Nginx route ${app.nginx.route} is absent`);
+      if (!nginx.includes(app.nginx.upstream)) errors.push(`${app.id}: Nginx upstream ${app.nginx.upstream} is absent`);
+    } else if (app.web) {
+      errors.push(`${app.id}: a hosted web app requires an Nginx route`);
+    }
     if (app.api && !app.api.healthPath && app.recipe.includes("legacy")) warnings.push(`${app.id}: legacy API has no registered health endpoint`);
   }
 
@@ -119,7 +127,7 @@ function print(value) {
 const [command = "check", ...args] = process.argv.slice(2).filter((arg) => arg !== "--");
 try {
   if (command === "list") {
-    print(registry().apps.map(({ id, displayName, status, web, docker }) => ({ id, displayName, status, basePath: web?.basePath, service: docker.service })));
+    print(registry().apps.map(({ id, displayName, status, web, docker }) => ({ id, displayName, status, basePath: web?.basePath ?? null, service: docker?.service ?? null })));
   } else if (command === "inspect") {
     print(appById(args[0]));
   } else if (command === "recipe") {

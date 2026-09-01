@@ -1,0 +1,40 @@
+{
+  "appId": "microsoft-todo",
+  "request": "Keep Kamdhenu Handoff as a mobile-only application, rename its mobile source folder, and remove its web client and server applications.",
+  "acceptance": [
+    "The only Kamdhenu Handoff application folder is apps/kamdhenu-handoff-mobile.",
+    "The mobile app continues to use its on-device SQLite data and builds for Android and iOS.",
+    "The removed web and API are absent from workspace scripts, Docker Compose, Nginx, backups, tests, and the app registry.",
+    "The previous server SQLite database has a verified local backup before deletion."
+  ],
+  "excluded": [
+    "Stable registry app ID microsoft-todo.",
+    "Mobile workspace package name microsoft-todo-mobile.",
+    "Shared package folder packages/todo-shared.",
+    "Android package and iOS bundle identifiers.",
+    "Deletion of existing Docker volumes or containers on the host.",
+    "Deployment, service restart, or public exposure."
+  ],
+  "surfaces": [
+    "web",
+    "api",
+    "database",
+    "mobile",
+    "environment",
+    "docker",
+    "nginx",
+    "health",
+    "backup",
+    "tests",
+    "registry"
+  ],
+  "risk": "approval-required",
+  "verification": [
+    "Verify the pre-deletion server SQLite backup in disposable storage.",
+    "Scan for removed client and server paths and workspace package importers.",
+    "Run pnpm platform:check, lint, tests, mobile type-check, and Android release build.",
+    "Regenerate CocoaPods under the new path and validate the iOS workspace.",
+    "Validate Docker Compose and generated Nginx without restarting services."
+  ],
+  "rollback": "Revert the local Git change to restore the web and server sources and operational wiring, then restore server data from .local/backups/microsoft-todo/2026-09-01T06-07-05.141Z if needed."
+}

@@ -1,0 +1,60 @@
+{
+  "expo": {
+    "name": "Kamdhenu Handoff",
+    "slug": "kamdhenu-handoff",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.kamdhenu.handoff",
+      "infoPlist": {
+        "NSContactsUsageDescription": "Kamdhenu Handoff needs access to your contacts to let you assign tasks and share lists with teammates and contacts."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0078d4"
+      },
+      "package": "com.kamdhenu.handoff",
+      "versionCode": 2,
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "READ_CONTACTS",
+        "WRITE_CONTACTS",
+        "android.permission.READ_CONTACTS",
+        "android.permission.WRITE_CONTACTS"
+      ]
+    },
+    "scheme": "kamdhenu-handoff",
+    "plugins": [
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Kamdhenu Handoff to access your contacts to easily assign tasks and share lists."
+        }
+      ],
+      "expo-router",
+      "@react-native-community/datetimepicker",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#0078d4"
+        }
+      ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "07f19aa6-0b77-410e-bcff-0013f9f41bc4"
+      }
+    }
+  }
+}
