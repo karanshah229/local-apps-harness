@@ -9,15 +9,38 @@ import {
   Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { X, Sparkles, Check, FileText, CheckSquare, MessageSquare, Eye } from 'lucide-react-native';
+import {
+  X,
+  Sparkles,
+  Check,
+  FileText,
+  CheckSquare,
+  MessageSquare,
+  Eye,
+  User as UserIcon,
+  Star,
+  Calendar,
+} from 'lucide-react-native';
 import { WhatsAppMessageStyle, Task, formatSingleTaskMessage } from '@shared/todo';
+
+export interface WhatsAppFormatOptions {
+  includeNotes: boolean;
+  includeAssignee: boolean;
+  includeImportant: boolean;
+  includeSteps: boolean;
+  includeDueDate: boolean;
+}
 
 interface WhatsAppFormatBottomSheetProps {
   visible: boolean;
   onClose: () => void;
   currentStyle?: WhatsAppMessageStyle;
   includeNotes?: boolean;
-  onSave: (style: WhatsAppMessageStyle, includeNotes: boolean) => void;
+  includeAssignee?: boolean;
+  includeImportant?: boolean;
+  includeSteps?: boolean;
+  includeDueDate?: boolean;
+  onSave: (style: WhatsAppMessageStyle, options: WhatsAppFormatOptions) => void;
   title?: string;
   subtitle?: string;
   isDarkMode?: boolean;
@@ -31,24 +54,35 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   onClose,
   currentStyle = 'modern',
   includeNotes = true,
+  includeAssignee = true,
+  includeImportant = true,
+  includeSteps = true,
+  includeDueDate = true,
   onSave,
   title = 'WhatsApp Message Format',
   subtitle = 'Choose how your tasks and lists are styled when shared',
   isDarkMode = false,
   themePrimary = '#0078d4',
   sampleTask,
-  confirmLabel = 'Save Format',
 }) => {
   const insets = useSafeAreaInsets();
   const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(currentStyle || 'modern');
   const [notesEnabled, setNotesEnabled] = useState<boolean>(includeNotes !== false);
+  const [assigneeEnabled, setAssigneeEnabled] = useState<boolean>(includeAssignee !== false);
+  const [importantEnabled, setImportantEnabled] = useState<boolean>(includeImportant !== false);
+  const [stepsEnabled, setStepsEnabled] = useState<boolean>(includeSteps !== false);
+  const [dueDateEnabled, setDueDateEnabled] = useState<boolean>(includeDueDate !== false);
 
   useEffect(() => {
     if (visible) {
       setSelectedStyle(currentStyle || 'modern');
       setNotesEnabled(includeNotes !== false);
+      setAssigneeEnabled(includeAssignee !== false);
+      setImportantEnabled(includeImportant !== false);
+      setStepsEnabled(includeSteps !== false);
+      setDueDateEnabled(includeDueDate !== false);
     }
-  }, [visible, currentStyle, includeNotes]);
+  }, [visible, currentStyle, includeNotes, includeAssignee, includeImportant, includeSteps, includeDueDate]);
 
   const defaultSample: Task = useMemo(() => {
     if (sampleTask) return sampleTask;
@@ -62,6 +96,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       reminder_time: '10:30 AM',
       list_title: 'Dairy Ops',
       assignee_name: 'Ramesh Patel',
+      assigned_to_user_id: 2,
       active: 1,
     };
   }, [sampleTask]);
@@ -76,9 +111,42 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       defaultSample,
       { name: defaultSample.assignee_name || undefined },
       sampleSubtasks,
-      { style: selectedStyle, includeNotes: notesEnabled }
+      {
+        style: selectedStyle,
+        includeNotes: notesEnabled,
+        includeAssignee: assigneeEnabled,
+        includeImportant: importantEnabled,
+        includeSteps: stepsEnabled,
+        includeDueDate: dueDateEnabled,
+      }
     );
-  }, [defaultSample, sampleSubtasks, selectedStyle, notesEnabled]);
+  }, [
+    defaultSample,
+    sampleSubtasks,
+    selectedStyle,
+    notesEnabled,
+    assigneeEnabled,
+    importantEnabled,
+    stepsEnabled,
+    dueDateEnabled,
+  ]);
+
+  const triggerSave = (
+    style: WhatsAppMessageStyle,
+    notes: boolean,
+    assignee: boolean,
+    important: boolean,
+    steps: boolean,
+    dueDate: boolean
+  ) => {
+    onSave(style, {
+      includeNotes: notes,
+      includeAssignee: assignee,
+      includeImportant: important,
+      includeSteps: steps,
+      includeDueDate: dueDate,
+    });
+  };
 
   const stylesList: Array<{
     id: WhatsAppMessageStyle;
@@ -105,6 +173,69 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       label: 'Crisp',
       description: 'Emoji checkboxes (◻️, ✅) with clean aligned tags',
       icon: CheckSquare,
+    },
+  ];
+
+  const fieldInclusions = [
+    {
+      id: 'assignee',
+      label: 'Assignee',
+      description: 'Assigned team member (ignored for self or group)',
+      value: assigneeEnabled,
+      icon: UserIcon,
+      color: '#3b82f6',
+      onToggle: (val: boolean) => {
+        setAssigneeEnabled(val);
+        triggerSave(selectedStyle, notesEnabled, val, importantEnabled, stepsEnabled, dueDateEnabled);
+      },
+    },
+    {
+      id: 'important',
+      label: '(Important) Tag',
+      description: 'Add (Important) in brackets after high-priority tasks',
+      value: importantEnabled,
+      icon: Star,
+      color: '#eab308',
+      onToggle: (val: boolean) => {
+        setImportantEnabled(val);
+        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, val, stepsEnabled, dueDateEnabled);
+      },
+    },
+    {
+      id: 'steps',
+      label: 'Steps & Subtasks',
+      description: 'Show subtask checklist items and progress counts',
+      value: stepsEnabled,
+      icon: CheckSquare,
+      color: '#10b981',
+      onToggle: (val: boolean) => {
+        setStepsEnabled(val);
+        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, val, dueDateEnabled);
+      },
+    },
+    {
+      id: 'dueDate',
+      label: 'Due Date & Time',
+      description: 'Show scheduled due dates and reminder timings',
+      value: dueDateEnabled,
+      icon: Calendar,
+      color: '#f97316',
+      onToggle: (val: boolean) => {
+        setDueDateEnabled(val);
+        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, stepsEnabled, val);
+      },
+    },
+    {
+      id: 'notes',
+      label: 'Task Notes',
+      description: 'Notes and descriptions in the shared message',
+      value: notesEnabled,
+      icon: MessageSquare,
+      color: '#25D366',
+      onToggle: (val: boolean) => {
+        setNotesEnabled(val);
+        triggerSave(selectedStyle, val, assigneeEnabled, importantEnabled, stepsEnabled, dueDateEnabled);
+      },
     },
   ];
 
@@ -177,8 +308,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                     key={item.id}
                     onPress={() => {
                       setSelectedStyle(item.id);
-                      onSave(item.id, notesEnabled);
-                      onClose();
+                      triggerSave(
+                        item.id,
+                        notesEnabled,
+                        assigneeEnabled,
+                        importantEnabled,
+                        stepsEnabled,
+                        dueDateEnabled
+                      );
                     }}
                     activeOpacity={0.7}
                     style={{
@@ -287,7 +424,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
               </Text>
             </View>
 
-            {/* Section 3: Detail Inclusions Toggle */}
+            {/* Section 3: Task Fields Toggles */}
             <Text
               style={{
                 fontSize: 12,
@@ -298,54 +435,60 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                 marginBottom: 10,
               }}
             >
-              Field Inclusions
+              Task Fields
             </Text>
 
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: 14,
-                borderRadius: 16,
-                backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
-                marginBottom: 12,
-              }}
-            >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 10 }}>
-                <View
-                  style={{
-                    width: 36,
-                    height: 36,
-                    borderRadius: 18,
-                    backgroundColor: notesEnabled ? 'rgba(37, 211, 102, 0.12)' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <MessageSquare size={18} color={notesEnabled ? '#25D366' : (isDarkMode ? '#a1a1aa' : '#64748b')} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                    Include Task Notes
-                  </Text>
-                  <Text style={{ fontSize: 11, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                    Include notes and descriptions in the shared WhatsApp message
-                  </Text>
-                </View>
-              </View>
+            <View style={{ gap: 8, marginBottom: 20 }}>
+              {fieldInclusions.map((field) => {
+                const IconComp = field.icon;
+                return (
+                  <View
+                    key={field.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 12,
+                      borderRadius: 16,
+                      backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 10 }}>
+                      <View
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 18,
+                          backgroundColor: field.value
+                            ? (isDarkMode ? 'rgba(255,255,255,0.1)' : '#f1f5f9')
+                            : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <IconComp size={18} color={field.value ? field.color : (isDarkMode ? '#a1a1aa' : '#64748b')} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          {field.label}
+                        </Text>
+                        <Text style={{ fontSize: 11, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          {field.description}
+                        </Text>
+                      </View>
+                    </View>
 
-              <Switch
-                value={notesEnabled}
-                onValueChange={(val) => {
-                  setNotesEnabled(val);
-                  onSave(selectedStyle, val);
-                }}
-                trackColor={{ false: isDarkMode ? '#3f3f46' : '#cbd5e1', true: themePrimary }}
-                thumbColor="#ffffff"
-              />
+                    <Switch
+                      value={field.value}
+                      onValueChange={field.onToggle}
+                      trackColor={{ false: isDarkMode ? '#3f3f46' : '#cbd5e1', true: themePrimary }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                );
+              })}
             </View>
           </ScrollView>
         </View>

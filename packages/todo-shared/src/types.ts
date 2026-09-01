@@ -15,6 +15,10 @@ export type WhatsAppListLayout = 'compact' | 'detailed';
 export interface WhatsAppFormatConfig {
   style?: WhatsAppMessageStyle;
   includeNotes?: boolean;
+  includeAssignee?: boolean;
+  includeImportant?: boolean;
+  includeSteps?: boolean;
+  includeDueDate?: boolean;
   layout?: WhatsAppListLayout;
   scope?: 'pending' | 'all' | 'current_view';
 }
@@ -32,6 +36,10 @@ export interface List {
   default_whatsapp_share_scope?: 'pending' | 'all' | 'current_view' | string;
   whatsapp_message_style?: WhatsAppMessageStyle | string | null;
   whatsapp_include_notes?: number | boolean | null;
+  whatsapp_include_assignee?: number | boolean | null;
+  whatsapp_include_important?: number | boolean | null;
+  whatsapp_include_steps?: number | boolean | null;
+  whatsapp_include_due_date?: number | boolean | null;
   whatsapp_list_layout?: WhatsAppListLayout | string | null;
   active?: number | boolean;
   created_at?: string;
@@ -130,6 +138,10 @@ export interface CustomView {
   default_whatsapp_share_scope?: string | null;
   whatsapp_message_style?: WhatsAppMessageStyle | string | null;
   whatsapp_include_notes?: number | boolean | null;
+  whatsapp_include_assignee?: number | boolean | null;
+  whatsapp_include_important?: number | boolean | null;
+  whatsapp_include_steps?: number | boolean | null;
+  whatsapp_include_due_date?: number | boolean | null;
   whatsapp_list_layout?: WhatsAppListLayout | string | null;
   matched_count?: number;
   position?: number;
@@ -176,6 +188,10 @@ export interface UserPreferences {
   has_chosen_whatsapp_format?: number | boolean;
   default_whatsapp_style?: WhatsAppMessageStyle | string;
   default_whatsapp_include_notes?: number | boolean;
+  default_whatsapp_include_assignee?: number | boolean;
+  default_whatsapp_include_important?: number | boolean;
+  default_whatsapp_include_steps?: number | boolean;
+  default_whatsapp_include_due_date?: number | boolean;
   updated_at?: string;
 }
 

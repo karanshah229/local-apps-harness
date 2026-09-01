@@ -94,6 +94,18 @@ function RootLayoutNav() {
       if (preferences?.default_whatsapp_include_notes !== undefined) {
         useUiStore.getState().setDefaultWhatsAppIncludeNotes(preferences.default_whatsapp_include_notes !== 0 && preferences.default_whatsapp_include_notes !== false);
       }
+      if (preferences?.default_whatsapp_include_assignee !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeAssignee(preferences.default_whatsapp_include_assignee !== 0 && preferences.default_whatsapp_include_assignee !== false);
+      }
+      if (preferences?.default_whatsapp_include_important !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeImportant(preferences.default_whatsapp_include_important !== 0 && preferences.default_whatsapp_include_important !== false);
+      }
+      if (preferences?.default_whatsapp_include_steps !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeSteps(preferences.default_whatsapp_include_steps !== 0 && preferences.default_whatsapp_include_steps !== false);
+      }
+      if (preferences?.default_whatsapp_include_due_date !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeDueDate(preferences.default_whatsapp_include_due_date !== 0 && preferences.default_whatsapp_include_due_date !== false);
+      }
 
       if (preferences?.remember_last_view) {
         const type = preferences.last_view_type;

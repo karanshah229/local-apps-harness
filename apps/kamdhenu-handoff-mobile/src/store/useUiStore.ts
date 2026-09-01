@@ -47,6 +47,14 @@ interface UiState {
   setDefaultWhatsAppStyle: (style: WhatsAppMessageStyle) => void;
   defaultWhatsAppIncludeNotes: boolean;
   setDefaultWhatsAppIncludeNotes: (include: boolean) => void;
+  defaultWhatsAppIncludeAssignee: boolean;
+  setDefaultWhatsAppIncludeAssignee: (include: boolean) => void;
+  defaultWhatsAppIncludeImportant: boolean;
+  setDefaultWhatsAppIncludeImportant: (include: boolean) => void;
+  defaultWhatsAppIncludeSteps: boolean;
+  setDefaultWhatsAppIncludeSteps: (include: boolean) => void;
+  defaultWhatsAppIncludeDueDate: boolean;
+  setDefaultWhatsAppIncludeDueDate: (include: boolean) => void;
   hasChosenWhatsAppFormat: boolean;
   setHasChosenWhatsAppFormat: (val: boolean) => void;
 
@@ -128,6 +136,14 @@ export const useUiStore = create<UiState>((set, get) => ({
   setDefaultWhatsAppStyle: (style) => set({ defaultWhatsAppStyle: style }),
   defaultWhatsAppIncludeNotes: true,
   setDefaultWhatsAppIncludeNotes: (include) => set({ defaultWhatsAppIncludeNotes: include }),
+  defaultWhatsAppIncludeAssignee: true,
+  setDefaultWhatsAppIncludeAssignee: (include) => set({ defaultWhatsAppIncludeAssignee: include }),
+  defaultWhatsAppIncludeImportant: true,
+  setDefaultWhatsAppIncludeImportant: (include) => set({ defaultWhatsAppIncludeImportant: include }),
+  defaultWhatsAppIncludeSteps: true,
+  setDefaultWhatsAppIncludeSteps: (include) => set({ defaultWhatsAppIncludeSteps: include }),
+  defaultWhatsAppIncludeDueDate: true,
+  setDefaultWhatsAppIncludeDueDate: (include) => set({ defaultWhatsAppIncludeDueDate: include }),
   hasChosenWhatsAppFormat: false,
   setHasChosenWhatsAppFormat: (val) => set({ hasChosenWhatsAppFormat: val }),
 

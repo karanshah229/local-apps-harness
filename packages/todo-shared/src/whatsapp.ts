@@ -74,27 +74,38 @@ export function formatSingleTaskMessage(
 ): string {
   const style: WhatsAppMessageStyle = config?.style || 'modern';
   const includeNotes = config?.includeNotes !== false;
+  const includeAssignee = config?.includeAssignee !== false;
+  const includeImportant = config?.includeImportant !== false;
+  const includeSteps = config?.includeSteps !== false;
+  const includeDueDate = config?.includeDueDate !== false;
 
-  const star = task.is_important ? ' ⭐' : '';
-  const dueInfo = getFriendlyDueText(task.due_date);
-  const timeStr = task.reminder_time ? ` at ${task.reminder_time}` : '';
+  const importantSuffix = (includeImportant && task.is_important) ? ' (Important)' : '';
+  const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date) : null;
+  const timeStr = (includeDueDate && task.reminder_time) ? ` at ${task.reminder_time}` : '';
   const listsStr = getTaskListsSummary(task);
 
   const isGroup = Boolean(task.assignee_is_group);
   const assigneeName = task.assignee_name || (task.assigned_to_user_id ? recipient?.name : undefined);
+  const isSelf = task.assigned_to_user_id === 1 ||
+    assigneeName?.toLowerCase() === 'you' ||
+    assigneeName?.toLowerCase() === 'self' ||
+    assigneeName?.toLowerCase() === 'me';
   const hasAssignee = Boolean(assigneeName && assigneeName !== 'Unassigned' && assigneeName.toLowerCase() !== 'contact' && assigneeName.trim().length > 0);
+  const shouldIncludeAssignee = includeAssignee && hasAssignee && !isGroup && !isSelf;
 
   let message = '';
 
   if (style === 'executive') {
     // Executive Style: Structured with divider line
-    message += `📌 *${task.title}*${star}\n`;
+    message += `📌 *${task.title}*${importantSuffix}\n`;
     message += `━━━━━━━━━━━━━━━\n`;
 
-    if (dueInfo) {
-      message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
-    } else if (task.reminder_time) {
-      message += `⏰ *Reminder:* ${task.reminder_time}\n`;
+    if (includeDueDate) {
+      if (dueInfo) {
+        message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
+      } else if (task.reminder_time) {
+        message += `⏰ *Reminder:* ${task.reminder_time}\n`;
+      }
     }
 
     if (listsStr) {
@@ -102,11 +113,11 @@ export function formatSingleTaskMessage(
       message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
     }
 
-    if (hasAssignee) {
-      message += isGroup ? `👥 *Group:* ${assigneeName}\n` : `👤 *Assigned to:* ${assigneeName}\n`;
+    if (shouldIncludeAssignee) {
+      message += `👤 *Assigned to:* ${assigneeName}\n`;
     }
 
-    if (subtasks && subtasks.length > 0) {
+    if (includeSteps && subtasks && subtasks.length > 0) {
       const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
       message += `\n📋 *Steps (${completedCount}/${subtasks.length}):*\n`;
       subtasks.forEach((st) => {
@@ -122,12 +133,14 @@ export function formatSingleTaskMessage(
   } else if (style === 'crisp') {
     // Crisp Style: Emoji checkboxes ◻️ and ✅ with clean hierarchy
     const statusEmoji = task.is_completed ? '✅' : '📋';
-    message += `${statusEmoji} *${task.title}*${star}\n`;
+    message += `${statusEmoji} *${task.title}*${importantSuffix}\n`;
 
-    if (dueInfo) {
-      message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
-    } else if (task.reminder_time) {
-      message += `⏰ *Reminder:* ${task.reminder_time}\n`;
+    if (includeDueDate) {
+      if (dueInfo) {
+        message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
+      } else if (task.reminder_time) {
+        message += `⏰ *Reminder:* ${task.reminder_time}\n`;
+      }
     }
 
     if (listsStr) {
@@ -135,11 +148,11 @@ export function formatSingleTaskMessage(
       message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
     }
 
-    if (hasAssignee) {
-      message += isGroup ? `👥 *Group:* ${assigneeName}\n` : `👤 *Assigned to:* ${assigneeName}\n`;
+    if (shouldIncludeAssignee) {
+      message += `👤 *Assigned to:* ${assigneeName}\n`;
     }
 
-    if (subtasks && subtasks.length > 0) {
+    if (includeSteps && subtasks && subtasks.length > 0) {
       const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
       message += `\n*Steps (${completedCount}/${subtasks.length}):*\n`;
       subtasks.forEach((st) => {
@@ -154,18 +167,18 @@ export function formatSingleTaskMessage(
     }
   } else {
     // Modern Style (Default): Notion/Linear aesthetic with ○ and ✓
-    message += `*${task.title}*${star}\n`;
+    message += `*${task.title}*${importantSuffix}\n`;
 
     const metaParts: string[] = [];
-    if (dueInfo) metaParts.push(`🗓 ${dueInfo.text}${timeStr}`);
+    if (includeDueDate && dueInfo) metaParts.push(`🗓 ${dueInfo.text}${timeStr}`);
     if (listsStr) metaParts.push(`📁 ${listsStr}`);
-    if (hasAssignee) metaParts.push(isGroup ? `👥 ${assigneeName}` : `👤 ${assigneeName}`);
+    if (shouldIncludeAssignee) metaParts.push(`👤 ${assigneeName}`);
 
     if (metaParts.length > 0) {
       message += `${metaParts.join(' • ')}\n`;
     }
 
-    if (subtasks && subtasks.length > 0) {
+    if (includeSteps && subtasks && subtasks.length > 0) {
       const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
       message += `\n*Steps (${completedCount}/${subtasks.length}):*\n`;
       subtasks.forEach((st) => {
@@ -192,6 +205,9 @@ export function formatBatchTasksMessage(
 ): string {
   const style: WhatsAppMessageStyle = config?.style || 'modern';
   const includeNotes = config?.includeNotes !== false;
+  const includeAssignee = config?.includeAssignee !== false;
+  const includeImportant = config?.includeImportant !== false;
+  const includeDueDate = config?.includeDueDate !== false;
 
   const pendingCount = tasks.filter((t) => !t.is_completed).length;
   const completedCount = tasks.filter((t) => Boolean(t.is_completed)).length;
@@ -223,37 +239,42 @@ export function formatBatchTasksMessage(
   let message = header;
 
   tasks.forEach((task, index) => {
-    const star = task.is_important ? '⭐ ' : '';
-    const dueInfo = getFriendlyDueText(task.due_date);
+    const importantSuffix = (includeImportant && task.is_important) ? ' (Important)' : '';
+    const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date) : null;
     const listsStr = getTaskListsSummary(task);
-    const hasAssignee = Boolean(task.assignee_name && task.assignee_name !== 'Unassigned');
+    const isGroup = Boolean(task.assignee_is_group);
+    const isSelf = task.assigned_to_user_id === 1 ||
+      task.assignee_name?.toLowerCase() === 'you' ||
+      task.assignee_name?.toLowerCase() === 'self' ||
+      task.assignee_name?.toLowerCase() === 'me';
+    const hasAssignee = Boolean(task.assignee_name && task.assignee_name !== 'Unassigned' && task.assignee_name.toLowerCase() !== 'contact' && task.assignee_name.trim().length > 0);
+    const shouldIncludeAssignee = includeAssignee && hasAssignee && !isGroup && !isSelf;
 
     const tags: string[] = [];
-    if (dueInfo) tags.push(`🗓 ${dueInfo.text}`);
+    if (includeDueDate && dueInfo) tags.push(`🗓 ${dueInfo.text}`);
     if (listsStr) tags.push(`📁 ${listsStr}`);
-    if (hasAssignee) {
-      const icon = task.assignee_is_group ? '👥' : '👤';
-      tags.push(`${icon} ${task.assignee_name}`);
+    if (shouldIncludeAssignee) {
+      tags.push(`👤 ${task.assignee_name}`);
     }
 
     if (style === 'executive') {
       const check = task.is_completed ? '[✓]' : '[ ]';
       const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
-      message += `${index + 1}. ${check} ${star}${title}\n`;
+      message += `${index + 1}. ${check} ${title}${importantSuffix}\n`;
       if (tags.length > 0) {
         message += `   ${tags.join(' • ')}\n`;
       }
     } else if (style === 'crisp') {
       const icon = task.is_completed ? '✅' : '◻️';
       const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
-      message += `${index + 1}. ${icon} ${star}${title}\n`;
+      message += `${index + 1}. ${icon} ${title}${importantSuffix}\n`;
       if (tags.length > 0) {
         message += `   ${tags.join(' • ')}\n`;
       }
     } else {
       const bullet = task.is_completed ? '✓' : '○';
       const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
-      message += `${bullet} ${star}${title}\n`;
+      message += `${bullet} ${title}${importantSuffix}\n`;
       if (tags.length > 0) {
         message += `   _${tags.join(' • ')}_\n`;
       }
@@ -280,6 +301,9 @@ export function formatWholeListMessage(
 ): string {
   const style: WhatsAppMessageStyle = config?.style || 'modern';
   const includeNotes = config?.includeNotes !== false;
+  const includeAssignee = config?.includeAssignee !== false;
+  const includeImportant = config?.includeImportant !== false;
+  const includeDueDate = config?.includeDueDate !== false;
   const scope = config?.scope || 'all';
 
   const pending = tasks.filter((t) => !t.is_completed);
@@ -324,27 +348,32 @@ export function formatWholeListMessage(
     }
 
     pending.forEach((t) => {
-      const star = t.is_important ? '⭐ ' : '';
-      const dueInfo = getFriendlyDueText(t.due_date);
-      const hasAssignee = Boolean(t.assignee_name && t.assignee_name !== 'Unassigned');
+      const importantSuffix = (includeImportant && t.is_important) ? ' (Important)' : '';
+      const dueInfo = includeDueDate ? getFriendlyDueText(t.due_date) : null;
+      const isGroup = Boolean(t.assignee_is_group);
+      const isSelf = t.assigned_to_user_id === 1 ||
+        t.assignee_name?.toLowerCase() === 'you' ||
+        t.assignee_name?.toLowerCase() === 'self' ||
+        t.assignee_name?.toLowerCase() === 'me';
+      const hasAssignee = Boolean(t.assignee_name && t.assignee_name !== 'Unassigned' && t.assignee_name.toLowerCase() !== 'contact' && t.assignee_name.trim().length > 0);
+      const shouldIncludeAssignee = includeAssignee && hasAssignee && !isGroup && !isSelf;
 
       const tags: string[] = [];
-      if (dueInfo) tags.push(`🗓 ${dueInfo.text}`);
-      if (hasAssignee) {
-        const icon = t.assignee_is_group ? '👥' : '👤';
-        tags.push(`${icon} ${t.assignee_name}`);
+      if (includeDueDate && dueInfo) tags.push(`🗓 ${dueInfo.text}`);
+      if (shouldIncludeAssignee) {
+        tags.push(`👤 ${t.assignee_name}`);
       }
 
       if (style === 'executive') {
         const meta = tags.length > 0 ? ` _(${tags.join(' • ')})_` : '';
-        message += `[ ] ${star}*${t.title}*${meta}\n`;
+        message += `[ ] *${t.title}*${importantSuffix}${meta}\n`;
       } else if (style === 'crisp') {
         const meta = tags.length > 0 ? ` • ${tags.join(' • ')}` : '';
-        message += `◻️ ${star}*${t.title}*${meta}\n`;
+        message += `◻️ *${t.title}*${importantSuffix}${meta}\n`;
       } else {
         // Modern
         const meta = tags.length > 0 ? ` — _${tags.join(' • ')}_` : '';
-        message += `○ ${star}${t.title}${meta}\n`;
+        message += `○ ${t.title}${importantSuffix}${meta}\n`;
       }
 
       if (includeNotes && t.notes && t.notes.trim()) {
@@ -357,12 +386,13 @@ export function formatWholeListMessage(
   if (scope !== 'pending' && completed.length > 0) {
     message += `*Completed (${completed.length}):*\n`;
     completed.forEach((t) => {
+      const importantSuffix = (includeImportant && t.is_important) ? ' (Important)' : '';
       if (style === 'executive') {
-        message += `[✓] ~${t.title}~\n`;
+        message += `[✓] ~${t.title}~${importantSuffix}\n`;
       } else if (style === 'crisp') {
-        message += `✅ ~${t.title}~\n`;
+        message += `✅ ~${t.title}~${importantSuffix}\n`;
       } else {
-        message += `✓ ~${t.title}~\n`;
+        message += `✓ ~${t.title}~${importantSuffix}\n`;
       }
     });
     message += `\n`;

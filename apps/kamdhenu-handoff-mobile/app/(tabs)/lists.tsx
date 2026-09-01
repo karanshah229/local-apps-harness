@@ -69,7 +69,7 @@ import { SingleListView } from '../../src/components/SingleListView';
 import { TasksView } from '../../src/components/TasksView';
 import { ListOrViewDropdownModal } from '../../src/components/ListOrViewDropdownModal';
 import { ContactPickerModal } from '../../src/components/ContactPickerModal';
-import { WhatsAppFormatBottomSheet } from '../../src/components/WhatsAppFormatBottomSheet';
+import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
 
 interface ListsDirectoryViewProps {
   onSelectList: (id: number) => void;
@@ -230,23 +230,28 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     }
   };
 
-  const handleSaveWhatsAppFormat = async (style: WhatsAppMessageStyle, includeNotes: boolean) => {
+  const handleSaveWhatsAppFormat = async (style: WhatsAppMessageStyle, options: WhatsAppFormatOptions) => {
     if (!selectedItemForConfig) return;
     try {
+      const payload = {
+        whatsapp_message_style: style,
+        whatsapp_include_notes: options.includeNotes ? 1 : 0,
+        whatsapp_include_assignee: options.includeAssignee ? 1 : 0,
+        whatsapp_include_important: options.includeImportant ? 1 : 0,
+        whatsapp_include_steps: options.includeSteps ? 1 : 0,
+        whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+      };
       if (selectedItemForConfig.type === 'view') {
         await updateCustomViewMutation.mutateAsync({
           id: selectedItemForConfig.id,
-          whatsapp_message_style: style,
-          whatsapp_include_notes: includeNotes ? 1 : 0,
+          ...payload,
         });
       } else {
         await updateListMutation.mutateAsync({
           id: selectedItemForConfig.id,
-          whatsapp_message_style: style,
-          whatsapp_include_notes: includeNotes ? 1 : 0,
+          ...payload,
         });
       }
-      setShowFormatPickerModal(false);
     } catch (e: any) {
       showAlertDialog('Error', e?.message || 'Failed to update format options');
     }
@@ -1468,6 +1473,10 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         onClose={() => setShowFormatPickerModal(false)}
         currentStyle={((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) || 'modern'}
         includeNotes={(liveConfigItem as any)?.whatsapp_include_notes !== 0}
+        includeAssignee={(liveConfigItem as any)?.whatsapp_include_assignee !== 0}
+        includeImportant={(liveConfigItem as any)?.whatsapp_include_important !== 0}
+        includeSteps={(liveConfigItem as any)?.whatsapp_include_steps !== 0}
+        includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date !== 0}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${liveConfigItem?.title || ''}`}
         isDarkMode={isDarkMode}

@@ -80,7 +80,7 @@ test('WhatsApp delegator message formats contain pure task details and no app li
   assert.ok(!listMsg.includes('http'));
   assert.ok(!listMsg.includes('Open list'));
 
-  // Test WhatsApp Group task formatting
+  // Test WhatsApp Group task formatting - should be ignored even if toggle on
   const groupTask = {
     ...sampleTask,
     id: 103,
@@ -88,12 +88,24 @@ test('WhatsApp delegator message formats contain pure task details and no app li
     assignee_name: 'Operations Team 🚀',
     assignee_is_group: 1,
   };
-  const groupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'executive' });
-  assert.ok(groupMsg.includes('👥 *Group:* Operations Team 🚀'));
-  assert.ok(!groupMsg.includes('👤 *Assigned to:* Operations Team 🚀'));
+  const groupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'executive', includeAssignee: true });
+  assert.ok(!groupMsg.includes('Group:'));
+  assert.ok(!groupMsg.includes('Operations Team 🚀'));
 
-  const modernGroupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'modern' });
-  assert.ok(modernGroupMsg.includes('👥 Operations Team 🚀'));
+  const modernGroupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'modern', includeAssignee: true });
+  assert.ok(!modernGroupMsg.includes('Operations Team 🚀'));
+
+  // Test Self assignee formatting - should be ignored
+  const selfTask = {
+    ...sampleTask,
+    id: 105,
+    title: 'Check inventory list',
+    assigned_to_user_id: 1,
+    assignee_name: 'You',
+  };
+  const selfMsg = formatSingleTaskMessage(selfTask, { name: 'You' }, [], { style: 'modern', includeAssignee: true });
+  assert.ok(!selfMsg.includes('👤 You'));
+  assert.ok(!selfMsg.includes('👤 Self'));
 
   // Test Unassigned task formatting
   const unassignedTask = {
@@ -108,22 +120,41 @@ test('WhatsApp delegator message formats contain pure task details and no app li
   assert.ok(!unassignedMsg.includes('Assigned to'));
   assert.ok(!unassignedMsg.includes('Contact'));
 
-  // Test Executive Style Formatting
+  // Test Executive Style Formatting with (Important)
   const executiveMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'executive' });
-  assert.ok(executiveMsg.includes('📌 *Pick up milk shipment from supplier* ⭐'));
+  assert.ok(executiveMsg.includes('📌 *Pick up milk shipment from supplier* (Important)'));
   assert.ok(executiveMsg.includes('━━━━━━━━━━━━━━━'));
   assert.ok(executiveMsg.includes('[ ] Check 20 crates'));
   assert.ok(executiveMsg.includes('[✓] ~Collect physical invoice~'));
   assert.ok(executiveMsg.includes('📝 *Note:* Gate pass is approved'));
 
-  // Test Crisp Style Formatting
+  // Test Crisp Style Formatting with (Important)
   const crispMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'crisp' });
-  assert.ok(crispMsg.includes('📋 *Pick up milk shipment from supplier* ⭐'));
+  assert.ok(crispMsg.includes('📋 *Pick up milk shipment from supplier* (Important)'));
   assert.ok(crispMsg.includes('◻️ Check 20 crates'));
   assert.ok(crispMsg.includes('✅ ~Collect physical invoice~'));
 
-  // Test Exclude Notes Option
+  // Test Field Inclusions: Exclude Notes Option
   const noNotesMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeNotes: false });
   assert.ok(!noNotesMsg.includes('Note:'));
   assert.ok(!noNotesMsg.includes('Gate pass is approved'));
+
+  // Test Field Inclusions: Exclude Assignee Option
+  const noAssigneeMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeAssignee: false });
+  assert.ok(!noAssigneeMsg.includes('Ramesh Patel'));
+
+  // Test Field Inclusions: Exclude Important Option
+  const noImportantMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeImportant: false });
+  assert.ok(!noImportantMsg.includes('(Important)'));
+  assert.ok(!noImportantMsg.includes('⭐'));
+
+  // Test Field Inclusions: Exclude Steps Option
+  const noStepsMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeSteps: false });
+  assert.ok(!noStepsMsg.includes('Steps'));
+  assert.ok(!noStepsMsg.includes('Check 20 crates'));
+
+  // Test Field Inclusions: Exclude Due Date Option
+  const noDueMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeDueDate: false });
+  assert.ok(!noDueMsg.includes('Today'));
+  assert.ok(!noDueMsg.includes('10:00 AM'));
 });

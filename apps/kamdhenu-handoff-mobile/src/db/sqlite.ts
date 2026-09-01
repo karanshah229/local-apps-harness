@@ -174,6 +174,18 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_notes BOOLEAN DEFAULT 1');
   } catch {}
   try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_assignee BOOLEAN DEFAULT 1');
+  } catch {}
+  try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_important BOOLEAN DEFAULT 1');
+  } catch {}
+  try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_steps BOOLEAN DEFAULT 1');
+  } catch {}
+  try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_due_date BOOLEAN DEFAULT 1');
+  } catch {}
+  try {
     db.runSync("ALTER TABLE lists ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
   } catch {}
 
@@ -195,6 +207,18 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   try {
     db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_notes BOOLEAN DEFAULT 1`);
   } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_assignee BOOLEAN DEFAULT 1`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_important BOOLEAN DEFAULT 1`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_steps BOOLEAN DEFAULT 1`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_due_date BOOLEAN DEFAULT 1`);
+  } catch {}
 
   // Create custom_views table
   db.execSync(`
@@ -209,6 +233,10 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
       default_whatsapp_share_scope TEXT,
       whatsapp_message_style TEXT DEFAULT 'modern',
       whatsapp_include_notes BOOLEAN DEFAULT 1,
+      whatsapp_include_assignee BOOLEAN DEFAULT 1,
+      whatsapp_include_important BOOLEAN DEFAULT 1,
+      whatsapp_include_steps BOOLEAN DEFAULT 1,
+      whatsapp_include_due_date BOOLEAN DEFAULT 1,
       whatsapp_list_layout TEXT DEFAULT 'compact',
       position INTEGER DEFAULT 0,
       active BOOLEAN DEFAULT 1,
@@ -232,6 +260,18 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     }
     if (!cvColNames.has('whatsapp_include_notes')) {
       db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_notes BOOLEAN DEFAULT 1');
+    }
+    if (!cvColNames.has('whatsapp_include_assignee')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_assignee BOOLEAN DEFAULT 1');
+    }
+    if (!cvColNames.has('whatsapp_include_important')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_important BOOLEAN DEFAULT 1');
+    }
+    if (!cvColNames.has('whatsapp_include_steps')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_steps BOOLEAN DEFAULT 1');
+    }
+    if (!cvColNames.has('whatsapp_include_due_date')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_due_date BOOLEAN DEFAULT 1');
     }
     if (!cvColNames.has('whatsapp_list_layout')) {
       db.runSync("ALTER TABLE custom_views ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
@@ -813,6 +853,22 @@ export const localTodoDb = {
       updates.push('whatsapp_include_notes = ?');
       params.push(data.whatsapp_include_notes ? 1 : 0);
     }
+    if (data.whatsapp_include_assignee !== undefined) {
+      updates.push('whatsapp_include_assignee = ?');
+      params.push(data.whatsapp_include_assignee ? 1 : 0);
+    }
+    if (data.whatsapp_include_important !== undefined) {
+      updates.push('whatsapp_include_important = ?');
+      params.push(data.whatsapp_include_important ? 1 : 0);
+    }
+    if (data.whatsapp_include_steps !== undefined) {
+      updates.push('whatsapp_include_steps = ?');
+      params.push(data.whatsapp_include_steps ? 1 : 0);
+    }
+    if (data.whatsapp_include_due_date !== undefined) {
+      updates.push('whatsapp_include_due_date = ?');
+      params.push(data.whatsapp_include_due_date ? 1 : 0);
+    }
     if (data.whatsapp_list_layout !== undefined) {
       updates.push('whatsapp_list_layout = ?');
       params.push(data.whatsapp_list_layout);
@@ -1060,6 +1116,10 @@ export const localTodoDb = {
       has_chosen_whatsapp_format: 0,
       default_whatsapp_style: 'modern',
       default_whatsapp_include_notes: 1,
+      default_whatsapp_include_assignee: 1,
+      default_whatsapp_include_important: 1,
+      default_whatsapp_include_steps: 1,
+      default_whatsapp_include_due_date: 1,
     };
   },
 
@@ -1099,14 +1159,26 @@ export const localTodoDb = {
     const nextDefIncludeNotes = data.default_whatsapp_include_notes !== undefined
       ? (data.default_whatsapp_include_notes ? 1 : 0)
       : (existing.default_whatsapp_include_notes !== 0 ? 1 : 0);
+    const nextDefIncludeAssignee = data.default_whatsapp_include_assignee !== undefined
+      ? (data.default_whatsapp_include_assignee ? 1 : 0)
+      : (existing.default_whatsapp_include_assignee !== 0 ? 1 : 0);
+    const nextDefIncludeImportant = data.default_whatsapp_include_important !== undefined
+      ? (data.default_whatsapp_include_important ? 1 : 0)
+      : (existing.default_whatsapp_include_important !== 0 ? 1 : 0);
+    const nextDefIncludeSteps = data.default_whatsapp_include_steps !== undefined
+      ? (data.default_whatsapp_include_steps ? 1 : 0)
+      : (existing.default_whatsapp_include_steps !== 0 ? 1 : 0);
+    const nextDefIncludeDueDate = data.default_whatsapp_include_due_date !== undefined
+      ? (data.default_whatsapp_include_due_date ? 1 : 0)
+      : (existing.default_whatsapp_include_due_date !== 0 ? 1 : 0);
 
     db.runSync(
       `
       UPDATE user_preferences
-      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, updated_at = CURRENT_TIMESTAMP
+      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, default_whatsapp_include_assignee = ?, default_whatsapp_include_important = ?, default_whatsapp_include_steps = ?, default_whatsapp_include_due_date = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = 1
       `,
-      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes]
+      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes, nextDefIncludeAssignee, nextDefIncludeImportant, nextDefIncludeSteps, nextDefIncludeDueDate]
     );
 
     return this.getUserPreferences();
@@ -1296,6 +1368,22 @@ export const localTodoDb = {
     if (data.whatsapp_include_notes !== undefined) {
       updates.push('whatsapp_include_notes = ?');
       params.push(data.whatsapp_include_notes ? 1 : 0);
+    }
+    if (data.whatsapp_include_assignee !== undefined) {
+      updates.push('whatsapp_include_assignee = ?');
+      params.push(data.whatsapp_include_assignee ? 1 : 0);
+    }
+    if (data.whatsapp_include_important !== undefined) {
+      updates.push('whatsapp_include_important = ?');
+      params.push(data.whatsapp_include_important ? 1 : 0);
+    }
+    if (data.whatsapp_include_steps !== undefined) {
+      updates.push('whatsapp_include_steps = ?');
+      params.push(data.whatsapp_include_steps ? 1 : 0);
+    }
+    if (data.whatsapp_include_due_date !== undefined) {
+      updates.push('whatsapp_include_due_date = ?');
+      params.push(data.whatsapp_include_due_date ? 1 : 0);
     }
     if (data.whatsapp_list_layout !== undefined) {
       updates.push('whatsapp_list_layout = ?');

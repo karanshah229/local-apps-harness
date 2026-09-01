@@ -24,6 +24,9 @@ import {
   Sparkles,
   FileText,
   CheckSquare,
+  User as UserIcon,
+  Star,
+  Calendar,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -69,6 +72,10 @@ export default function WhatsAppShareModal({
   const [loading, setLoading] = useState(false);
   const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>('modern');
   const [includeNotes, setIncludeNotes] = useState<boolean>(true);
+  const [includeAssignee, setIncludeAssignee] = useState<boolean>(true);
+  const [includeImportant, setIncludeImportant] = useState<boolean>(true);
+  const [includeSteps, setIncludeSteps] = useState<boolean>(true);
+  const [includeDueDate, setIncludeDueDate] = useState<boolean>(true);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -80,7 +87,13 @@ export default function WhatsAppShareModal({
       if (config.recipientUserId) {
         setSelectedUserId(config.recipientUserId);
       }
-      fetchPayload(config.recipientUserId || null, config.customPhone || '', selectedStyle, includeNotes);
+      fetchPayload(config.recipientUserId || null, config.customPhone || '', selectedStyle, {
+        includeNotes,
+        includeAssignee,
+        includeImportant,
+        includeSteps,
+        includeDueDate,
+      });
     }
   }, [isOpen, config]);
 
@@ -88,7 +101,19 @@ export default function WhatsAppShareModal({
     userId: number | null,
     customPhone: string,
     style: WhatsAppMessageStyle = selectedStyle,
-    notes: boolean = includeNotes
+    options: {
+      includeNotes?: boolean;
+      includeAssignee?: boolean;
+      includeImportant?: boolean;
+      includeSteps?: boolean;
+      includeDueDate?: boolean;
+    } = {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    }
   ) => {
     if (!config) return;
     setLoading(true);
@@ -115,6 +140,15 @@ export default function WhatsAppShareModal({
           }
         }
 
+        const formatConfig = {
+          style,
+          includeNotes: options.includeNotes !== false,
+          includeAssignee: options.includeAssignee !== false,
+          includeImportant: options.includeImportant !== false,
+          includeSteps: options.includeSteps !== false,
+          includeDueDate: options.includeDueDate !== false,
+        };
+
         if (config.type === 'single' && config.taskId) {
           const task = localTodoDb.getTaskById(config.taskId);
           if (task) {
@@ -127,7 +161,7 @@ export default function WhatsAppShareModal({
               task,
               { name: targetName, phone: targetPhone },
               subtasks,
-              { style, includeNotes: notes }
+              formatConfig
             );
             localTodoDb.logWhatsAppMessage({
               taskId: task.id,
@@ -139,7 +173,7 @@ export default function WhatsAppShareModal({
         } else if (config.type === 'batch' && config.taskIds && config.taskIds.length > 0) {
           const allTasks = localTodoDb.getTasks();
           const selectedTasks = allTasks.filter((t) => config.taskIds?.includes(t.id));
-          generatedMessage = formatBatchTasksMessage(selectedTasks, { style, includeNotes: notes });
+          generatedMessage = formatBatchTasksMessage(selectedTasks, formatConfig);
           localTodoDb.logWhatsAppMessage({
             taskId: null,
             phone: targetPhone,
@@ -155,8 +189,7 @@ export default function WhatsAppShareModal({
             const targetTasks = scope === 'pending' ? tasks.filter((t) => !t.is_completed) : tasks;
             generatedMessage = formatWholeListMessage(list, targetTasks, {
               scope,
-              style,
-              includeNotes: notes,
+              ...formatConfig,
             });
             localTodoDb.logWhatsAppMessage({
               taskId: null,
@@ -179,23 +212,94 @@ export default function WhatsAppShareModal({
 
   const handleStyleChange = (newStyle: WhatsAppMessageStyle) => {
     setSelectedStyle(newStyle);
-    fetchPayload(selectedUserId, recipientPhone, newStyle, includeNotes);
+    fetchPayload(selectedUserId, recipientPhone, newStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    });
   };
 
   const handleNotesToggle = (val: boolean) => {
     setIncludeNotes(val);
-    fetchPayload(selectedUserId, recipientPhone, selectedStyle, val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes: val,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    });
+  };
+
+  const handleAssigneeToggle = (val: boolean) => {
+    setIncludeAssignee(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes,
+      includeAssignee: val,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    });
+  };
+
+  const handleImportantToggle = (val: boolean) => {
+    setIncludeImportant(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant: val,
+      includeSteps,
+      includeDueDate,
+    });
+  };
+
+  const handleStepsToggle = (val: boolean) => {
+    setIncludeSteps(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps: val,
+      includeDueDate,
+    });
+  };
+
+  const handleDueDateToggle = (val: boolean) => {
+    setIncludeDueDate(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate: val,
+    });
   };
 
   const handleUserSelect = (userId: number | null) => {
     setSelectedUserId(userId);
-    const u = users.find((x) => x.id === userId);
-    fetchPayload(userId, u ? u.phone : '', selectedStyle, includeNotes);
+    const u = users.find((item) => item.id === userId);
+    if (u && u.phone) {
+      setRecipientPhone(u.phone);
+    }
+    fetchPayload(userId, u ? u.phone : '', selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    });
   };
 
-  const handleCustomPhoneChange = (phone: string) => {
+  const handlePhoneChange = (phone: string) => {
     setRecipientPhone(phone);
-    fetchPayload(selectedUserId, phone, selectedStyle, includeNotes);
+    fetchPayload(selectedUserId, phone, selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+    });
   };
 
   const handleCopy = () => {
@@ -402,7 +506,7 @@ export default function WhatsAppShareModal({
                 placeholder="Or custom WhatsApp phone (+91...)"
                 placeholderTextColor={colors.textMuted}
                 value={recipientPhone}
-                onChangeText={handleCustomPhoneChange}
+                onChangeText={handlePhoneChange}
                 keyboardType="phone-pad"
                 style={[styles.phoneInput, { color: colors.text }]}
               />
@@ -446,30 +550,82 @@ export default function WhatsAppShareModal({
               })}
             </View>
 
-            {/* Include Notes Toggle */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                paddingVertical: 8,
-                paddingHorizontal: 12,
-                borderRadius: 12,
-                backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
-                marginBottom: 16,
-              }}
-            >
-              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
-                Include Task Notes
-              </Text>
-              <Switch
-                value={includeNotes}
-                onValueChange={handleNotesToggle}
-                trackColor={{ false: isDarkMode ? '#3f3f46' : '#cbd5e1', true: '#25D366' }}
-                thumbColor="#ffffff"
-              />
+            {/* Task Fields */}
+            <Text style={[styles.sectionHeader, { marginTop: 10, marginBottom: 8 }]}>TASK FIELDS</Text>
+            <View style={{ gap: 6, marginBottom: 16 }}>
+              {[
+                {
+                  id: 'assignee',
+                  label: 'Assignee',
+                  value: includeAssignee,
+                  icon: UserIcon,
+                  color: '#3b82f6',
+                  onToggle: handleAssigneeToggle,
+                },
+                {
+                  id: 'important',
+                  label: '(Important) Tag',
+                  value: includeImportant,
+                  icon: Star,
+                  color: '#eab308',
+                  onToggle: handleImportantToggle,
+                },
+                {
+                  id: 'steps',
+                  label: 'Steps & Subtasks',
+                  value: includeSteps,
+                  icon: CheckSquare,
+                  color: '#10b981',
+                  onToggle: handleStepsToggle,
+                },
+                {
+                  id: 'dueDate',
+                  label: 'Due Date & Time',
+                  value: includeDueDate,
+                  icon: Calendar,
+                  color: '#f97316',
+                  onToggle: handleDueDateToggle,
+                },
+                {
+                  id: 'notes',
+                  label: 'Task Notes',
+                  value: includeNotes,
+                  icon: MessageSquare,
+                  color: '#25D366',
+                  onToggle: handleNotesToggle,
+                },
+              ].map((field) => {
+                const IconComp = field.icon;
+                return (
+                  <View
+                    key={field.id}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingVertical: 8,
+                      paddingHorizontal: 12,
+                      borderRadius: 12,
+                      backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <IconComp size={15} color={field.value ? field.color : colors.textMuted} />
+                      <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                        {field.label}
+                      </Text>
+                    </View>
+                    <Switch
+                      value={field.value}
+                      onValueChange={field.onToggle}
+                      trackColor={{ false: isDarkMode ? '#3f3f46' : '#cbd5e1', true: '#25D366' }}
+                      thumbColor="#ffffff"
+                    />
+                  </View>
+                );
+              })}
             </View>
 
             {/* Formatted Message Bubble Preview */}

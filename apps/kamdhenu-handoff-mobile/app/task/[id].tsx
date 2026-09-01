@@ -39,7 +39,7 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from '../../src/components/WhatsAppIcon';
-import { WhatsAppFormatBottomSheet } from '../../src/components/WhatsAppFormatBottomSheet';
+import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useTasksQuery,
@@ -387,6 +387,14 @@ export default function TaskDetailScreen() {
   const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
   const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
   const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
+  const setDefaultWhatsAppIncludeAssignee = useUiStore((s) => s.setDefaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
+  const setDefaultWhatsAppIncludeImportant = useUiStore((s) => s.setDefaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
+  const setDefaultWhatsAppIncludeSteps = useUiStore((s) => s.setDefaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
+  const setDefaultWhatsAppIncludeDueDate = useUiStore((s) => s.setDefaultWhatsAppIncludeDueDate);
 
   const addUserMutation = useAddUserMutation();
   const initializedTaskIdRef = useRef<number | string | null>(null);
@@ -621,6 +629,10 @@ export default function TaskDetailScreen() {
     const formatConfig = {
       style: defaultWhatsAppStyle || 'modern',
       includeNotes: defaultWhatsAppIncludeNotes !== false,
+      includeAssignee: defaultWhatsAppIncludeAssignee !== false,
+      includeImportant: defaultWhatsAppIncludeImportant !== false,
+      includeSteps: defaultWhatsAppIncludeSteps !== false,
+      includeDueDate: defaultWhatsAppIncludeDueDate !== false,
     };
     if (!targetPhone) {
       const message = formatSingleTaskMessage(
@@ -1888,11 +1900,18 @@ export default function TaskDetailScreen() {
           onClose={() => setShowFormatPickerModal(false)}
           currentStyle={defaultWhatsAppStyle || 'modern'}
           includeNotes={defaultWhatsAppIncludeNotes !== false}
+          includeAssignee={defaultWhatsAppIncludeAssignee !== false}
+          includeImportant={defaultWhatsAppIncludeImportant !== false}
+          includeSteps={defaultWhatsAppIncludeSteps !== false}
+          includeDueDate={defaultWhatsAppIncludeDueDate !== false}
           sampleTask={task}
-          onSave={(style, notes) => {
+          onSave={(style, options) => {
             setDefaultWhatsAppStyle(style);
-            setDefaultWhatsAppIncludeNotes(notes);
-            setShowFormatPickerModal(false);
+            setDefaultWhatsAppIncludeNotes(options.includeNotes);
+            setDefaultWhatsAppIncludeAssignee(options.includeAssignee);
+            setDefaultWhatsAppIncludeImportant(options.includeImportant);
+            setDefaultWhatsAppIncludeSteps(options.includeSteps);
+            setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
           }}
           title="WhatsApp Message Format"
           isDarkMode={isDarkMode}
