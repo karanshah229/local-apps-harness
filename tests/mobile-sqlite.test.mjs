@@ -99,7 +99,24 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
       last_view_type TEXT DEFAULT 'tab',
       last_view_id TEXT DEFAULT 'all-tasks',
       sort_preferences TEXT DEFAULT '{}',
+      pinned_views TEXT DEFAULT '["important","assigned-to-me"]',
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS custom_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      color_theme TEXT DEFAULT 'teal',
+      icon TEXT DEFAULT 'view',
+      filter_config TEXT DEFAULT '{}',
+      sort_config TEXT DEFAULT '{"field":"smart","direction":"asc"}',
+      default_whatsapp_contact_id INTEGER,
+      default_whatsapp_share_scope TEXT,
+      position INTEGER DEFAULT 0,
+      active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (default_whatsapp_contact_id) REFERENCES users(id) ON DELETE SET NULL
     );
   `);
 
@@ -250,4 +267,54 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
   `).run('Logistics', groupId);
   const listRow = db.prepare('SELECT * FROM lists WHERE id = ?').get(newList.lastInsertRowid);
   assert.equal(listRow.default_whatsapp_contact_id, groupId);
+
+  // Test User Preferences Pinned Views
+  // Ensure default pinned views
+  db.prepare(`
+    INSERT OR IGNORE INTO user_preferences (user_id, remember_last_view, last_view_type, last_view_id, sort_preferences, pinned_views)
+    VALUES (1, 1, 'tab', 'all-tasks', '{}', '["important","assigned-to-me"]')
+  `).run();
+
+  const initialPinnedPrefs = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  const pinnedArray = JSON.parse(initialPinnedPrefs.pinned_views);
+  assert.deepEqual(pinnedArray, ['important', 'assigned-to-me']);
+
+  // Create a Custom View and Pin it
+  const newCustomView = db.prepare(`
+    INSERT INTO custom_views (title, color_theme, filter_config, default_whatsapp_contact_id, default_whatsapp_share_scope, active)
+    VALUES (?, ?, ?, ?, ?, 1)
+  `).run('Urgent Tasks', 'red', JSON.stringify({ importance: 'important', status: 'pending' }), 1, 'pending');
+  const customViewId = Number(newCustomView.lastInsertRowid);
+
+  const fetchedView = db.prepare('SELECT * FROM custom_views WHERE id = ?').get(customViewId);
+  assert.equal(fetchedView.default_whatsapp_contact_id, 1);
+  assert.equal(fetchedView.default_whatsapp_share_scope, 'pending');
+
+  // Update custom view whatsapp settings
+  db.prepare('UPDATE custom_views SET default_whatsapp_share_scope = ? WHERE id = ?').run('all', customViewId);
+  const updatedView = db.prepare('SELECT * FROM custom_views WHERE id = ?').get(customViewId);
+  assert.equal(updatedView.default_whatsapp_share_scope, 'all');
+
+  // Pin the custom view -> should appear at the end in pin order
+  const updatedPinned = [...pinnedArray, `custom_view:${customViewId}`];
+  db.prepare(`UPDATE user_preferences SET pinned_views = ? WHERE user_id = 1`).run(JSON.stringify(updatedPinned));
+
+  const prefsAfterPin = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  assert.deepEqual(JSON.parse(prefsAfterPin.pinned_views), ['important', 'assigned-to-me', `custom_view:${customViewId}`]);
+
+  // Unpin 'important' -> should leave assigned-to-me and custom view
+  const unpinnedImportant = JSON.parse(prefsAfterPin.pinned_views).filter((k) => k !== 'important');
+  db.prepare(`UPDATE user_preferences SET pinned_views = ? WHERE user_id = 1`).run(JSON.stringify(unpinnedImportant));
+
+  const prefsAfterUnpin = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  assert.deepEqual(JSON.parse(prefsAfterUnpin.pinned_views), ['assigned-to-me', `custom_view:${customViewId}`]);
+
+  // Delete Custom View -> auto-unpin
+  db.prepare('UPDATE custom_views SET active = 0 WHERE id = ?').run(customViewId);
+  const cleanedPins = JSON.parse(prefsAfterUnpin.pinned_views).filter((k) => k !== `custom_view:${customViewId}`);
+  db.prepare(`UPDATE user_preferences SET pinned_views = ? WHERE user_id = 1`).run(JSON.stringify(cleanedPins));
+
+  const prefsAfterDelete = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
+  assert.deepEqual(JSON.parse(prefsAfterDelete.pinned_views), ['assigned-to-me']);
 });
+

@@ -65,7 +65,7 @@ export default function TaskMainView({
   onLongPressTask,
   isDarkMode
 }: TaskMainViewProps) {
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const colors = isDarkMode ? darkColors : lightColors;
 
   const activeTasks = tasks.filter((t) => !t.is_completed);
@@ -109,7 +109,7 @@ export default function TaskMainView({
         >
           <View style={styles.batchLeftWrap}>
             <View style={styles.batchIconWrap}>
-              <CheckSquare size={16} color="#38bdf8" />
+              <CheckSquare size={16} color="#0078d4" />
             </View>
             <Text style={styles.batchText}>
               {selectedTaskIds.length} Task{selectedTaskIds.length > 1 ? 's' : ''} Selected
@@ -226,7 +226,7 @@ export default function TaskMainView({
                 },
                 isBatchChecked && {
                   backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
-                  borderColor: isDarkMode ? '#38bdf8' : '#0078d4',
+                  borderColor: '#0078d4',
                   borderWidth: 1.5
                 },
                 isDone && styles.taskCardDone

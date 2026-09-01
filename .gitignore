@@ -12,6 +12,13 @@ out/
 .nuxt/
 .cache/
 *.tsbuildinfo
+*.apk
+**/*.apk
+*.aab
+**/*.aab
+*.ipa
+**/*.ipa
+releases/
 
 # Logs
 logs/

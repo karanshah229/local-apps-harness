@@ -20,6 +20,9 @@ interface UiState {
   activeListId: number | null;
   setActiveListId: (id: number | null) => void;
 
+  activeCustomViewId: number | null;
+  setActiveCustomViewId: (id: number | null) => void;
+
   selectedTaskId: number | null;
   setSelectedTaskId: (id: number | null) => void;
 
@@ -71,10 +74,13 @@ export const useUiStore = create<UiState>((set, get) => ({
   setIsDarkMode: (isDark) => set({ isDarkMode: isDark }),
 
   activeView: 'all-tasks',
-  setActiveView: (view) => set({ activeView: view, activeListId: null }),
+  setActiveView: (view) => set({ activeView: view, activeListId: null, activeCustomViewId: null }),
 
   activeListId: null,
-  setActiveListId: (id) => set({ activeListId: id, activeView: null }),
+  setActiveListId: (id) => set({ activeListId: id, activeView: null, activeCustomViewId: null }),
+
+  activeCustomViewId: null,
+  setActiveCustomViewId: (id) => set({ activeCustomViewId: id, activeView: null, activeListId: null }),
 
   selectedTaskId: null,
   setSelectedTaskId: (id) => set({ selectedTaskId: id }),

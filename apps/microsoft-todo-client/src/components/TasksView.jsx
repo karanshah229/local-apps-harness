@@ -64,7 +64,7 @@ export function TasksView({ fixedView = 'all-tasks', onOpenSettings }) {
 
   const [taskInput, setTaskInput] = useState('');
   const [showQuickAddModal, setShowQuickAddModal] = useState(false);
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);

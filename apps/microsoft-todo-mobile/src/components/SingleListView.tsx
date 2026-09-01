@@ -47,9 +47,10 @@ import {
   Users,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from './WhatsAppIcon';
-import { WhatsAppGroupModal } from './WhatsAppGroupModal';
+import { ContactPickerModal, WHATSAPP_GROUP_USER, SELF_USER } from './ContactPickerModal';
 import { SortModal } from './SortModal';
 import { FilterBottomSheet } from './FilterBottomSheet';
+import { ListOrViewDropdownModal } from './ListOrViewDropdownModal';
 import { useUiStore } from '../store/useUiStore';
 import {
   useTasksQuery,
@@ -62,6 +63,9 @@ import {
   useUserPreferencesQuery,
   useUpdateUserPreferencesMutation,
   useAddUserMutation,
+  useUpdateUserMutation,
+  usePinnedViewsQuery,
+  useTogglePinViewMutation,
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
@@ -356,7 +360,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
 
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
@@ -367,7 +371,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const [editListTitle, setEditListTitle] = useState('');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState(false);
-  const [showGroupModal, setShowGroupModal] = useState(false);
   const [contactPickerSearch, setContactPickerSearch] = useState('');
   const [isSharingFromPicker, setIsSharingFromPicker] = useState(false);
   const [showScopePickerModal, setShowScopePickerModal] = useState(false);
@@ -390,6 +393,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const users = usersQuery.data || [];
   const tasks = tasksQuery.data || [];
 
+  const selfUser = useMemo(() => users.find((u) => u.id === 1) || SELF_USER, [users]);
   const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
 
   const [refreshing, setRefreshing] = useState(false);
@@ -411,8 +415,12 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const updateListMutation = useUpdateListMutation();
   const deleteListMutation = useDeleteListMutation();
   const addUserMutation = useAddUserMutation();
+  const updateUserMutation = useUpdateUserMutation();
   const { data: prefs } = useUserPreferencesQuery(1);
   const updatePrefs = useUpdateUserPreferencesMutation();
+  const pinnedViewsQuery = usePinnedViewsQuery();
+  const pinnedViews = pinnedViewsQuery.data || ['important', 'assigned-to-me'];
+  const togglePinViewMutation = useTogglePinViewMutation();
   const { openTask, TaskLoadingIndicator } = useTaskNavigation();
 
   const handleCreateGroup = useCallback(async (groupName: string) => {
@@ -461,6 +469,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
 
   const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
+  const isListPinned = Boolean(activeList && pinnedViews.includes(`list:${activeList.id}`));
 
   const defaultContact = useMemo(() => {
     if (!activeList?.default_whatsapp_contact_id) return null;
@@ -589,11 +598,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   const handleResetFilters = useCallback(() => {
+    setSearchQuery('');
     setFilterStatus('all');
     setFilterImportance('all');
     setFilterDue('all');
     setFilterAssigneeId('all');
-  }, []);
+    handleSelectSort(DEFAULT_SORT_CONFIG);
+  }, [handleSelectSort]);
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
@@ -655,8 +666,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [activeList?.default_whatsapp_share_scope]);
 
   const executeShareWithContactAndScope = useCallback(
-    (contact: { name?: string; phone?: string }, chosenScope: 'pending' | 'all' | 'current_view') => {
-      if (!activeList || !contact.phone) return;
+    (contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean }, chosenScope: 'pending' | 'all' | 'current_view') => {
+      if (!activeList || !contact) return;
 
       let targetTasks: Task[] = [];
       if (chosenScope === 'pending') {
@@ -676,7 +687,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       }
 
       const message = formatWholeListMessage(activeList, targetTasks, { scope: chosenScope });
-      openWhatsAppWithMessage(contact.phone, message);
+      openWhatsAppWithMessage(contact.phone || '', message);
     },
     [activeList, tasks, filteredTasks, openWhatsAppWithMessage, showAlertDialog]
   );
@@ -690,18 +701,16 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     }
 
     // 1. Check if default WhatsApp contact is selected
-    let defaultContact: { id?: number; name?: string; phone?: string } | null = null;
-    if (activeList.default_whatsapp_contact_id) {
+    let defaultContact: User | null = null;
+    if (activeList.default_whatsapp_contact_id === -1) {
+      defaultContact = WHATSAPP_GROUP_USER;
+    } else if (activeList.default_whatsapp_contact_id === 1) {
+      defaultContact = SELF_USER;
+    } else if (activeList.default_whatsapp_contact_id) {
       defaultContact = users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
     }
-    if (!defaultContact && activeList.default_whatsapp_contact_phone) {
-      defaultContact = {
-        name: activeList.default_whatsapp_contact_name || 'Contact',
-        phone: activeList.default_whatsapp_contact_phone,
-      };
-    }
 
-    if (!defaultContact || !defaultContact.phone) {
+    if (!defaultContact) {
       // Ask for default WhatsApp contact if not selected
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
@@ -710,7 +719,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
     // 2. Ask for Tasks to send option first time only (if not yet chosen)
     if (!activeList.default_whatsapp_share_scope) {
-      pendingContactRef.current = defaultContact as User;
+      pendingContactRef.current = defaultContact;
       setShowScopePickerModal(true);
       return;
     }
@@ -734,7 +743,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       setLongPressRecipient(user);
       setShowContactPicker(false);
 
-      if (isSharingFromPicker && user?.phone) {
+      if (isSharingFromPicker && user) {
         setIsSharingFromPicker(false);
         // Ask for Tasks to send option first time only if not yet set
         if (!activeList.default_whatsapp_share_scope) {
@@ -746,8 +755,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
           );
         }
-      } else if (!isSharingFromPicker && user) {
-        setShowLongPressShareModal(true);
       }
     },
     [activeList, isSharingFromPicker, updateListMutation, executeShareWithContactAndScope]
@@ -1540,183 +1547,36 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       </TouchableOpacity>
 
       {/* 3-Dot Dropdown Menu Modal */}
-      <Modal
+      <ListOrViewDropdownModal
         visible={showMoreMenu}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowMoreMenu(false)}
-      >
-        <View
-          style={{
-            flex: 1,
-            backgroundColor: 'rgba(0,0,0,0.35)',
-            paddingTop: topInset + 56,
-            paddingRight: 16,
-            alignItems: 'flex-end',
-          }}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => setShowMoreMenu(false)}
-          />
-          <View
-            style={{
-              width: 230,
-              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-              borderRadius: 18,
-              paddingVertical: 6,
-              borderWidth: 1,
-              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-              shadowColor: '#000',
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.25,
-              shadowRadius: 12,
-              elevation: 10,
-            }}
-          >
-            {/* Option 1: Default WhatsApp Contact */}
-            <TouchableOpacity
-              onPress={() => {
-                setShowMoreMenu(false);
-                setIsSharingFromPicker(false);
-                setShowContactPicker(true);
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <WhatsAppIcon size={18} color="#25D366" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                  WhatsApp Contact
-                </Text>
-                {defaultContact ? (
-                  <Text style={{ fontSize: 11, color: '#25D366', fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
-                    {defaultContact.name}
-                  </Text>
-                ) : (
-                  <Text style={{ fontSize: 11, color: isDarkMode ? '#71717a' : '#94a3b8', fontWeight: '600', marginTop: 1 }}>
-                    Not set
-                  </Text>
-                )}
-              </View>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
-
-            {/* Option 2: Tasks to Send Scope */}
-            <TouchableOpacity
-              onPress={() => {
-                setShowMoreMenu(false);
-                setShowScopePickerModal(true);
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <ListTodo size={18} color="#0078d4" />
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                  Tasks to Send
-                </Text>
-                <Text style={{ fontSize: 11, color: '#0078d4', fontWeight: '700', marginTop: 1 }}>
-                  {activeList?.default_whatsapp_share_scope === 'all'
-                    ? 'All Tasks'
-                    : activeList?.default_whatsapp_share_scope === 'current_view'
-                    ? 'Current View'
-                    : activeList?.default_whatsapp_share_scope === 'pending'
-                    ? 'Pending Tasks'
-                    : 'Not set (Ask on send)'}
-                </Text>
-              </View>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
-
-            {/* Option 2: Rename List */}
-            <TouchableOpacity
-              onPress={() => {
-                setShowMoreMenu(false);
-                handleOpenEditTitle();
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <Pencil size={18} color={themePrimary} />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                Rename List
-              </Text>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
-
-            {/* Option 3: Change Theme */}
-            <TouchableOpacity
-              onPress={() => {
-                setShowMoreMenu(false);
-                setShowThemePicker(true);
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <Palette size={18} color={themePrimary} />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                Change Theme
-              </Text>
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
-
-            {/* Option 4: Delete List */}
-            <TouchableOpacity
-              onPress={() => {
-                setShowMoreMenu(false);
-                handleDeleteList();
-              }}
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                gap: 12,
-                paddingHorizontal: 16,
-                paddingVertical: 12,
-              }}
-              activeOpacity={0.7}
-            >
-              <Trash2 size={18} color="#ef4444" />
-              <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>
-                Delete List
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+        onClose={() => setShowMoreMenu(false)}
+        targetType="list"
+        item={activeList || null}
+        users={users}
+        isPinned={isListPinned}
+        isDarkMode={isDarkMode}
+        onOpenContactPicker={() => {
+          setIsSharingFromPicker(false);
+          setShowContactPicker(true);
+        }}
+        onOpenScopePicker={() => {
+          setShowScopePickerModal(true);
+        }}
+        onTogglePin={() => {
+          if (activeList) {
+            togglePinViewMutation.mutate(`list:${activeList.id}`);
+          }
+        }}
+        onRename={() => {
+          handleOpenEditTitle();
+        }}
+        onChangeTheme={() => {
+          setShowThemePicker(true);
+        }}
+        onDelete={() => {
+          handleDeleteList();
+        }}
+      />
 
       {/* Edit List Name Modal */}
       <Modal
@@ -2127,258 +1987,28 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       />
 
       {/* Default WhatsApp Contact Picker Modal */}
-      <Modal
+      <ContactPickerModal
         visible={showContactPicker}
-        transparent
-        animationType="none"
-        onRequestClose={() => {
+        onClose={() => {
           setShowContactPicker(false);
           setIsSharingFromPicker(false);
         }}
-      >
-        <View
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
-        >
-          <TouchableOpacity
-            style={StyleSheet.absoluteFill}
-            activeOpacity={1}
-            onPress={() => {
-              setShowContactPicker(false);
-              setIsSharingFromPicker(false);
-            }}
-          />
-          <View
-            style={{
-              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-              borderTopLeftRadius: 28,
-              borderTopRightRadius: 28,
-              padding: 20,
-              paddingBottom: Math.max(insets.bottom, 24),
-              maxHeight: '80%',
-              borderTopWidth: 1,
-              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-            }}
-          >
-            {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-              <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                  Default WhatsApp Contact
-                </Text>
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                  {isSharingFromPicker
-                    ? 'Select a contact to share with and save as default'
-                    : 'Choose who receives updates for this list'}
-                </Text>
-              </View>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowContactPicker(false);
-                  setIsSharingFromPicker(false);
-                }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ padding: 4 }}
-              >
-                <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-              </TouchableOpacity>
-            </View>
-
-            {/* Search Box */}
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                height: 46,
-                backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
-                borderRadius: 14,
-                paddingHorizontal: 12,
-                marginVertical: 12,
-              }}
-            >
-              <Search size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 8 }} />
-              <TextInput
-                placeholder="Search contacts..."
-                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-                value={contactPickerSearch}
-                onChangeText={setContactPickerSearch}
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  fontSize: 14,
-                  fontWeight: '600',
-                  color: isDarkMode ? '#ffffff' : '#0f172a',
-                }}
-              />
-              {contactPickerSearch.length > 0 && (
-                <TouchableOpacity onPress={() => setContactPickerSearch('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                  <X size={14} color={isDarkMode ? '#71717a' : '#94a3b8'} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Contacts List */}
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 350 }}>
-              {/* Option to clear default */}
-              {activeList?.default_whatsapp_contact_id && (
-                <TouchableOpacity
-                  onPress={() => handleSelectDefaultContact(null)}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: 12,
-                    paddingHorizontal: 12,
-                    borderRadius: 14,
-                    marginBottom: 8,
-                    backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.1)' : '#fef2f2',
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>
-                    ✕ Clear Default Contact
-                  </Text>
-                </TouchableOpacity>
-              )}
-
-              {/* WhatsApp Group Option */}
-              <TouchableOpacity
-                onPress={() => {
-                  setShowContactPicker(false);
-                  setShowGroupModal(true);
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  borderRadius: 16,
-                  backgroundColor: defaultContact?.is_group
-                    ? (isDarkMode ? 'rgba(37, 211, 102, 0.22)' : '#ecfdf5')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: 1.5,
-                  borderColor: defaultContact?.is_group ? '#25D366' : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
-                  marginBottom: 8,
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Users size={18} color="#25D366" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                        WhatsApp Group
-                      </Text>
-                      <View style={{ backgroundColor: 'rgba(37, 211, 102, 0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                        <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366' }}>Group</Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                      {defaultContact?.is_group ? `Selected: ${defaultContact.name}` : 'Set a WhatsApp Group as default'}
-                    </Text>
-                  </View>
-                </View>
-                {Boolean(defaultContact?.is_group) && <Check size={18} color="#25D366" strokeWidth={3} />}
-              </TouchableOpacity>
-
-              {filteredContacts.length === 0 ? (
-                <View style={{ paddingVertical: 24, alignItems: 'center' }}>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#71717a' : '#94a3b8' }}>
-                    No contacts found
-                  </Text>
-                </View>
-              ) : (
-                filteredContacts.map((contact) => {
-                  const isSelected = activeList?.default_whatsapp_contact_id === contact.id;
-                  return (
-                    <TouchableOpacity
-                      key={contact.id}
-                      onPress={() => handleSelectDefaultContact(contact)}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        paddingVertical: 12,
-                        paddingHorizontal: 12,
-                        borderRadius: 16,
-                        backgroundColor: isSelected
-                          ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
-                          : (isDarkMode ? '#27272a' : '#f8fafc'),
-                        borderWidth: 1,
-                        borderColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                        marginBottom: 8,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                        <View
-                          style={{
-                            width: 38,
-                            height: 38,
-                            borderRadius: 19,
-                            backgroundColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          {contact.is_group ? (
-                            <Users size={18} color={isSelected ? '#ffffff' : '#25D366'} />
-                          ) : (
-                            <Text style={{ fontSize: 14, fontWeight: '800', color: isSelected ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a') }}>
-                              {contact.name.charAt(0).toUpperCase()}
-                            </Text>
-                          )}
-                        </View>
-                        <View style={{ flex: 1 }}>
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                            <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
-                              {contact.name}
-                            </Text>
-                            {Boolean(contact.is_group) && (
-                              <View style={{ backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7', paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4 }}>
-                                <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
-                              </View>
-                            )}
-                          </View>
-                          <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                            {contact.is_group ? 'WhatsApp Group' : (contact.phone || 'No phone')}
-                          </Text>
-                        </View>
-                      </View>
-
-                      {isSelected && (
-                        <View
-                          style={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 12,
-                            backgroundColor: '#25D366',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Check size={14} color="#ffffff" strokeWidth={3} />
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })
-              )}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+        title="Default WhatsApp Contact"
+        subtitle={
+          isSharingFromPicker
+            ? 'Select a contact to share with and save as default'
+            : `Choose who receives updates for "${activeList?.title || 'this list'}"`
+        }
+        selectedContactId={activeList?.default_whatsapp_contact_id}
+        users={users}
+        onSelectContact={(user) => {
+          handleSelectDefaultContact(user);
+        }}
+        onClearContact={() => {
+          handleSelectDefaultContact(null);
+        }}
+        isDarkMode={isDarkMode}
+      />
 
       {/* Tasks to Send (Share Scope) Modal - First Time Setup */}
       <Modal
@@ -2875,20 +2505,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         themePrimary={themePrimary}
         onClose={() => setShowBulkAssigneeModal(false)}
         onSelectAssignee={handleBulkAssignee}
-        onCreateGroup={handleCreateGroup}
-      />
-
-      {/* WhatsApp Group Selection & Creation Modal */}
-      <WhatsAppGroupModal
-        visible={showGroupModal}
-        onClose={() => setShowGroupModal(false)}
-        onSelectGroup={(group) => {
-          handleSelectDefaultContact(group);
-        }}
-        onCreateGroup={handleCreateGroup}
-        existingGroups={existingGroups}
-        isDarkMode={isDarkMode}
-        themePrimary={themePrimary}
       />
 
       {/* 300ms Task Loading HUD */}

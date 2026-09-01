@@ -227,7 +227,7 @@ export default function SettingsPage({
           >
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Application</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>Kamdhenu ToDo</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>Kamdhenu Handoff</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Version</Text>

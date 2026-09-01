@@ -1,4 +1,4 @@
-import { Task, Subtask, List, User } from './types.js';
+import { Task, Subtask, List, CustomView, User } from './types.js';
 import { formatDueDateDDMMYY } from './helpers.js';
 
 export interface WhatsAppFormatOptions {
@@ -184,7 +184,7 @@ export type WhatsAppListFormatOptions = WhatsAppFormatOptions;
  * Pure task details with no external links or app references.
  */
 export function formatWholeListMessage(
-  list: List,
+  list: List | CustomView | { title: string },
   tasks: Task[],
   options?: WhatsAppListFormatOptions
 ): string {

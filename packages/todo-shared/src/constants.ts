@@ -31,13 +31,13 @@ export const THEME_PALETTES: Record<string, ThemePaletteDefinition> = {
   blue: {
     name: 'Blue',
     primary: '#0078d4',
-    darkPrimary: '#38bdf8',
+    darkPrimary: '#0078d4',
     gradientStart: '#0078d4',
     gradientEnd: '#005a9e',
-    darkGradientStart: '#38bdf8',
-    darkGradientEnd: '#0284c7',
+    darkGradientStart: '#0078d4',
+    darkGradientEnd: '#005a9e',
     nativeGradient: ['#0078d4', '#005a9e'],
-    darkNativeGradient: ['#38bdf8', '#0284c7'],
+    darkNativeGradient: ['#0078d4', '#005a9e'],
   },
   indigo: {
     name: 'Indigo',
@@ -185,21 +185,21 @@ export const PRESET_CUSTOM_COLORS: string[] = [
 ];
 
 export function getThemePrimary(theme?: string, isDark: boolean = false): string {
-  if (!theme) return isDark ? '#38bdf8' : '#0078d4';
+  if (!theme) return '#0078d4';
   if (theme.startsWith('#')) return theme;
   const pal = THEME_PALETTES[theme.toLowerCase()];
   if (pal) return isDark ? pal.darkPrimary : pal.primary;
-  return isDark ? '#38bdf8' : '#0078d4';
+  return '#0078d4';
 }
 
 export function getThemeGradient(theme?: string, isDark: boolean = false): [string, string] {
-  if (!theme) return isDark ? ['#38bdf8', '#0284c7'] : ['#0078d4', '#005a9e'];
+  if (!theme) return ['#0078d4', '#005a9e'];
   if (theme.startsWith('#')) {
     return [theme, theme];
   }
   const pal = THEME_PALETTES[theme.toLowerCase()];
   if (pal) return isDark ? pal.darkNativeGradient : pal.nativeGradient;
-  return isDark ? ['#38bdf8', '#0284c7'] : ['#0078d4', '#005a9e'];
+  return ['#0078d4', '#005a9e'];
 }
 
 export const SMART_VIEWS = [

@@ -15,6 +15,7 @@ import {
   Alert,
   Linking,
   BackHandler,
+  StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -37,9 +38,21 @@ import {
   Trash2,
   UserCheck,
   CheckCircle2,
+  ArrowLeft,
+  MoreVertical,
+  Pencil,
+  Palette,
+  Eye,
+  Pin,
+  PinOff,
+  Layers,
+  Users,
+  Phone,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUiStore } from '../store/useUiStore';
+import { ListOrViewDropdownModal } from './ListOrViewDropdownModal';
+import { ContactPickerModal, WHATSAPP_GROUP_USER, SELF_USER } from './ContactPickerModal';
 import {
   useTasksQuery,
   useListsQuery,
@@ -48,6 +61,12 @@ import {
   useDeleteTaskMutation,
   useUpdateUserPreferencesMutation,
   useAddUserMutation,
+  useUpdateUserMutation,
+  useCustomViewQuery,
+  useUpdateCustomViewMutation,
+  useDeleteCustomViewMutation,
+  usePinnedViewsQuery,
+  useTogglePinViewMutation,
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
@@ -55,7 +74,11 @@ import {
   Task,
   User,
   List,
+  CustomView,
+  ViewFilterConfig,
+  DEFAULT_FILTER_CONFIG,
   THEME_PALETTES,
+  CUSTOM_LIST_THEMES,
   ThemeColor,
   getThemeGradient,
   getThemePrimary,
@@ -64,7 +87,9 @@ import {
   sortTasks,
   getSortDisplayLabel,
   formatBatchTasksMessage,
+  formatWholeListMessage,
   generateWhatsAppWebLink,
+  generateWhatsAppDeepLink,
   fuzzyMatch,
   getSearchMatchScore,
   getMultiFieldSearchScore,
@@ -90,8 +115,10 @@ function hexToRgba(hex: string, alpha: number): string {
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
-interface TasksViewProps {
+export interface TasksViewProps {
   fixedView?: 'all-tasks' | 'important' | 'assigned-to-me';
+  fixedCustomViewId?: number | null;
+  onBack?: () => void;
 }
 
 interface TaskItemProps {
@@ -324,12 +351,36 @@ const CompletedTaskItem = React.memo(({
 
 
 
-export function TasksView({ fixedView }: TasksViewProps) {
+export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewProps) {
   const router = useRouter();
-  const [showCompleted, setShowCompleted] = useState(true);
+  const [showCompleted, setShowCompleted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilterModal, setShowFilterModal] = useState(false);
   const [showSortModal, setShowSortModal] = useState(false);
+  const [showEditCustomViewModal, setShowEditCustomViewModal] = useState(false);
+  const [editViewTitle, setEditViewTitle] = useState('');
+  const [editViewTheme, setEditViewTheme] = useState('teal');
+
+  // Custom View WhatsApp & Dropdown States
+  const [showCustomViewDropdown, setShowCustomViewDropdown] = useState(false);
+  const [showContactPicker, setShowContactPicker] = useState(false);
+  const [contactPickerSearch, setContactPickerSearch] = useState('');
+  const [showScopePickerModal, setShowScopePickerModal] = useState(false);
+  const [showRenameModal, setShowRenameModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [isSharingFromPicker, setIsSharingFromPicker] = useState(false);
+  const pendingContactRef = useRef<User | null>(null);
+
+  // Custom View queries
+  const customViewQuery = useCustomViewQuery(fixedCustomViewId);
+  const customView = customViewQuery.data;
+  const updateCustomViewMutation = useUpdateCustomViewMutation();
+  const deleteCustomViewMutation = useDeleteCustomViewMutation();
+  const updateUserMutation = useUpdateUserMutation();
+  const pinnedViewsQuery = usePinnedViewsQuery();
+  const pinnedViews = pinnedViewsQuery.data || ['important', 'assigned-to-me'];
+  const togglePinViewMutation = useTogglePinViewMutation();
+  const isCustomPinned = Boolean(fixedCustomViewId && pinnedViews.includes(`custom_view:${fixedCustomViewId}`));
 
   // Filter States
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
@@ -337,6 +388,18 @@ export function TasksView({ fixedView }: TasksViewProps) {
   const [filterDue, setFilterDue] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due'>('all');
   const [filterListId, setFilterListId] = useState<number | 'all'>('all');
   const [filterAssigneeId, setFilterAssigneeId] = useState<number | 'unassigned' | 'all'>('all');
+
+  // Sync filters from customView on load
+  useEffect(() => {
+    if (fixedCustomViewId && customView) {
+      const cfg: ViewFilterConfig = typeof customView.filter_config === 'object' ? customView.filter_config : {};
+      setFilterStatus(cfg.status || 'all');
+      setFilterImportance(cfg.importance || 'all');
+      setFilterDue(cfg.due || 'all');
+      setFilterListId(cfg.listId || 'all');
+      setFilterAssigneeId(cfg.assigneeId || 'all');
+    }
+  }, [fixedCustomViewId, customView?.id]);
 
   const flatListRef = useRef<FlatList>(null);
 
@@ -358,19 +421,28 @@ export function TasksView({ fixedView }: TasksViewProps) {
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
 
-  const effectiveView = fixedView || storeView || 'all-tasks';
-  const effectiveListId = fixedView ? null : activeListId;
-  const viewKey = effectiveListId ? `list_${effectiveListId}` : effectiveView;
+  const effectiveView = fixedCustomViewId ? 'all-tasks' : (fixedView || storeView || 'all-tasks');
+  const effectiveListId = (fixedView || fixedCustomViewId) ? null : activeListId;
+  const viewKey = fixedCustomViewId ? `custom_view_${fixedCustomViewId}` : (effectiveListId ? `list_${effectiveListId}` : effectiveView);
 
-  const currentSort = useMemo(() => sortPreferences[viewKey] || DEFAULT_SORT_CONFIG, [sortPreferences, viewKey]);
+  const currentSort: ViewSortConfig = useMemo(() => {
+    if (fixedCustomViewId && customView?.sort_config) {
+      return typeof customView.sort_config === 'object' ? customView.sort_config : DEFAULT_SORT_CONFIG;
+    }
+    return sortPreferences[viewKey] || DEFAULT_SORT_CONFIG;
+  }, [fixedCustomViewId, customView?.sort_config, sortPreferences, viewKey]);
 
   const updatePrefsMutation = useUpdateUserPreferencesMutation();
 
   const handleSelectSort = useCallback((config: ViewSortConfig) => {
-    setViewSort(viewKey, config);
-    const updated = { ...sortPreferences, [viewKey]: config };
-    updatePrefsMutation.mutate({ sort_preferences: updated });
-  }, [viewKey, sortPreferences, setViewSort, updatePrefsMutation]);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({ id: fixedCustomViewId, sort_config: config });
+    } else {
+      setViewSort(viewKey, config);
+      const updated = { ...sortPreferences, [viewKey]: config };
+      updatePrefsMutation.mutate({ sort_preferences: updated });
+    }
+  }, [fixedCustomViewId, viewKey, sortPreferences, setViewSort, updatePrefsMutation, updateCustomViewMutation]);
 
   const listsQuery = useListsQuery(1);
   const usersQuery = useUsersQuery();
@@ -392,11 +464,12 @@ export function TasksView({ fixedView }: TasksViewProps) {
         tasksQuery.refetch(),
         listsQuery.refetch(),
         usersQuery.refetch(),
+        fixedCustomViewId ? customViewQuery.refetch() : Promise.resolve(),
       ]);
     } finally {
       setRefreshing(false);
     }
-  }, [tasksQuery, listsQuery, usersQuery]);
+  }, [tasksQuery, listsQuery, usersQuery, fixedCustomViewId, customViewQuery]);
 
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();
@@ -415,6 +488,74 @@ export function TasksView({ fixedView }: TasksViewProps) {
       return null;
     }
   }, [addUserMutation]);
+
+  // Handle updating and autosaving filter changes
+  const handleUpdateFilterStatus = useCallback((status: 'all' | 'pending' | 'completed') => {
+    setFilterStatus(status);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: { status, importance: filterImportance, due: filterDue, listId: filterListId, assigneeId: filterAssigneeId },
+      });
+    }
+  }, [fixedCustomViewId, filterImportance, filterDue, filterListId, filterAssigneeId, updateCustomViewMutation]);
+
+  const handleUpdateFilterImportance = useCallback((importance: 'all' | 'important' | 'normal') => {
+    setFilterImportance(importance);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: { status: filterStatus, importance, due: filterDue, listId: filterListId, assigneeId: filterAssigneeId },
+      });
+    }
+  }, [fixedCustomViewId, filterStatus, filterDue, filterListId, filterAssigneeId, updateCustomViewMutation]);
+
+  const handleUpdateFilterDue = useCallback((due: 'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due') => {
+    setFilterDue(due);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: { status: filterStatus, importance: filterImportance, due, listId: filterListId, assigneeId: filterAssigneeId },
+      });
+    }
+  }, [fixedCustomViewId, filterStatus, filterImportance, filterListId, filterAssigneeId, updateCustomViewMutation]);
+
+  const handleUpdateFilterListId = useCallback((listId: number | 'all') => {
+    setFilterListId(listId);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: { status: filterStatus, importance: filterImportance, due: filterDue, listId, assigneeId: filterAssigneeId },
+      });
+    }
+  }, [fixedCustomViewId, filterStatus, filterImportance, filterDue, filterAssigneeId, updateCustomViewMutation]);
+
+  const handleUpdateFilterAssigneeId = useCallback((assigneeId: number | 'unassigned' | 'all') => {
+    setFilterAssigneeId(assigneeId);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: { status: filterStatus, importance: filterImportance, due: filterDue, listId: filterListId, assigneeId },
+      });
+    }
+  }, [fixedCustomViewId, filterStatus, filterImportance, filterDue, filterListId, updateCustomViewMutation]);
+
+  const handleClearAllFiltersAndSort = useCallback(() => {
+    setSearchQuery('');
+    setFilterStatus('all');
+    setFilterImportance('all');
+    setFilterDue('all');
+    setFilterListId('all');
+    setFilterAssigneeId('all');
+    handleSelectSort(DEFAULT_SORT_CONFIG);
+    if (fixedCustomViewId) {
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        filter_config: DEFAULT_FILTER_CONFIG,
+        sort_config: DEFAULT_SORT_CONFIG,
+      });
+    }
+  }, [fixedCustomViewId, handleSelectSort, updateCustomViewMutation]);
 
   // Pre-fetch all tasks and subtasks whenever tasks in view load
   useEffect(() => {
@@ -441,6 +582,7 @@ export function TasksView({ fixedView }: TasksViewProps) {
   ), [lists, effectiveListId]);
 
   const headerTitle = useMemo(() => {
+    if (fixedCustomViewId && customView) return customView.title;
     if (activeList) return activeList.title;
     switch (effectiveView) {
       case 'important':
@@ -451,14 +593,15 @@ export function TasksView({ fixedView }: TasksViewProps) {
       default:
         return 'All tasks';
     }
-  }, [activeList, effectiveView]);
+  }, [fixedCustomViewId, customView, activeList, effectiveView]);
 
   const currentViewTheme = useMemo(() => {
+    if (fixedCustomViewId && customView) return customView.color_theme || 'teal';
     if (activeList) return activeList.color_theme || 'blue';
     if (effectiveView === 'important') return 'orange';
     if (effectiveView === 'assigned-to-me') return 'purple';
     return 'blue';
-  }, [activeList, effectiveView]);
+  }, [fixedCustomViewId, customView, activeList, effectiveView]);
 
   const themePrimary = useMemo(() => {
     return getThemePrimary(currentViewTheme, isDarkMode);
@@ -752,7 +895,147 @@ export function TasksView({ fixedView }: TasksViewProps) {
     return u ? u.name : 'Selected Assignee';
   }, [filterAssigneeId, users]);
 
+  const defaultContact = useMemo(() => {
+    if (!customView?.default_whatsapp_contact_id) return null;
+    return users.find((u) => u.id === customView.default_whatsapp_contact_id) || null;
+  }, [customView?.default_whatsapp_contact_id, users]);
 
+  const filteredContacts = useMemo(() => {
+    if (!contactPickerSearch.trim()) return users;
+    return users.filter(
+      (u) =>
+        fuzzyMatch(contactPickerSearch, u.name) ||
+        fuzzyMatch(contactPickerSearch, u.phone || '') ||
+        fuzzyMatch(contactPickerSearch, u.email || '')
+    );
+  }, [users, contactPickerSearch]);
+
+  const customViewScopeLabel = useMemo(() => {
+    if (!customView) return 'Not set (Ask on send)';
+    if (customView.default_whatsapp_share_scope === 'all') return 'All Tasks';
+    if (customView.default_whatsapp_share_scope === 'current_view') return 'Current View';
+    if (customView.default_whatsapp_share_scope === 'pending') return 'Pending Tasks';
+    return 'Not set (Ask on send)';
+  }, [customView?.default_whatsapp_share_scope]);
+
+  const openWhatsAppWithMessage = useCallback((phone: string | null | undefined, message: string) => {
+    const deepLink = generateWhatsAppDeepLink(phone || '', message);
+    Linking.canOpenURL(deepLink).then((supported) => {
+      if (supported) {
+        Linking.openURL(deepLink);
+      } else {
+        const webLink = generateWhatsAppWebLink(phone || '', message);
+        Linking.openURL(webLink);
+      }
+    });
+  }, []);
+
+  const executeShareWithContactAndScope = useCallback(
+    (contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean }, chosenScope: 'pending' | 'all' | 'current_view') => {
+      if (!customView || !contact) return;
+
+      let targetTasks: Task[] = [];
+      if (chosenScope === 'pending') {
+        targetTasks = tasks.filter((t) => !t.is_completed);
+      } else if (chosenScope === 'all') {
+        targetTasks = tasks;
+      } else {
+        targetTasks = filteredTasks;
+      }
+
+      if (targetTasks.length === 0) {
+        const msg = chosenScope === 'pending'
+          ? 'There are no pending tasks to share in this view.'
+          : 'There are no tasks matching the selected option.';
+        showAlertDialog('No Tasks to Share', msg);
+        return;
+      }
+
+      const message = formatWholeListMessage(customView, targetTasks, { scope: chosenScope });
+      openWhatsAppWithMessage(contact.phone || '', message);
+    },
+    [customView, tasks, filteredTasks, openWhatsAppWithMessage, showAlertDialog]
+  );
+
+  const handleWhatsAppView = useCallback(() => {
+    if (!customView) return;
+    if (tasks.length === 0) {
+      showAlertDialog('No Tasks', 'There are no tasks in this view to share.');
+      return;
+    }
+
+    let defContact: User | null = null;
+    if (customView.default_whatsapp_contact_id === -1) {
+      defContact = WHATSAPP_GROUP_USER;
+    } else if (customView.default_whatsapp_contact_id === 1) {
+      defContact = SELF_USER;
+    } else if (customView.default_whatsapp_contact_id) {
+      defContact = users.find((u) => u.id === customView.default_whatsapp_contact_id) || null;
+    }
+
+    if (!defContact) {
+      setIsSharingFromPicker(true);
+      setShowContactPicker(true);
+      return;
+    }
+
+    if (!customView.default_whatsapp_share_scope) {
+      pendingContactRef.current = defContact;
+      setShowScopePickerModal(true);
+      return;
+    }
+
+    executeShareWithContactAndScope(
+      defContact,
+      customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+    );
+  }, [customView, tasks.length, users, executeShareWithContactAndScope, showAlertDialog]);
+
+  const handleSelectDefaultContact = useCallback(
+    (user: User | null) => {
+      if (!fixedCustomViewId) return;
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        default_whatsapp_contact_id: user ? user.id : null,
+      });
+      setShowContactPicker(false);
+
+      if (isSharingFromPicker && user) {
+        setIsSharingFromPicker(false);
+        if (!customView?.default_whatsapp_share_scope) {
+          pendingContactRef.current = user;
+          setShowScopePickerModal(true);
+        } else {
+          executeShareWithContactAndScope(
+            user,
+            customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+          );
+        }
+      }
+    },
+    [fixedCustomViewId, isSharingFromPicker, customView, updateCustomViewMutation, executeShareWithContactAndScope]
+  );
+
+  const handleChooseTasksToSendScope = useCallback(
+    (scope: string | null) => {
+      if (!fixedCustomViewId) return;
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        default_whatsapp_share_scope: scope || undefined,
+      });
+      setShowScopePickerModal(false);
+
+      if (pendingContactRef.current && scope) {
+        const contact = pendingContactRef.current;
+        pendingContactRef.current = null;
+        executeShareWithContactAndScope(
+          contact,
+          scope as 'pending' | 'all' | 'current_view'
+        );
+      }
+    },
+    [fixedCustomViewId, updateCustomViewMutation, executeShareWithContactAndScope]
+  );
 
   const ListHeader = useMemo(() => (
     <View style={{ paddingTop: 8, paddingBottom: 14 }}>
@@ -771,6 +1054,41 @@ export function TasksView({ fixedView }: TasksViewProps) {
           elevation: 4,
         }}
       >
+        {Boolean(onBack) && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <TouchableOpacity
+              onPress={onBack}
+              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+              style={{
+                width: 36,
+                height: 36,
+                borderRadius: 18,
+                backgroundColor: 'rgba(255,255,255,0.2)',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <ArrowLeft size={18} color="#ffffff" />
+            </TouchableOpacity>
+
+            {Boolean(fixedCustomViewId) && (
+              <TouchableOpacity
+                onPress={() => setShowCustomViewDropdown(true)}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: 'rgba(255,255,255,0.2)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <MoreVertical size={18} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
         <Text style={{ fontSize: 12, fontWeight: '700', color: 'rgba(255,255,255,0.8)', textTransform: 'uppercase', letterSpacing: 0.8 }}>
           {formattedDate}
         </Text>
@@ -1031,6 +1349,28 @@ export function TasksView({ fixedView }: TasksViewProps) {
                 />
               )}
             </TouchableOpacity>
+
+            {/* Universal Clear All Filters, Search & Sort Button */}
+            {(activeFiltersCount > 0 || currentSort.field !== 'smart' || searchQuery.trim().length > 0) && (
+              <TouchableOpacity
+                onPress={handleClearAllFiltersAndSort}
+                activeOpacity={0.7}
+                style={{
+                  height: 52,
+                  paddingHorizontal: 12,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fca5a5',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <RotateCcw size={16} color="#ef4444" />
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Active Filter & Sort Indicator Chips */}
@@ -1074,7 +1414,7 @@ export function TasksView({ fixedView }: TasksViewProps) {
               )}
               {activeFiltersCount > 0 && (
                 <TouchableOpacity
-                  onPress={handleResetFilters}
+                  onPress={handleClearAllFiltersAndSort}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                   style={{ minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6 }}
                 >
@@ -1217,6 +1557,33 @@ export function TasksView({ fixedView }: TasksViewProps) {
         showsVerticalScrollIndicator={false}
       />
 
+      {/* Floating Action Button (FAB) for WhatsApp Share in Custom View */}
+      {Boolean(fixedCustomViewId) && tasks.length > 0 && (
+        <TouchableOpacity
+          onPress={handleWhatsAppView}
+          activeOpacity={0.85}
+          style={{
+            position: 'absolute',
+            bottom: 86,
+            right: 23,
+            width: 50,
+            height: 50,
+            borderRadius: 25,
+            backgroundColor: '#25D366',
+            alignItems: 'center',
+            justifyContent: 'center',
+            shadowColor: '#25D366',
+            shadowOffset: { width: 0, height: 4 },
+            shadowOpacity: 0.35,
+            shadowRadius: 6,
+            elevation: 6,
+            zIndex: 50,
+          }}
+        >
+          <WhatsAppIcon size={26} color="#ffffff" />
+        </TouchableOpacity>
+      )}
+
       {/* Floating Action Button (FAB) for Add Task */}
       <TouchableOpacity
         onPress={handleOpenNewTask}
@@ -1242,26 +1609,78 @@ export function TasksView({ fixedView }: TasksViewProps) {
         <Plus size={28} color="#ffffff" strokeWidth={2.5} />
       </TouchableOpacity>
 
+      {/* 3-Dot Dropdown Menu Modal for Custom View */}
+      {Boolean(fixedCustomViewId && customView) && (
+        <ListOrViewDropdownModal
+          visible={showCustomViewDropdown}
+          onClose={() => setShowCustomViewDropdown(false)}
+          targetType="view"
+          item={customView}
+          users={users}
+          isPinned={isCustomPinned}
+          isDarkMode={isDarkMode}
+          onOpenContactPicker={() => {
+            setIsSharingFromPicker(false);
+            setShowContactPicker(true);
+          }}
+          onOpenScopePicker={() => {
+            setShowScopePickerModal(true);
+          }}
+          onTogglePin={() => {
+            if (fixedCustomViewId) {
+              togglePinViewMutation.mutate(`custom_view:${fixedCustomViewId}`);
+            }
+          }}
+          onEditFilters={() => {
+            setEditViewTitle(customView?.title || '');
+            setEditViewTheme(customView?.color_theme || 'teal');
+            setShowEditCustomViewModal(true);
+          }}
+          onRename={() => {
+            setEditViewTitle(customView?.title || '');
+            setShowRenameModal(true);
+          }}
+          onChangeTheme={() => {
+            setEditViewTheme(customView?.color_theme || 'teal');
+            setShowThemeModal(true);
+          }}
+          onDelete={() => {
+            showConfirmDialog({
+              title: 'Delete View',
+              message: `Are you sure you want to delete "${customView?.title}"? (Tasks will not be deleted)`,
+              type: 'danger',
+              confirmLabel: 'Delete View',
+              onConfirm: () => {
+                if (fixedCustomViewId) {
+                  deleteCustomViewMutation.mutate(fixedCustomViewId);
+                }
+                if (onBack) onBack();
+              },
+            });
+          }}
+        />
+      )}
+
       {/* Task Filters Bottom Sheet */}
       <FilterBottomSheet
         visible={showFilterModal}
         onClose={() => setShowFilterModal(false)}
         filterStatus={filterStatus}
-        setFilterStatus={setFilterStatus}
+        setFilterStatus={handleUpdateFilterStatus}
         filterImportance={filterImportance}
-        setFilterImportance={setFilterImportance}
+        setFilterImportance={handleUpdateFilterImportance}
         filterDue={filterDue}
-        setFilterDue={setFilterDue}
+        setFilterDue={handleUpdateFilterDue}
         filterAssigneeId={filterAssigneeId}
-        setFilterAssigneeId={setFilterAssigneeId}
+        setFilterAssigneeId={handleUpdateFilterAssigneeId}
         filterListId={filterListId}
-        setFilterListId={setFilterListId}
+        setFilterListId={handleUpdateFilterListId}
         users={users}
         lists={lists}
         isDarkMode={isDarkMode}
         themePrimary={themePrimary}
         activeFiltersCount={activeFiltersCount}
-        onResetFilters={handleResetFilters}
+        onResetFilters={handleClearAllFiltersAndSort}
         totalMatchedTasks={filteredTasks.length}
         hideImportance={effectiveView === 'important'}
         hideAssignee={effectiveView === 'assigned-to-me'}
@@ -1298,8 +1717,675 @@ export function TasksView({ fixedView }: TasksViewProps) {
         themePrimary={themePrimary}
         onClose={() => setShowBulkAssigneeModal(false)}
         onSelectAssignee={handleBulkAssignee}
-        onCreateGroup={handleCreateGroup}
       />
+
+      {/* Default WhatsApp Contact Picker Modal for Custom View */}
+      <ContactPickerModal
+        visible={showContactPicker}
+        onClose={() => {
+          setShowContactPicker(false);
+          setIsSharingFromPicker(false);
+        }}
+        title="Default WhatsApp Contact"
+        subtitle={`Choose who receives updates for "${customView?.title || 'this view'}"`}
+        selectedContactId={customView?.default_whatsapp_contact_id}
+        users={users}
+        onSelectContact={(user) => {
+          handleSelectDefaultContact(user);
+        }}
+        onClearContact={() => {
+          handleSelectDefaultContact(null);
+        }}
+        isDarkMode={isDarkMode}
+      />
+
+      {/* Tasks to Send Scope Picker Modal for Custom View */}
+      <Modal
+        visible={showScopePickerModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowScopePickerModal(false)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFill}
+            activeOpacity={1}
+            onPress={() => setShowScopePickerModal(false)}
+          />
+          <View
+            style={{
+              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+              borderTopLeftRadius: 28,
+              borderTopRightRadius: 28,
+              padding: 20,
+              paddingBottom: Math.max(insets.bottom, 24),
+              borderTopWidth: 1,
+              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            }}
+          >
+            {/* Header */}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View style={{ flex: 1, paddingRight: 10 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  Tasks to Send
+                </Text>
+                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                  Choose which tasks to include when sharing "{customView?.title}" on WhatsApp
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setShowScopePickerModal(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{ padding: 4 }}
+              >
+                <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Scope Options */}
+            <View style={{ gap: 10, marginTop: 6 }}>
+              {/* Option 1: Pending tasks */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('pending')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: customView?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
+                  borderColor: customView?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <ListTodo size={20} color="#0078d4" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Pending Tasks
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Only incomplete tasks in this view
+                    </Text>
+                  </View>
+                </View>
+                {customView?.default_whatsapp_share_scope === 'pending' && (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Option 2: Current View */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('current_view')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: customView?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
+                  borderColor: customView?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Layers size={20} color="#a855f7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Current View
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Tasks matching active search and filters
+                    </Text>
+                  </View>
+                </View>
+                {customView?.default_whatsapp_share_scope === 'current_view' && (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Option 3: All Tasks */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('all')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: customView?.default_whatsapp_share_scope === 'all' ? 2 : 1,
+                  borderColor: customView?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <CheckSquare size={20} color="#22c55e" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      All Tasks
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Both pending and completed tasks
+                    </Text>
+                  </View>
+                </View>
+                {customView?.default_whatsapp_share_scope === 'all' && (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Option 4: Ask on send */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope(null)}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: !customView?.default_whatsapp_share_scope ? 2 : 1,
+                  borderColor: !customView?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Not Set (Ask on send)
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Prompt to choose scope whenever sharing
+                    </Text>
+                  </View>
+                </View>
+                {!customView?.default_whatsapp_share_scope && (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
+                  </View>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Quick Rename Custom View Modal */}
+      {Boolean(fixedCustomViewId) && (
+        <Modal
+          visible={showRenameModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowRenameModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: 20,
+            }}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowRenameModal(false)}
+            />
+            <View
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                borderRadius: 24,
+                padding: 22,
+                borderWidth: 1,
+                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+                elevation: 12,
+              }}
+            >
+              <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a', marginBottom: 14 }}>
+                Rename View
+              </Text>
+              <TextInput
+                value={editViewTitle}
+                onChangeText={setEditViewTitle}
+                placeholder="Enter view title..."
+                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                autoFocus
+                style={{
+                  height: 48,
+                  borderRadius: 14,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                  paddingHorizontal: 14,
+                  fontSize: 15,
+                  fontWeight: '600',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                  marginBottom: 18,
+                }}
+              />
+              <View style={{ flexDirection: 'row', gap: 10 }}>
+                <TouchableOpacity
+                  onPress={() => setShowRenameModal(false)}
+                  style={{
+                    flex: 1,
+                    height: 46,
+                    borderRadius: 14,
+                    backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#d4d4d8' : '#475569' }}>
+                    Cancel
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    if (!editViewTitle.trim() || !fixedCustomViewId) return;
+                    updateCustomViewMutation.mutate({
+                      id: fixedCustomViewId,
+                      title: editViewTitle.trim(),
+                    });
+                    setShowRenameModal(false);
+                  }}
+                  style={{
+                    flex: 1,
+                    height: 46,
+                    borderRadius: 14,
+                    backgroundColor: themePrimary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                  activeOpacity={0.8}
+                >
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: '#ffffff' }}>
+                    Save
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Theme Picker Modal for Custom View */}
+      {Boolean(fixedCustomViewId) && (
+        <Modal
+          visible={showThemeModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowThemeModal(false)}
+        >
+          <View
+            style={{
+              flex: 1,
+              backgroundColor: 'rgba(0,0,0,0.5)',
+              justifyContent: 'center',
+              alignItems: 'center',
+              padding: 20,
+            }}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowThemeModal(false)}
+            />
+            <View
+              style={{
+                width: '100%',
+                maxWidth: 360,
+                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                borderRadius: 28,
+                padding: 22,
+                borderWidth: 1,
+                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 10 },
+                shadowOpacity: 0.3,
+                shadowRadius: 20,
+                elevation: 12,
+              }}
+            >
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  View Theme
+                </Text>
+                <TouchableOpacity onPress={() => setShowThemeModal(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 16 }}>
+                Choose an accent color for "{customView?.title}":
+              </Text>
+
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
+                {CUSTOM_LIST_THEMES.map((theme) => {
+                  const themeHex = getThemePrimary(theme, isDarkMode);
+                  const isSelected = (customView?.color_theme || 'teal') === theme;
+                  return (
+                    <TouchableOpacity
+                      key={theme}
+                      onPress={() => {
+                        if (fixedCustomViewId) {
+                          updateCustomViewMutation.mutate({
+                            id: fixedCustomViewId,
+                            color_theme: theme,
+                          });
+                        }
+                        setShowThemeModal(false);
+                      }}
+                      style={{
+                        width: 46,
+                        height: 46,
+                        borderRadius: 23,
+                        backgroundColor: themeHex,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: isSelected ? 3.5 : 0,
+                        borderColor: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                      activeOpacity={0.8}
+                    >
+                      {isSelected && <Check size={20} color="#ffffff" strokeWidth={3} />}
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowThemeModal(false)}
+                style={{
+                  paddingVertical: 12,
+                  borderRadius: 14,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#d4d4d8' : '#475569' }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
+
+      {/* Edit Custom View Modal */}
+      {Boolean(fixedCustomViewId) && (
+        <Modal
+          visible={showEditCustomViewModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowEditCustomViewModal(false)}
+        >
+          <TouchableWithoutFeedback onPress={() => setShowEditCustomViewModal(false)}>
+            <View
+              style={{
+                flex: 1,
+                backgroundColor: 'rgba(0,0,0,0.6)',
+                justifyContent: 'center',
+                alignItems: 'center',
+                padding: 20,
+              }}
+            >
+              <TouchableWithoutFeedback>
+                <View
+                  style={{
+                    width: '100%',
+                    maxWidth: 380,
+                    borderRadius: 24,
+                    backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                    padding: 20,
+                  }}
+                >
+                  {/* Header */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Edit View
+                    </Text>
+                    <TouchableOpacity onPress={() => setShowEditCustomViewModal(false)} style={{ padding: 4 }}>
+                      <X size={18} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                    </TouchableOpacity>
+                  </View>
+
+                  {/* View Name Input */}
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 8 }}>
+                    View Name
+                  </Text>
+                  <TextInput
+                    value={editViewTitle}
+                    onChangeText={setEditViewTitle}
+                    placeholder="Enter view name..."
+                    placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                    style={{
+                      height: 48,
+                      borderRadius: 14,
+                      backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                      paddingHorizontal: 14,
+                      fontSize: 15,
+                      fontWeight: '600',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                      marginBottom: 16,
+                    }}
+                  />
+
+                  {/* Theme Color Selector */}
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 8 }}>
+                    Theme Color
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 20 }}>
+                    <View style={{ flexDirection: 'row', gap: 8, paddingVertical: 4 }}>
+                      {CUSTOM_LIST_THEMES.map((theme) => {
+                        const themeColorHex = getThemePrimary(theme, isDarkMode);
+                        const isSelected = editViewTheme === theme;
+                        return (
+                          <TouchableOpacity
+                            key={theme}
+                            onPress={() => setEditViewTheme(theme)}
+                            style={{
+                              width: 36,
+                              height: 36,
+                              borderRadius: 18,
+                              backgroundColor: themeColorHex,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderWidth: isSelected ? 3 : 0,
+                              borderColor: isDarkMode ? '#ffffff' : '#0f172a',
+                            }}
+                          >
+                            {isSelected && <Check size={16} color="#ffffff" strokeWidth={3} />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  </ScrollView>
+
+                  {/* Pin to Bottom Bar Toggle */}
+                  <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 8 }}>
+                    Bottom Bar
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (fixedCustomViewId) {
+                        togglePinViewMutation.mutate(`custom_view:${fixedCustomViewId}`);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      paddingHorizontal: 14,
+                      paddingVertical: 12,
+                      borderRadius: 14,
+                      backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                      marginBottom: 20,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                      {isCustomPinned ? (
+                        <Pin size={18} color={themePrimary} fill={themePrimary} />
+                      ) : (
+                        <PinOff size={18} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                      )}
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        Pin to Bottom Bar
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: 8,
+                        backgroundColor: isCustomPinned
+                          ? (isDarkMode ? 'rgba(56, 189, 248, 0.2)' : 'rgba(0, 120, 212, 0.1)')
+                          : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '800',
+                          color: isCustomPinned ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b'),
+                        }}
+                      >
+                        {isCustomPinned ? 'PINNED' : 'NOT PINNED'}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+
+                  {/* Action Buttons */}
+                  <View style={{ flexDirection: 'row', gap: 10 }}>
+                    <TouchableOpacity
+                      onPress={() => {
+                        showConfirmDialog({
+                          title: 'Delete View',
+                          message: `Are you sure you want to delete "${customView?.title}"? (Tasks will not be deleted)`,
+                          type: 'danger',
+                          confirmLabel: 'Delete View',
+                          onConfirm: () => {
+                            if (fixedCustomViewId) {
+                              deleteCustomViewMutation.mutate(fixedCustomViewId);
+                            }
+                            setShowEditCustomViewModal(false);
+                            if (onBack) onBack();
+                          },
+                        });
+                      }}
+                      style={{
+                        flex: 1,
+                        height: 48,
+                        borderRadius: 14,
+                        backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexDirection: 'row',
+                        gap: 6,
+                      }}
+                    >
+                      <Trash2 size={16} color="#ef4444" />
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>Delete</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (!editViewTitle.trim() || !fixedCustomViewId) return;
+                        updateCustomViewMutation.mutate({
+                          id: fixedCustomViewId,
+                          title: editViewTitle.trim(),
+                          color_theme: editViewTheme,
+                        });
+                        setShowEditCustomViewModal(false);
+                      }}
+                      style={{
+                        flex: 2,
+                        height: 48,
+                        borderRadius: 14,
+                        backgroundColor: themePrimary,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#ffffff' }}>Save Changes</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </TouchableWithoutFeedback>
+            </View>
+          </TouchableWithoutFeedback>
+        </Modal>
+      )}
 
       {/* 300ms Task Loading HUD */}
       <TaskLoadingIndicator />

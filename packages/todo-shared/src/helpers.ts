@@ -63,6 +63,27 @@ export function hexToRgba(hex: string, alpha: number): string {
 }
 
 /**
+ * Formats a YYYY-MM-DD date string into DD-MM-YYYY format.
+ * E.g., '2026-07-08' -> '08-07-2026'
+ */
+export function formatDueDateDDMMYYYY(dueDate?: string | null): string {
+  if (!dueDate) return '';
+  try {
+    const parts = dueDate.split('-');
+    if (parts.length === 3) {
+      const year = parts[0].trim();
+      const month = parts[1].trim().padStart(2, '0');
+      const day = parts[2].trim().padStart(2, '0');
+      const yyyy = year.length === 2 ? `20${year}` : year;
+      return `${day}-${month}-${yyyy}`;
+    }
+    return dueDate;
+  } catch {
+    return dueDate || '';
+  }
+}
+
+/**
  * Formats a YYYY-MM-DD date string into DD-MM-YY format.
  * E.g., '2026-07-08' -> '08-07-26'
  */
@@ -95,6 +116,7 @@ export function isTaskOverdue(dueDate?: string | null, isCompleted?: boolean | n
 export interface DueDateDisplay {
   label: string;
   formattedDDMMYY: string;
+  formattedDDMMYYYY: string;
   isOverdue: boolean;
   isToday: boolean;
   isTomorrow: boolean;
@@ -102,6 +124,7 @@ export interface DueDateDisplay {
 
 export function formatDueDateDisplay(dueDate?: string | null, isCompleted?: boolean | number): DueDateDisplay | null {
   if (!dueDate) return null;
+  const ddmmyyyy = formatDueDateDDMMYYYY(dueDate);
   const ddmmyy = formatDueDateDDMMYY(dueDate);
   try {
     const parts = dueDate.split('-').map(Number);
@@ -118,19 +141,19 @@ export function formatDueDateDisplay(dueDate?: string | null, isCompleted?: bool
       const isTomorrow = diffDays === 1;
 
       if (isToday) {
-        return { label: `Today • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: true, isTomorrow: false };
+        return { label: `Today • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: true, isTomorrow: false };
       }
       if (isTomorrow) {
-        return { label: `Tomorrow • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: true };
+        return { label: `Tomorrow • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: true };
       }
       if (isOverdue) {
-        return { label: `Overdue • ${ddmmyy}`, formattedDDMMYY: ddmmyy, isOverdue: true, isToday: false, isTomorrow: false };
+        return { label: `Overdue • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: true, isToday: false, isTomorrow: false };
       }
-      return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
+      return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
     }
-    return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
+    return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
   } catch {
-    return { label: ddmmyy, formattedDDMMYY: ddmmyy, isOverdue: false, isToday: false, isTomorrow: false };
+    return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
   }
 }
 

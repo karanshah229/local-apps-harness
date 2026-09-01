@@ -468,7 +468,7 @@ export default function ContactsPage({
           </View>
         </View>
         <Text style={[styles.importSubtitle, { color: colors.textMuted }]}>
-          Sync your phone address book directly into Kamdhenu ToDo for task assignments and WhatsApp sharing.
+          Sync your phone address book directly into Kamdhenu Handoff for task assignments and WhatsApp sharing.
         </Text>
         <TouchableOpacity
           onPress={handleImportNativeContacts}

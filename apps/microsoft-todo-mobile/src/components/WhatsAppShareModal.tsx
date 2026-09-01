@@ -32,8 +32,6 @@ import {
   generateWhatsAppWebLink,
 } from '@shared/todo';
 import { localTodoDb } from '../db/sqlite';
-import { useAddUserMutation } from '../hooks/useTodoQueries';
-import { WhatsAppGroupModal } from './WhatsAppGroupModal';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 
@@ -62,29 +60,13 @@ export default function WhatsAppShareModal({
   const [message, setMessage] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [showGroupModal, setShowGroupModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const addUserMutation = useAddUserMutation();
-  const existingGroups = users.filter((u) => Boolean(u.is_group));
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
-
-  const handleCreateGroup = async (groupName: string) => {
-    try {
-      const created = await addUserMutation.mutateAsync({
-        name: groupName,
-        phone: '',
-        is_group: 1,
-      });
-      return created;
-    } catch {
-      return null;
-    }
-  };
 
   useEffect(() => {
     if (isOpen && config) {
@@ -214,7 +196,6 @@ export default function WhatsAppShareModal({
   if (!config) return null;
 
   return (
-    <>
     <Modal
       visible={isOpen}
       transparent
@@ -260,16 +241,16 @@ export default function WhatsAppShareModal({
               <View style={styles.pillRow}>
                 {/* WhatsApp Group Pill */}
                 <TouchableOpacity
-                  onPress={() => setShowGroupModal(true)}
+                  onPress={() => handleUserSelect(selectedUserId === -1 ? null : -1)}
                   style={[
                     styles.contactPill,
                     {
-                      backgroundColor: selectedUser?.is_group
+                      backgroundColor: selectedUserId === -1
                         ? 'rgba(37, 211, 102, 0.2)'
                         : isDarkMode
                         ? '#27272a'
                         : '#f8fafc',
-                      borderColor: selectedUser?.is_group ? '#25D366' : colors.border,
+                      borderColor: selectedUserId === -1 ? '#25D366' : colors.border,
                     }
                   ]}
                   activeOpacity={0.7}
@@ -289,14 +270,40 @@ export default function WhatsAppShareModal({
                   <Text
                     style={[
                       styles.contactPillName,
-                      { color: selectedUser?.is_group ? '#25D366' : colors.text }
+                      { color: selectedUserId === -1 ? '#25D366' : colors.text }
                     ]}
                   >
-                    {selectedUser?.is_group ? selectedUser.name : 'Group'}
+                    WhatsApp Group
                   </Text>
                 </TouchableOpacity>
 
-                {users.map((u) => {
+                {/* Self (You) Pill */}
+                <TouchableOpacity
+                  onPress={() => handleUserSelect(selectedUserId === 1 ? null : 1)}
+                  style={[
+                    styles.contactPill,
+                    {
+                      backgroundColor: selectedUserId === 1
+                        ? 'rgba(37, 211, 102, 0.15)'
+                        : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
+                      borderColor: selectedUserId === 1 ? '#25D366' : colors.border,
+                    }
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Text
+                    style={[
+                      styles.contactPillName,
+                      { color: selectedUserId === 1 ? '#25D366' : colors.text }
+                    ]}
+                  >
+                    Self (You)
+                  </Text>
+                </TouchableOpacity>
+
+                {users.filter((u) => u.id !== 1 && !u.is_group).map((u) => {
                   const isSelected = selectedUserId === u.id;
                   return (
                     <TouchableOpacity
@@ -466,19 +473,6 @@ export default function WhatsAppShareModal({
         </View>
       </View>
     </Modal>
-
-    <WhatsAppGroupModal
-      visible={showGroupModal}
-      onClose={() => setShowGroupModal(false)}
-      onSelectGroup={(group) => {
-        handleUserSelect(group.id);
-      }}
-      onCreateGroup={handleCreateGroup}
-      existingGroups={existingGroups}
-      isDarkMode={isDarkMode}
-      themePrimary="#25D366"
-    />
-    </>
   );
 }
 

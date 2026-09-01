@@ -14,7 +14,7 @@
 	"apps": [
 		{
 			"id": "microsoft-todo",
-			"displayName": "Kamdhenu ToDo",
+			"displayName": "Kamdhenu Handoff",
 			"recipe": "legacy-react-express-sqlite",
 			"status": "legacy",
 			"capabilities": ["tasks", "realtime-sync", "whatsapp-reminders"],
@@ -44,8 +44,8 @@
 				"localPaths": ["apps/microsoft-todo-server/todo.db"]
 			},
 			"mobile": {
-				"androidPackage": "com.kamdhenu.microsofttodo",
-				"iosBundleId": "com.kamdhenu.microsofttodo"
+				"androidPackage": "com.kamdhenu.handoff",
+				"iosBundleId": "com.kamdhenu.handoff"
 			}
 		},
 		{

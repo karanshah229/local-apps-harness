@@ -90,6 +90,38 @@ export type ThemeColor =
 
 export type SmartViewType = 'all-tasks' | 'important' | 'assigned-to-me' | 'planned' | 'my-day';
 
+export interface ViewFilterConfig {
+  status?: 'all' | 'pending' | 'completed';
+  importance?: 'all' | 'important' | 'normal';
+  due?: 'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due';
+  assigneeId?: number | 'unassigned' | 'all';
+  listId?: number | 'all';
+}
+
+export const DEFAULT_FILTER_CONFIG: ViewFilterConfig = {
+  status: 'all',
+  importance: 'all',
+  due: 'all',
+  assigneeId: 'all',
+  listId: 'all',
+};
+
+export interface CustomView {
+  id: number;
+  title: string;
+  color_theme?: string;
+  icon?: string;
+  filter_config?: ViewFilterConfig | string;
+  sort_config?: ViewSortConfig | string;
+  default_whatsapp_contact_id?: number | null;
+  default_whatsapp_share_scope?: string | null;
+  matched_count?: number;
+  position?: number;
+  active?: number | boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface WhatsAppPayloadConfig {
   type: 'single' | 'batch' | 'list';
   taskId?: number;
@@ -116,11 +148,15 @@ export interface ViewSortConfig {
 
 export type SortPreferences = Record<string, ViewSortConfig>;
 
+export const DEFAULT_PINNED_VIEWS: string[] = ['important', 'assigned-to-me'];
+
 export interface UserPreferences {
   user_id: number;
   remember_last_view: number | boolean;
   last_view_type: 'tab' | 'list' | string;
   last_view_id: string;
   sort_preferences?: SortPreferences | string;
+  pinned_views?: string[] | string;
   updated_at?: string;
 }
+

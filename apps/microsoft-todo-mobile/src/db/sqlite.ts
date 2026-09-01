@@ -6,6 +6,9 @@ import {
   Subtask,
   BatchImportContact,
   UserPreferences,
+  CustomView,
+  ViewFilterConfig,
+  ViewSortConfig,
   normalizeToE164,
 } from '@shared/todo';
 
@@ -141,6 +144,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   } else if (primaryUser.name === 'Admin') {
     db.runSync(`UPDATE users SET name = 'Self' WHERE id = 1`);
   }
+  try {
+    db.runSync(`UPDATE users SET phone = '' WHERE id = 1 AND (phone LIKE '%999999999%' OR phone = '+919999999999')`);
+  } catch {}
 
   // Remove legacy is_default flags from existing lists
   try {
@@ -157,6 +163,41 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   // Ensure is_group column exists on users table
   try {
     db.runSync('ALTER TABLE users ADD COLUMN is_group BOOLEAN DEFAULT 0');
+  } catch {}
+
+  // Ensure pinned_views column exists on user_preferences table
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN pinned_views TEXT DEFAULT '["important","assigned-to-me"]'`);
+  } catch {}
+
+  // Create custom_views table
+  db.execSync(`
+    CREATE TABLE IF NOT EXISTS custom_views (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      color_theme TEXT DEFAULT 'teal',
+      icon TEXT DEFAULT 'view',
+      filter_config TEXT DEFAULT '{}',
+      sort_config TEXT DEFAULT '{"field":"smart","direction":"asc"}',
+      default_whatsapp_contact_id INTEGER,
+      default_whatsapp_share_scope TEXT,
+      position INTEGER DEFAULT 0,
+      active BOOLEAN DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+  `);
+
+  // Ensure default_whatsapp_contact_id and default_whatsapp_share_scope columns exist on custom_views
+  try {
+    const cvCols = db.getAllSync<{ name: string }>('PRAGMA table_info(custom_views)');
+    const cvColNames = new Set(cvCols.map((c) => c.name));
+    if (!cvColNames.has('default_whatsapp_contact_id')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN default_whatsapp_contact_id INTEGER');
+    }
+    if (!cvColNames.has('default_whatsapp_share_scope')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN default_whatsapp_share_scope TEXT');
+    }
   } catch {}
 
   // Ensure default user_preferences row exists
@@ -911,18 +952,18 @@ export const localTodoDb = {
   },
 
   // --------------------------------------------------
-  // USER PREFERENCES
+  // USER PREFERENCES & PINNING
   // --------------------------------------------------
   getUserPreferences(): UserPreferences {
     const db = getDatabase();
-    let prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any }>(
+    let prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }>(
       'SELECT * FROM user_preferences WHERE user_id = 1'
     );
     if (!prefs) {
       db.runSync(
-        `INSERT OR IGNORE INTO user_preferences (user_id, remember_last_view, last_view_type, last_view_id, sort_preferences) VALUES (1, 1, 'tab', 'all-tasks', '{}')`
+        `INSERT OR IGNORE INTO user_preferences (user_id, remember_last_view, last_view_type, last_view_id, sort_preferences, pinned_views) VALUES (1, 1, 'tab', 'all-tasks', '{}', '["important","assigned-to-me"]')`
       );
-      prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any }>(
+      prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }>(
         'SELECT * FROM user_preferences WHERE user_id = 1'
       );
     }
@@ -933,12 +974,24 @@ export const localTodoDb = {
         prefs.sort_preferences = {};
       }
     }
+    if (prefs && typeof prefs.pinned_views === 'string') {
+      try {
+        prefs.pinned_views = JSON.parse(prefs.pinned_views || '[]');
+      } catch {
+        prefs.pinned_views = ['important', 'assigned-to-me'];
+      }
+    }
+    if (!prefs?.pinned_views || !Array.isArray(prefs.pinned_views)) {
+      if (prefs) prefs.pinned_views = ['important', 'assigned-to-me'];
+    }
+
     return prefs || {
       user_id: 1,
       remember_last_view: 1,
       last_view_type: 'tab',
       last_view_id: 'all-tasks',
       sort_preferences: {},
+      pinned_views: ['important', 'assigned-to-me'],
     };
   },
 
@@ -960,16 +1013,65 @@ export const localTodoDb = {
       nextSort = JSON.stringify(existing.sort_preferences || {});
     }
 
+    let nextPinned = existing.pinned_views;
+    if (data.pinned_views !== undefined) {
+      nextPinned = typeof data.pinned_views === 'string'
+        ? data.pinned_views
+        : JSON.stringify(data.pinned_views);
+    } else {
+      nextPinned = JSON.stringify(existing.pinned_views || ['important', 'assigned-to-me']);
+    }
+
     db.runSync(
       `
       UPDATE user_preferences
-      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, updated_at = CURRENT_TIMESTAMP
+      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = 1
       `,
-      [nextRemember, nextType, nextId, nextSort]
+      [nextRemember, nextType, nextId, nextSort, nextPinned]
     );
 
     return this.getUserPreferences();
+  },
+
+  getPinnedViews(): string[] {
+    const prefs = this.getUserPreferences();
+    return Array.isArray(prefs.pinned_views) ? prefs.pinned_views : ['important', 'assigned-to-me'];
+  },
+
+  updatePinnedViews(pinned: string[]): string[] {
+    this.updateUserPreferences({ pinned_views: pinned });
+    return pinned;
+  },
+
+  pinView(viewKey: string): string[] {
+    const current = this.getPinnedViews();
+    if (!current.includes(viewKey)) {
+      const updated = [...current, viewKey];
+      this.updatePinnedViews(updated);
+      return updated;
+    }
+    return current;
+  },
+
+  unpinView(viewKey: string): string[] {
+    const current = this.getPinnedViews();
+    const updated = current.filter((k) => k !== viewKey);
+    this.updatePinnedViews(updated);
+    return updated;
+  },
+
+  togglePinView(viewKey: string): string[] {
+    const current = this.getPinnedViews();
+    if (current.includes(viewKey)) {
+      return this.unpinView(viewKey);
+    } else {
+      return this.pinView(viewKey);
+    }
+  },
+
+  isViewPinned(viewKey: string): boolean {
+    return this.getPinnedViews().includes(viewKey);
   },
 
   // --------------------------------------------------
@@ -991,5 +1093,188 @@ export const localTodoDb = {
     } catch (e: any) {
       console.warn('Error logging WhatsApp message locally:', e?.message);
     }
+  },
+
+  // --------------------------------------------------
+  // CUSTOM VIEWS
+  // --------------------------------------------------
+  getCustomViews(): CustomView[] {
+    const db = getDatabase();
+    const views = db.getAllSync<CustomView>('SELECT * FROM custom_views WHERE active = 1 ORDER BY position ASC, id ASC');
+    return views.map((v) => {
+      let filterConfig: ViewFilterConfig = {};
+      let sortConfig: ViewSortConfig = { field: 'smart', direction: 'asc' };
+      if (typeof v.filter_config === 'string') {
+        try { filterConfig = JSON.parse(v.filter_config || '{}'); } catch {}
+      } else if (v.filter_config) {
+        filterConfig = v.filter_config;
+      }
+      if (typeof v.sort_config === 'string') {
+        try { sortConfig = JSON.parse(v.sort_config || '{}'); } catch {}
+      } else if (v.sort_config) {
+        sortConfig = v.sort_config;
+      }
+      const matchedCount = this.countTasksMatchingFilter(filterConfig);
+      return {
+        ...v,
+        filter_config: filterConfig,
+        sort_config: sortConfig,
+        matched_count: matchedCount,
+      };
+    });
+  },
+
+  getCustomViewById(id: number): CustomView | null {
+    if (!id || id <= 0) return null;
+    const db = getDatabase();
+    const v = db.getFirstSync<CustomView>('SELECT * FROM custom_views WHERE id = ? AND active = 1', [id]);
+    if (!v) return null;
+    let filterConfig: ViewFilterConfig = {};
+    let sortConfig: ViewSortConfig = { field: 'smart', direction: 'asc' };
+    if (typeof v.filter_config === 'string') {
+      try { filterConfig = JSON.parse(v.filter_config || '{}'); } catch {}
+    } else if (v.filter_config) {
+      filterConfig = v.filter_config;
+    }
+    if (typeof v.sort_config === 'string') {
+      try { sortConfig = JSON.parse(v.sort_config || '{}'); } catch {}
+    } else if (v.sort_config) {
+      sortConfig = v.sort_config;
+    }
+    const matchedCount = this.countTasksMatchingFilter(filterConfig);
+    return {
+      ...v,
+      filter_config: filterConfig,
+      sort_config: sortConfig,
+      matched_count: matchedCount,
+    };
+  },
+
+  createCustomView(data: {
+    title: string;
+    color_theme?: string;
+    icon?: string;
+    filter_config?: ViewFilterConfig | string;
+    sort_config?: ViewSortConfig | string;
+    default_whatsapp_contact_id?: number | null;
+    default_whatsapp_share_scope?: string | null;
+  }): CustomView {
+    const db = getDatabase();
+    const title = data.title.trim();
+    const theme = data.color_theme || 'teal';
+    const icon = data.icon || 'view';
+    const filterStr = typeof data.filter_config === 'object' ? JSON.stringify(data.filter_config) : (data.filter_config || '{}');
+    const sortStr = typeof data.sort_config === 'object' ? JSON.stringify(data.sort_config) : (data.sort_config || '{"field":"smart","direction":"asc"}');
+    const contactId = data.default_whatsapp_contact_id ?? null;
+    const shareScope = data.default_whatsapp_share_scope ?? null;
+
+    const maxPos = db.getFirstSync<{ max_pos: number }>('SELECT MAX(position) as max_pos FROM custom_views WHERE active = 1');
+    const position = (maxPos?.max_pos ?? 0) + 1;
+
+    const result = db.runSync(
+      'INSERT INTO custom_views (title, color_theme, icon, filter_config, sort_config, default_whatsapp_contact_id, default_whatsapp_share_scope, position, active) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)',
+      [title, theme, icon, filterStr, sortStr, contactId, shareScope, position]
+    );
+    return this.getCustomViewById(Number(result.lastInsertRowId))!;
+  },
+
+  updateCustomView(id: number, data: Partial<CustomView>): CustomView {
+    const db = getDatabase();
+    const updates: string[] = ['updated_at = CURRENT_TIMESTAMP'];
+    const params: (string | number | null)[] = [];
+
+    if (data.title !== undefined) {
+      updates.push('title = ?');
+      params.push(data.title.trim());
+    }
+    if (data.color_theme !== undefined) {
+      updates.push('color_theme = ?');
+      params.push(data.color_theme);
+    }
+    if (data.icon !== undefined) {
+      updates.push('icon = ?');
+      params.push(data.icon);
+    }
+    if (data.filter_config !== undefined) {
+      updates.push('filter_config = ?');
+      params.push(typeof data.filter_config === 'object' ? JSON.stringify(data.filter_config) : data.filter_config);
+    }
+    if (data.sort_config !== undefined) {
+      updates.push('sort_config = ?');
+      params.push(typeof data.sort_config === 'object' ? JSON.stringify(data.sort_config) : data.sort_config);
+    }
+    if (data.default_whatsapp_contact_id !== undefined) {
+      updates.push('default_whatsapp_contact_id = ?');
+      params.push(data.default_whatsapp_contact_id);
+    }
+    if (data.default_whatsapp_share_scope !== undefined) {
+      updates.push('default_whatsapp_share_scope = ?');
+      params.push(data.default_whatsapp_share_scope);
+    }
+    if (data.position !== undefined) {
+      updates.push('position = ?');
+      params.push(data.position);
+    }
+
+    params.push(id);
+    db.runSync(`UPDATE custom_views SET ${updates.join(', ')} WHERE id = ? AND active = 1`, params);
+    return this.getCustomViewById(id)!;
+  },
+
+  deleteCustomView(id: number): void {
+    const db = getDatabase();
+    db.runSync('UPDATE custom_views SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    this.unpinView(`custom_view:${id}`);
+  },
+
+  countTasksMatchingFilter(filter: ViewFilterConfig): number {
+    const db = getDatabase();
+    let query = 'SELECT COUNT(*) as count FROM tasks t WHERE t.active = 1';
+    const params: (string | number)[] = [];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+
+    if (filter.status === 'pending') {
+      query += ' AND t.is_completed = 0';
+    } else if (filter.status === 'completed') {
+      query += ' AND t.is_completed = 1';
+    }
+
+    if (filter.importance === 'important') {
+      query += ' AND t.is_important = 1';
+    } else if (filter.importance === 'normal') {
+      query += ' AND t.is_important = 0';
+    }
+
+    if (filter.due === 'today') {
+      query += ' AND t.due_date = ?';
+      params.push(todayStr);
+    } else if (filter.due === 'tomorrow') {
+      query += ' AND t.due_date = ?';
+      params.push(tomorrowStr);
+    } else if (filter.due === 'overdue') {
+      query += ' AND t.due_date IS NOT NULL AND t.due_date < ? AND t.is_completed = 0';
+      params.push(todayStr);
+    } else if (filter.due === 'has_due') {
+      query += ' AND t.due_date IS NOT NULL';
+    } else if (filter.due === 'no_due') {
+      query += ' AND t.due_date IS NULL';
+    }
+
+    if (filter.listId && filter.listId !== 'all') {
+      query += ' AND (t.id IN (SELECT task_id FROM task_lists WHERE list_id = ? AND active = 1) OR (t.list_id = ? AND EXISTS(SELECT 1 FROM lists WHERE id = ? AND active = 1)))';
+      params.push(filter.listId, filter.listId, filter.listId);
+    }
+
+    if (filter.assigneeId === 'unassigned') {
+      query += ' AND (t.assigned_to_user_id IS NULL OR t.assigned_to_user_id = 0)';
+    } else if (typeof filter.assigneeId === 'number') {
+      query += ' AND t.assigned_to_user_id = ?';
+      params.push(filter.assigneeId);
+    }
+
+    const res = db.getFirstSync<{ count: number }>(query, params);
+    return res?.count || 0;
   },
 };

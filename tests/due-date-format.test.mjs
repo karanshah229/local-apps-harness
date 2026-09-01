@@ -2,17 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   formatDueDateDDMMYY,
+  formatDueDateDDMMYYYY,
   isTaskOverdue,
   formatDueDateDisplay,
 } from '../packages/todo-shared/dist/index.js';
 
-test('Due date formatting: DD-MM-YY and Overdue styling', () => {
-  // 1. formatDueDateDDMMYY
+test('Due date formatting: DD-MM-YYYY and Overdue styling', () => {
+  // 1. formatDueDateDDMMYYYY and formatDueDateDDMMYY
+  assert.equal(formatDueDateDDMMYYYY('2026-07-08'), '08-07-2026');
+  assert.equal(formatDueDateDDMMYYYY('2026-12-31'), '31-12-2026');
+  assert.equal(formatDueDateDDMMYYYY('2025-01-05'), '05-01-2025');
+  assert.equal(formatDueDateDDMMYYYY(''), '');
+  assert.equal(formatDueDateDDMMYYYY(null), '');
+
   assert.equal(formatDueDateDDMMYY('2026-07-08'), '08-07-26');
   assert.equal(formatDueDateDDMMYY('2026-12-31'), '31-12-26');
   assert.equal(formatDueDateDDMMYY('2025-01-05'), '05-01-25');
-  assert.equal(formatDueDateDDMMYY(''), '');
-  assert.equal(formatDueDateDDMMYY(null), '');
 
   // 2. isTaskOverdue
   // '2026-07-08' is in the past compared to today (current time 2026-08-31)
@@ -25,10 +30,11 @@ test('Due date formatting: DD-MM-YY and Overdue styling', () => {
   assert.ok(overdueInfo);
   assert.equal(overdueInfo.isOverdue, true);
   assert.equal(overdueInfo.formattedDDMMYY, '08-07-26');
-  assert.equal(overdueInfo.label, 'Overdue • 08-07-26');
+  assert.equal(overdueInfo.formattedDDMMYYYY, '08-07-2026');
+  assert.equal(overdueInfo.label, 'Overdue • 08-07-2026');
 
   const futureInfo = formatDueDateDisplay('2029-05-15', false);
   assert.ok(futureInfo);
   assert.equal(futureInfo.isOverdue, false);
-  assert.equal(futureInfo.label, '15-05-29');
+  assert.equal(futureInfo.label, '15-05-2029');
 });

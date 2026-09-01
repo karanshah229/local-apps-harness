@@ -31,7 +31,7 @@ export function MobileBottomNav({
         }}
         className={cn(
           'flex flex-col items-center gap-1 py-1 px-2 rounded-2xl transition-all cursor-pointer relative flex-1',
-          isTasksActive ? 'text-[#38bdf8] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
+          isTasksActive ? 'text-[#0078d4] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
         )}
       >
         <div className="relative">
@@ -97,7 +97,7 @@ export function MobileBottomNav({
         onClick={onOpenListsSheet}
         className={cn(
           'flex flex-col items-center gap-1 py-1 px-2 rounded-2xl transition-all cursor-pointer relative flex-1',
-          isListsActive ? 'text-[#38bdf8] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
+          isListsActive ? 'text-[#0078d4] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
         )}
       >
         <div className="relative">
@@ -115,7 +115,7 @@ export function MobileBottomNav({
         }}
         className={cn(
           'flex flex-col items-center gap-1 py-1 px-2 rounded-2xl transition-all cursor-pointer relative flex-1',
-          isSettingsActive ? 'text-[#38bdf8] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
+          isSettingsActive ? 'text-[#0078d4] font-extrabold' : 'text-[#a1a1aa] hover:text-white'
         )}
       >
         <div className="relative">

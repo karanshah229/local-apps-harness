@@ -37,7 +37,6 @@ import {
   Users,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from '../../src/components/WhatsAppIcon';
-import { WhatsAppGroupModal } from '../../src/components/WhatsAppGroupModal';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useTasksQuery,
@@ -298,7 +297,6 @@ export default function TaskDetailScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showListsModal, setShowListsModal] = useState(false);
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
-  const [showWhatsAppGroupModal, setShowWhatsAppGroupModal] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState('');
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
 
@@ -599,8 +597,7 @@ export default function TaskDetailScreen() {
     return assignedUser ? assignedUser.name : 'Assigned';
   }, [assignedUserId, assignedUser]);
 
-  const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
-  const contactUsers = useMemo(() => users.filter((u) => u.id !== 1), [users]);
+  const contactUsers = useMemo(() => users.filter((u) => u.id !== 1 && !u.is_group), [users]);
 
   const filteredUsers = useMemo(() => {
     const q = assigneeSearchQuery.trim();
@@ -1453,68 +1450,6 @@ export default function TaskDetailScreen() {
                           {assignedUserId === 1 && <Check size={18} color={themePrimary} strokeWidth={3} />}
                         </TouchableOpacity>
 
-                        {/* WhatsApp Group Option */}
-                        <TouchableOpacity
-                          onPress={() => {
-                            setShowAssigneeModal(false);
-                            setShowWhatsAppGroupModal(true);
-                          }}
-                          activeOpacity={0.7}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            paddingHorizontal: 16,
-                            paddingVertical: 14,
-                            minHeight: 56,
-                            borderRadius: 16,
-                            backgroundColor: assignedUser?.is_group
-                              ? (isDarkMode ? 'rgba(37, 211, 102, 0.22)' : '#ecfdf5')
-                              : (isDarkMode ? '#27272a' : '#f1f5f9'),
-                            borderWidth: 1.5,
-                            borderColor: assignedUser?.is_group ? '#25D366' : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
-                          }}
-                        >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                            <View
-                              style={{
-                                width: 36,
-                                height: 36,
-                                borderRadius: 18,
-                                backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                              }}
-                            >
-                              <Users size={20} color="#25D366" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                                <Text style={{ fontSize: 15, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                                  WhatsApp Group
-                                </Text>
-                                <View
-                                  style={{
-                                    backgroundColor: 'rgba(37, 211, 102, 0.2)',
-                                    paddingHorizontal: 6,
-                                    paddingVertical: 2,
-                                    borderRadius: 6,
-                                  }}
-                                >
-                                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#25D366' }}>
-                                    Group
-                                  </Text>
-                                </View>
-                              </View>
-                              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                                {assignedUser?.is_group ? `Selected: ${assignedUser.name}` : 'Assign to a team or group'}
-                              </Text>
-                            </View>
-                          </View>
-
-                          {Boolean(assignedUser?.is_group) && <Check size={18} color="#25D366" strokeWidth={3} />}
-                        </TouchableOpacity>
-
                         {/* Unassigned Option */}
                         <TouchableOpacity
                           onPress={() => handleSelectAssignee(null)}
@@ -1771,19 +1706,6 @@ export default function TaskDetailScreen() {
             </View>
           </TouchableWithoutFeedback>
         </Modal>
-
-        {/* WhatsApp Group Selection & Creation Modal */}
-        <WhatsAppGroupModal
-          visible={showWhatsAppGroupModal}
-          onClose={() => setShowWhatsAppGroupModal(false)}
-          onSelectGroup={(group) => {
-            handleSelectAssignee(group.id);
-          }}
-          onCreateGroup={handleCreateWhatsAppGroup}
-          existingGroups={existingGroups}
-          isDarkMode={isDarkMode}
-          themePrimary={themePrimary}
-        />
 
         {/* WhatsApp Floating Action Button (Only for existing tasks) */}
         {!isNewTask && task && (
