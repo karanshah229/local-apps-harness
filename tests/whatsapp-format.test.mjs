@@ -88,7 +88,42 @@ test('WhatsApp delegator message formats contain pure task details and no app li
     assignee_name: 'Operations Team 🚀',
     assignee_is_group: 1,
   };
-  const groupMsg = formatSingleTaskMessage(groupTask);
+  const groupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'executive' });
   assert.ok(groupMsg.includes('👥 *Group:* Operations Team 🚀'));
   assert.ok(!groupMsg.includes('👤 *Assigned to:* Operations Team 🚀'));
+
+  const modernGroupMsg = formatSingleTaskMessage(groupTask, undefined, [], { style: 'modern' });
+  assert.ok(modernGroupMsg.includes('👥 Operations Team 🚀'));
+
+  // Test Unassigned task formatting
+  const unassignedTask = {
+    id: 104,
+    title: 'Review inventory logs',
+    is_completed: 0,
+    is_important: 0,
+    list_title: 'Test list',
+    active: 1,
+  };
+  const unassignedMsg = formatSingleTaskMessage(unassignedTask);
+  assert.ok(!unassignedMsg.includes('Assigned to'));
+  assert.ok(!unassignedMsg.includes('Contact'));
+
+  // Test Executive Style Formatting
+  const executiveMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'executive' });
+  assert.ok(executiveMsg.includes('📌 *Pick up milk shipment from supplier* ⭐'));
+  assert.ok(executiveMsg.includes('━━━━━━━━━━━━━━━'));
+  assert.ok(executiveMsg.includes('[ ] Check 20 crates'));
+  assert.ok(executiveMsg.includes('[✓] ~Collect physical invoice~'));
+  assert.ok(executiveMsg.includes('📝 *Note:* Gate pass is approved'));
+
+  // Test Crisp Style Formatting
+  const crispMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'crisp' });
+  assert.ok(crispMsg.includes('📋 *Pick up milk shipment from supplier* ⭐'));
+  assert.ok(crispMsg.includes('◻️ Check 20 crates'));
+  assert.ok(crispMsg.includes('✅ ~Collect physical invoice~'));
+
+  // Test Exclude Notes Option
+  const noNotesMsg = formatSingleTaskMessage(sampleTask, { name: 'Ramesh Patel' }, steps, { style: 'modern', includeNotes: false });
+  assert.ok(!noNotesMsg.includes('Note:'));
+  assert.ok(!noNotesMsg.includes('Gate pass is approved'));
 });

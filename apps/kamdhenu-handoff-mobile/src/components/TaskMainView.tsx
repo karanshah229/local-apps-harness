@@ -26,9 +26,21 @@ import {
   ChevronDown,
   X
 } from 'lucide-react-native';
-import { Task, List } from '@shared/todo';
+import { Task, List, getThemePrimary } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+
+function hexToRgba(hex: string, alpha: number): string {
+  let cleanHex = hex.replace('#', '');
+  if (cleanHex.length === 3) {
+    cleanHex = cleanHex.split('').map((char) => char + char).join('');
+  }
+  if (cleanHex.length !== 6) return `rgba(0, 120, 212, ${alpha})`;
+  const r = parseInt(cleanHex.substring(0, 2), 16);
+  const g = parseInt(cleanHex.substring(2, 4), 16);
+  const b = parseInt(cleanHex.substring(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 interface TaskMainViewProps {
   activeView: string | null;
@@ -324,23 +336,26 @@ export default function TaskMainView({
 
                   {Boolean(item.lists && item.lists.length > 0) && (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                      {item.lists?.map((l) => (
-                        <View
-                          key={l.id}
-                          style={[
-                            styles.chipBadge,
-                            {
-                              backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.18)' : 'rgba(0, 120, 212, 0.1)',
-                              borderColor: 'rgba(0, 120, 212, 0.25)',
-                              borderWidth: 1
-                            }
-                          ]}
-                        >
-                          <Text style={[styles.chipText, { color: '#0078d4', fontWeight: '700' }]}>
-                            {l.title}
-                          </Text>
-                        </View>
-                      ))}
+                      {item.lists?.map((l) => {
+                        const listColor = getThemePrimary(l.color_theme, isDarkMode);
+                        return (
+                          <View
+                            key={l.id}
+                            style={[
+                              styles.chipBadge,
+                              {
+                                backgroundColor: hexToRgba(listColor, isDarkMode ? 0.2 : 0.12),
+                                borderColor: hexToRgba(listColor, 0.3),
+                                borderWidth: 1
+                              }
+                            ]}
+                          >
+                            <Text style={[styles.chipText, { color: listColor, fontWeight: '700' }]}>
+                              {l.title}
+                            </Text>
+                          </View>
+                        );
+                      })}
                     </View>
                   )}
                 </View>}

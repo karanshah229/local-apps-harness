@@ -160,6 +160,16 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   try {
     db.runSync('ALTER TABLE lists ADD COLUMN default_whatsapp_share_scope TEXT');
   } catch {}
+  try {
+    db.runSync("ALTER TABLE lists ADD COLUMN whatsapp_message_style TEXT DEFAULT 'modern'");
+  } catch {}
+  try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_notes BOOLEAN DEFAULT 1');
+  } catch {}
+  try {
+    db.runSync("ALTER TABLE lists ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
+  } catch {}
+
   // Ensure is_group column exists on users table
   try {
     db.runSync('ALTER TABLE users ADD COLUMN is_group BOOLEAN DEFAULT 0');
@@ -181,6 +191,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
       sort_config TEXT DEFAULT '{"field":"smart","direction":"asc"}',
       default_whatsapp_contact_id INTEGER,
       default_whatsapp_share_scope TEXT,
+      whatsapp_message_style TEXT DEFAULT 'modern',
+      whatsapp_include_notes BOOLEAN DEFAULT 1,
+      whatsapp_list_layout TEXT DEFAULT 'compact',
       position INTEGER DEFAULT 0,
       active BOOLEAN DEFAULT 1,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -188,7 +201,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     );
   `);
 
-  // Ensure default_whatsapp_contact_id and default_whatsapp_share_scope columns exist on custom_views
+  // Ensure columns exist on custom_views
   try {
     const cvCols = db.getAllSync<{ name: string }>('PRAGMA table_info(custom_views)');
     const cvColNames = new Set(cvCols.map((c) => c.name));
@@ -197,6 +210,15 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     }
     if (!cvColNames.has('default_whatsapp_share_scope')) {
       db.runSync('ALTER TABLE custom_views ADD COLUMN default_whatsapp_share_scope TEXT');
+    }
+    if (!cvColNames.has('whatsapp_message_style')) {
+      db.runSync("ALTER TABLE custom_views ADD COLUMN whatsapp_message_style TEXT DEFAULT 'modern'");
+    }
+    if (!cvColNames.has('whatsapp_include_notes')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_notes BOOLEAN DEFAULT 1');
+    }
+    if (!cvColNames.has('whatsapp_list_layout')) {
+      db.runSync("ALTER TABLE custom_views ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
     }
   } catch {}
 
@@ -605,7 +627,7 @@ export const localTodoDb = {
 
     if (data.title !== undefined) {
       updates.push('title = ?');
-      params.push(data.title.trim());
+      params.push(data.title);
     }
     if (data.is_completed !== undefined) {
       updates.push('is_completed = ?');
@@ -751,6 +773,18 @@ export const localTodoDb = {
     if (data.default_whatsapp_share_scope !== undefined) {
       updates.push('default_whatsapp_share_scope = ?');
       params.push(data.default_whatsapp_share_scope);
+    }
+    if (data.whatsapp_message_style !== undefined) {
+      updates.push('whatsapp_message_style = ?');
+      params.push(data.whatsapp_message_style);
+    }
+    if (data.whatsapp_include_notes !== undefined) {
+      updates.push('whatsapp_include_notes = ?');
+      params.push(data.whatsapp_include_notes ? 1 : 0);
+    }
+    if (data.whatsapp_list_layout !== undefined) {
+      updates.push('whatsapp_list_layout = ?');
+      params.push(data.whatsapp_list_layout);
     }
 
     if (updates.length > 0) {
@@ -1210,6 +1244,18 @@ export const localTodoDb = {
     if (data.default_whatsapp_share_scope !== undefined) {
       updates.push('default_whatsapp_share_scope = ?');
       params.push(data.default_whatsapp_share_scope);
+    }
+    if (data.whatsapp_message_style !== undefined) {
+      updates.push('whatsapp_message_style = ?');
+      params.push(data.whatsapp_message_style);
+    }
+    if (data.whatsapp_include_notes !== undefined) {
+      updates.push('whatsapp_include_notes = ?');
+      params.push(data.whatsapp_include_notes ? 1 : 0);
+    }
+    if (data.whatsapp_list_layout !== undefined) {
+      updates.push('whatsapp_list_layout = ?');
+      params.push(data.whatsapp_list_layout);
     }
     if (data.position !== undefined) {
       updates.push('position = ?');

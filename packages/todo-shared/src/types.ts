@@ -9,6 +9,16 @@ export interface User {
   created_at?: string;
 }
 
+export type WhatsAppMessageStyle = 'modern' | 'executive' | 'crisp';
+export type WhatsAppListLayout = 'compact' | 'detailed';
+
+export interface WhatsAppFormatConfig {
+  style?: WhatsAppMessageStyle;
+  includeNotes?: boolean;
+  layout?: WhatsAppListLayout;
+  scope?: 'pending' | 'all' | 'current_view';
+}
+
 export interface List {
   id: number;
   title: string;
@@ -20,6 +30,9 @@ export interface List {
   default_whatsapp_contact_name?: string | null;
   default_whatsapp_contact_phone?: string | null;
   default_whatsapp_share_scope?: 'pending' | 'all' | 'current_view' | string;
+  whatsapp_message_style?: WhatsAppMessageStyle | string | null;
+  whatsapp_include_notes?: number | boolean | null;
+  whatsapp_list_layout?: WhatsAppListLayout | string | null;
   active?: number | boolean;
   created_at?: string;
   owner_name?: string;
@@ -115,6 +128,9 @@ export interface CustomView {
   sort_config?: ViewSortConfig | string;
   default_whatsapp_contact_id?: number | null;
   default_whatsapp_share_scope?: string | null;
+  whatsapp_message_style?: WhatsAppMessageStyle | string | null;
+  whatsapp_include_notes?: number | boolean | null;
+  whatsapp_list_layout?: WhatsAppListLayout | string | null;
   matched_count?: number;
   position?: number;
   active?: number | boolean;

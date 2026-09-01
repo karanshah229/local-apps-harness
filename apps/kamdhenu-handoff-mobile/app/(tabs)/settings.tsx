@@ -21,6 +21,7 @@ import {
 } from 'lucide-react-native';
 import { useUiStore } from '../../src/store/useUiStore';
 import Constants from 'expo-constants';
+import appConfig from '../../app.json';
 import {
   useUsersQuery,
   useUserPreferencesQuery,
@@ -29,8 +30,8 @@ import {
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
-  const appName = Constants.expoConfig?.name ?? 'Kamdhenu Handoff';
+  const appVersion = appConfig.expo?.version ?? Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.3';
+  const appName = appConfig.expo?.name ?? Constants.expoConfig?.name ?? 'Kamdhenu Handoff';
   const { themeMode, setThemeMode, isDarkMode, setIsDarkMode } = useUiStore();
   const systemColorScheme = useColorScheme();
   const { data: users = [] } = useUsersQuery();

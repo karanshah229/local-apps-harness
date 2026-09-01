@@ -53,6 +53,7 @@ interface TaskDetailDrawerProps {
   subtasks: Subtask[];
   onCreateSubtask: (taskId: number, title: string) => void;
   onToggleSubtask: (subtask: Subtask) => void;
+  onUpdateSubtask?: (subtaskId: number, title: string) => void;
   onDeleteSubtask: (subtaskId: number) => void;
   isDarkMode: boolean;
 }
@@ -69,6 +70,7 @@ export default function TaskDetailDrawer({
   subtasks,
   onCreateSubtask,
   onToggleSubtask,
+  onUpdateSubtask,
   onDeleteSubtask,
   isDarkMode
 }: TaskDetailDrawerProps) {
@@ -149,14 +151,33 @@ export default function TaskDetailDrawer({
 
   if (!task) return null;
 
-  const isDone = Boolean(draftIsCompleted);
-  const isImportant = Boolean(draftIsImportant);
-  const effectiveDueDate = draftDueDate;
-  const effectiveReminderTime = draftReminderTime;
-  const effectiveAssigneeId = draftAssigneeId;
-  const effectiveListIds = (draftListIds || []).map((id) => Number(id));
-  const allKnownLists = [...(lists || []), ...(Array.isArray(task.lists) ? task.lists : [])].filter(
-    (v, i, a) => a.findIndex((t: any) => Number(t.id) === Number(v.id)) === i
+  const allKnownLists = useMemo(() => {
+    const listMap = new Map<number, List>();
+    lists.forEach((l) => listMap.set(Number(l.id), l));
+    if (task && Array.isArray(task.lists)) {
+      task.lists.forEach((l: any) => listMap.set(Number(l.id), l));
+    }
+    return Array.from(listMap.values());
+  }, [lists, task]);
+
+  const effectiveListIds = useMemo(() => {
+    if (isDraft) return draftListIds;
+    if (!task) return [];
+    if (Array.isArray(task.list_ids) && task.list_ids.length > 0) return task.list_ids;
+    if (Array.isArray(task.lists) && task.lists.length > 0) return task.lists.map((l: any) => Number(l.id));
+    if (task.list_id) return [Number(task.list_id)];
+    return [];
+  }, [isDraft, draftListIds, task]);
+
+  const effectiveAssigneeId = isDraft ? draftAssigneeId : task?.assigned_to_user_id;
+  const effectiveDueDate = isDraft ? draftDueDate : task?.due_date;
+  const effectiveReminderTime = isDraft ? draftReminderTime : task?.reminder_time;
+  const isDone = Boolean(isDraft ? draftIsCompleted : task?.is_completed);
+  const isStarred = Boolean(isDraft ? draftIsImportant : task?.is_important);
+  const isOverdue = Boolean(
+    effectiveDueDate &&
+      !isDone &&
+      new Date(effectiveDueDate) < new Date(new Date().setHours(0, 0, 0, 0))
   );
   const effectiveLists = allKnownLists.filter((l) => effectiveListIds.includes(Number(l.id)));
   const effectiveSubtasks = isDraft ? draftSubtasks : subtasks;
@@ -199,7 +220,7 @@ export default function TaskDetailDrawer({
     if (isDraft) {
       setDraftSubtasks((prev) => [...prev, { id: Date.now(), title: newStepTitle.trim(), is_completed: 0 }]);
     } else {
-      onCreateSubtask(task.id, newStepTitle.trim());
+      onCreateSubtask(task!.id, newStepTitle.trim());
     }
     setNewStepTitle('');
   };
@@ -211,6 +232,16 @@ export default function TaskDetailDrawer({
       );
     } else {
       onToggleSubtask(step);
+    }
+  };
+
+  const handleUpdateStepTitle = (stepId: number, title: string) => {
+    if (isDraft) {
+      setDraftSubtasks((prev) =>
+        prev.map((s) => (s.id === stepId ? { ...s, title } : s))
+      );
+    } else if (onUpdateSubtask) {
+      onUpdateSubtask(stepId, title);
     }
   };
 
@@ -817,12 +848,12 @@ const getNativeAndroidDateTimePicker = () => {
         >
           <View style={styles.stepsHeaderRow}>
             <Text style={styles.cardSectionLabel}>
-              STEPS CHECKLIST ({completedStepsCount}/{subtasks.length})
+              STEPS CHECKLIST ({completedStepsCount}/{effectiveSubtasks.length})
             </Text>
-            {subtasks.length > 0 && (
+            {effectiveSubtasks.length > 0 && (
               <View style={styles.percentBadge}>
                 <Text style={styles.percentText}>
-                  {Math.round((completedStepsCount / subtasks.length) * 100)}% Done
+                  {Math.round((completedStepsCount / effectiveSubtasks.length) * 100)}% Done
                 </Text>
               </View>
             )}
@@ -830,7 +861,7 @@ const getNativeAndroidDateTimePicker = () => {
 
           {/* Subtasks List */}
           <View style={styles.stepsList}>
-            {subtasks.map((step) => {
+            {effectiveSubtasks.map((step) => {
               const stepDone = Boolean(step.is_completed);
               return (
                 <View
@@ -841,7 +872,7 @@ const getNativeAndroidDateTimePicker = () => {
                   ]}
                 >
                   <TouchableOpacity
-                    onPress={() => onToggleSubtask(step)}
+                    onPress={() => handleToggleStep(step)}
                     style={styles.stepCheckTouch}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel="Toggle step"
@@ -853,18 +884,20 @@ const getNativeAndroidDateTimePicker = () => {
                     )}
                   </TouchableOpacity>
 
-                  <Text
+                  <TextInput
+                    value={step.title}
+                    onChangeText={(text) => handleUpdateStepTitle(step.id, text)}
+                    placeholder="Step name..."
+                    placeholderTextColor={colors.textMuted}
                     style={[
                       styles.stepTitle,
                       { color: colors.text },
                       stepDone && [styles.stepTitleDone, { color: colors.textMuted }]
                     ]}
-                  >
-                    {step.title}
-                  </Text>
+                  />
 
                   <TouchableOpacity
-                    onPress={() => onDeleteSubtask(step.id)}
+                    onPress={() => handleDeleteStep(step.id)}
                     style={styles.stepDeleteTouch}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                     accessibilityLabel="Delete step"

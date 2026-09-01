@@ -1,9 +1,7 @@
-import { Task, Subtask, List, CustomView, User } from './types.js';
+import { Task, Subtask, List, CustomView, User, WhatsAppMessageStyle, WhatsAppFormatConfig } from './types.js';
 import { formatDueDateDDMMYY } from './helpers.js';
 
-export interface WhatsAppFormatOptions {
-  scope?: 'pending' | 'all' | 'current_view';
-}
+export interface WhatsAppFormatOptions extends WhatsAppFormatConfig {}
 
 /**
  * Parses and returns a human-friendly due date string with overdue status warnings.
@@ -66,59 +64,120 @@ export function getTaskListsSummary(task: Task): string | null {
 
 /**
  * Format a single delegated task into a clean, direct WhatsApp message.
- * Pure task details with no external links or app references.
+ * Supports 3 styling systems: Modern (default), Executive, Crisp.
  */
 export function formatSingleTaskMessage(
   task: Task,
   recipient?: { name?: string; phone?: string },
-  subtasks: Subtask[] = []
+  subtasks: Subtask[] = [],
+  config?: WhatsAppFormatConfig
 ): string {
+  const style: WhatsAppMessageStyle = config?.style || 'modern';
+  const includeNotes = config?.includeNotes !== false;
+
   const star = task.is_important ? ' ⭐' : '';
-  const statusEmoji = task.is_completed ? '✅' : '📋';
-
-  let message = `${statusEmoji} *${task.title}*${star}\n`;
-
-  // Due date with overdue alert
   const dueInfo = getFriendlyDueText(task.due_date);
-  if (dueInfo) {
-    const timeStr = task.reminder_time ? ` at ${task.reminder_time}` : '';
-    message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
-  } else if (task.reminder_time) {
-    message += `⏰ *Reminder:* ${task.reminder_time}\n`;
-  }
-
-  // Lists
+  const timeStr = task.reminder_time ? ` at ${task.reminder_time}` : '';
   const listsStr = getTaskListsSummary(task);
-  if (listsStr) {
-    const isMulti = listsStr.includes(',');
-    message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
-  }
 
-  // Assignee
   const isGroup = Boolean(task.assignee_is_group);
-  const assigneeName = recipient?.name || task.assignee_name;
-  if (assigneeName && assigneeName !== 'Unassigned') {
-    if (isGroup) {
-      message += `👥 *Group:* ${assigneeName}\n`;
-    } else {
-      message += `👤 *Assigned to:* ${assigneeName}\n`;
+  const assigneeName = task.assignee_name || (task.assigned_to_user_id ? recipient?.name : undefined);
+  const hasAssignee = Boolean(assigneeName && assigneeName !== 'Unassigned' && assigneeName.toLowerCase() !== 'contact' && assigneeName.trim().length > 0);
+
+  let message = '';
+
+  if (style === 'executive') {
+    // Executive Style: Structured with divider line
+    message += `📌 *${task.title}*${star}\n`;
+    message += `━━━━━━━━━━━━━━━\n`;
+
+    if (dueInfo) {
+      message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
+    } else if (task.reminder_time) {
+      message += `⏰ *Reminder:* ${task.reminder_time}\n`;
     }
-  }
 
-  // Checklist / Steps (full list of steps)
-  if (subtasks && subtasks.length > 0) {
-    const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
-    message += `\n▫️ *Steps (${completedCount}/${subtasks.length}):*\n`;
+    if (listsStr) {
+      const isMulti = listsStr.includes(',');
+      message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
+    }
 
-    subtasks.forEach((st) => {
-      const icon = st.is_completed ? '✅' : '⬜';
-      message += `${icon} ${st.title}\n`;
-    });
-  }
+    if (hasAssignee) {
+      message += isGroup ? `👥 *Group:* ${assigneeName}\n` : `👤 *Assigned to:* ${assigneeName}\n`;
+    }
 
-  // Notes
-  if (task.notes && task.notes.trim()) {
-    message += `\n💬 *Note:* ${task.notes.trim()}\n`;
+    if (subtasks && subtasks.length > 0) {
+      const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
+      message += `\n📋 *Steps (${completedCount}/${subtasks.length}):*\n`;
+      subtasks.forEach((st) => {
+        const check = st.is_completed ? '[✓]' : '[ ]';
+        const title = st.is_completed ? `~${st.title}~` : st.title;
+        message += `${check} ${title}\n`;
+      });
+    }
+
+    if (includeNotes && task.notes && task.notes.trim()) {
+      message += `\n📝 *Note:* ${task.notes.trim()}\n`;
+    }
+  } else if (style === 'crisp') {
+    // Crisp Style: Emoji checkboxes ◻️ and ✅ with clean hierarchy
+    const statusEmoji = task.is_completed ? '✅' : '📋';
+    message += `${statusEmoji} *${task.title}*${star}\n`;
+
+    if (dueInfo) {
+      message += `📅 *Due:* ${dueInfo.text}${timeStr}\n`;
+    } else if (task.reminder_time) {
+      message += `⏰ *Reminder:* ${task.reminder_time}\n`;
+    }
+
+    if (listsStr) {
+      const isMulti = listsStr.includes(',');
+      message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
+    }
+
+    if (hasAssignee) {
+      message += isGroup ? `👥 *Group:* ${assigneeName}\n` : `👤 *Assigned to:* ${assigneeName}\n`;
+    }
+
+    if (subtasks && subtasks.length > 0) {
+      const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
+      message += `\n*Steps (${completedCount}/${subtasks.length}):*\n`;
+      subtasks.forEach((st) => {
+        const icon = st.is_completed ? '✅' : '◻️';
+        const title = st.is_completed ? `~${st.title}~` : st.title;
+        message += `${icon} ${title}\n`;
+      });
+    }
+
+    if (includeNotes && task.notes && task.notes.trim()) {
+      message += `\n💬 *Note:* ${task.notes.trim()}\n`;
+    }
+  } else {
+    // Modern Style (Default): Notion/Linear aesthetic with ○ and ✓
+    message += `*${task.title}*${star}\n`;
+
+    const metaParts: string[] = [];
+    if (dueInfo) metaParts.push(`🗓 ${dueInfo.text}${timeStr}`);
+    if (listsStr) metaParts.push(`📁 ${listsStr}`);
+    if (hasAssignee) metaParts.push(isGroup ? `👥 ${assigneeName}` : `👤 ${assigneeName}`);
+
+    if (metaParts.length > 0) {
+      message += `${metaParts.join(' • ')}\n`;
+    }
+
+    if (subtasks && subtasks.length > 0) {
+      const completedCount = subtasks.filter((s) => Boolean(s.is_completed)).length;
+      message += `\n*Steps (${completedCount}/${subtasks.length}):*\n`;
+      subtasks.forEach((st) => {
+        const bullet = st.is_completed ? '✓' : '○';
+        const title = st.is_completed ? `~${st.title}~` : st.title;
+        message += `${bullet} ${title}\n`;
+      });
+    }
+
+    if (includeNotes && task.notes && task.notes.trim()) {
+      message += `\n💬 _Note:_ ${task.notes.trim()}\n`;
+    }
   }
 
   return message.trim();
@@ -126,49 +185,82 @@ export function formatSingleTaskMessage(
 
 /**
  * Format multiple delegated tasks into a clean task list.
- * Pure task details with no external links or app references.
  */
 export function formatBatchTasksMessage(
-  tasks: Task[]
+  tasks: Task[],
+  config?: WhatsAppFormatConfig
 ): string {
+  const style: WhatsAppMessageStyle = config?.style || 'modern';
+  const includeNotes = config?.includeNotes !== false;
+
   const pendingCount = tasks.filter((t) => !t.is_completed).length;
   const completedCount = tasks.filter((t) => Boolean(t.is_completed)).length;
 
-  let header = `📋 *Tasks (${tasks.length})*\n`;
-  if (completedCount > 0 && pendingCount > 0) {
-    header += `_(${pendingCount} pending, ${completedCount} completed)_\n\n`;
+  let header = '';
+  if (style === 'executive') {
+    header = `📋 *Tasks (${tasks.length})*\n━━━━━━━━━━━━━━━\n`;
+    if (completedCount > 0 && pendingCount > 0) {
+      header += `_(${pendingCount} pending, ${completedCount} completed)_\n\n`;
+    } else {
+      header += `\n`;
+    }
+  } else if (style === 'crisp') {
+    header = `📋 *Tasks (${tasks.length})*\n`;
+    if (completedCount > 0 && pendingCount > 0) {
+      header += `_(${pendingCount} pending, ${completedCount} completed)_\n\n`;
+    } else {
+      header += `\n`;
+    }
   } else {
-    header += `\n`;
+    header = `*Tasks (${tasks.length})*\n`;
+    if (completedCount > 0 && pendingCount > 0) {
+      header += `_(${pendingCount} pending, ${completedCount} completed)_\n\n`;
+    } else {
+      header += `\n`;
+    }
   }
 
   let message = header;
 
   tasks.forEach((task, index) => {
-    const status = task.is_completed ? '✅' : '⬜';
     const star = task.is_important ? '⭐ ' : '';
-    const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
-
-    message += `${index + 1}. ${status} ${star}${title}\n`;
+    const dueInfo = getFriendlyDueText(task.due_date);
+    const listsStr = getTaskListsSummary(task);
+    const hasAssignee = Boolean(task.assignee_name && task.assignee_name !== 'Unassigned');
 
     const tags: string[] = [];
-
-    const dueInfo = getFriendlyDueText(task.due_date);
-    if (dueInfo) {
-      tags.push(`📅 ${dueInfo.text}`);
-    }
-
-    const listsStr = getTaskListsSummary(task);
-    if (listsStr) {
-      tags.push(`📁 ${listsStr}`);
-    }
-
-    if (task.assignee_name && task.assignee_name !== 'Unassigned') {
+    if (dueInfo) tags.push(`🗓 ${dueInfo.text}`);
+    if (listsStr) tags.push(`📁 ${listsStr}`);
+    if (hasAssignee) {
       const icon = task.assignee_is_group ? '👥' : '👤';
       tags.push(`${icon} ${task.assignee_name}`);
     }
 
-    if (tags.length > 0) {
-      message += `   ${tags.join(' • ')}\n`;
+    if (style === 'executive') {
+      const check = task.is_completed ? '[✓]' : '[ ]';
+      const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
+      message += `${index + 1}. ${check} ${star}${title}\n`;
+      if (tags.length > 0) {
+        message += `   ${tags.join(' • ')}\n`;
+      }
+    } else if (style === 'crisp') {
+      const icon = task.is_completed ? '✅' : '◻️';
+      const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
+      message += `${index + 1}. ${icon} ${star}${title}\n`;
+      if (tags.length > 0) {
+        message += `   ${tags.join(' • ')}\n`;
+      }
+    } else {
+      const bullet = task.is_completed ? '✓' : '○';
+      const title = task.is_completed ? `~${task.title}~` : `*${task.title}*`;
+      message += `${bullet} ${star}${title}\n`;
+      if (tags.length > 0) {
+        message += `   _${tags.join(' • ')}_\n`;
+      }
+    }
+
+    if (includeNotes && task.notes && task.notes.trim()) {
+      message += `   💬 _${task.notes.trim()}_\n`;
     }
 
     message += `\n`;
@@ -177,50 +269,87 @@ export function formatBatchTasksMessage(
   return message.trim();
 }
 
-export type WhatsAppListFormatOptions = WhatsAppFormatOptions;
-
 /**
  * Format an entire list of delegated tasks for WhatsApp.
- * Pure task details with no external links or app references.
+ * Supports Modern, Executive, and Crisp styling systems.
  */
 export function formatWholeListMessage(
   list: List | CustomView | { title: string },
   tasks: Task[],
-  options?: WhatsAppListFormatOptions
+  config?: WhatsAppFormatConfig
 ): string {
-  const scope = options?.scope || 'all';
+  const style: WhatsAppMessageStyle = config?.style || 'modern';
+  const includeNotes = config?.includeNotes !== false;
+  const scope = config?.scope || 'all';
 
   const pending = tasks.filter((t) => !t.is_completed);
   const completed = tasks.filter((t) => Boolean(t.is_completed));
 
-  let header = `📁 *${list.title}*`;
-  if (scope === 'pending') {
-    header += ` • Pending Tasks (${pending.length})\n\n`;
-  } else if (scope === 'current_view') {
-    header += ` • Filtered Tasks (${tasks.length})\n\n`;
+  let header = '';
+  if (style === 'executive') {
+    header = `📁 *${list.title}*`;
+    if (scope === 'pending') {
+      header += ` • ${pending.length} pending\n━━━━━━━━━━━━━━━\n\n`;
+    } else if (scope === 'current_view') {
+      header += ` • ${tasks.length} filtered\n━━━━━━━━━━━━━━━\n\n`;
+    } else {
+      header += ` (${tasks.length} total)\n━━━━━━━━━━━━━━━\n\n`;
+    }
+  } else if (style === 'crisp') {
+    header = `📁 *${list.title}*`;
+    if (scope === 'pending') {
+      header += ` (${pending.length} pending)\n\n`;
+    } else if (scope === 'current_view') {
+      header += ` (${tasks.length} filtered)\n\n`;
+    } else {
+      header += ` (${tasks.length} total)\n\n`;
+    }
   } else {
-    header += ` (${tasks.length} total)\n\n`;
+    // Modern
+    header = `📁 *${list.title}*`;
+    if (scope === 'pending') {
+      header += ` • ${pending.length} pending\n\n`;
+    } else if (scope === 'current_view') {
+      header += ` • ${tasks.length} filtered\n\n`;
+    } else {
+      header += ` (${tasks.length} total)\n\n`;
+    }
   }
 
   let message = header;
 
   if (pending.length > 0) {
     if (scope !== 'pending') {
-      message += `*Pending (${pending.length}):*\n`;
+      message += style === 'executive' ? `*Pending (${pending.length}):*\n` : `*Pending (${pending.length}):*\n`;
     }
+
     pending.forEach((t) => {
       const star = t.is_important ? '⭐ ' : '';
-      const tags: string[] = [];
-
       const dueInfo = getFriendlyDueText(t.due_date);
-      if (dueInfo) tags.push(`📅 ${dueInfo.text}`);
-      if (t.assignee_name && t.assignee_name !== 'Unassigned') {
+      const hasAssignee = Boolean(t.assignee_name && t.assignee_name !== 'Unassigned');
+
+      const tags: string[] = [];
+      if (dueInfo) tags.push(`🗓 ${dueInfo.text}`);
+      if (hasAssignee) {
         const icon = t.assignee_is_group ? '👥' : '👤';
         tags.push(`${icon} ${t.assignee_name}`);
       }
 
-      const meta = tags.length > 0 ? ` (${tags.join(' • ')})` : '';
-      message += `• ⬜ ${star}*${t.title}*${meta}\n`;
+      if (style === 'executive') {
+        const meta = tags.length > 0 ? ` _(${tags.join(' • ')})_` : '';
+        message += `[ ] ${star}*${t.title}*${meta}\n`;
+      } else if (style === 'crisp') {
+        const meta = tags.length > 0 ? ` • ${tags.join(' • ')}` : '';
+        message += `◻️ ${star}*${t.title}*${meta}\n`;
+      } else {
+        // Modern
+        const meta = tags.length > 0 ? ` — _${tags.join(' • ')}_` : '';
+        message += `○ ${star}${t.title}${meta}\n`;
+      }
+
+      if (includeNotes && t.notes && t.notes.trim()) {
+        message += `   💬 _${t.notes.trim()}_\n`;
+      }
     });
     message += `\n`;
   }
@@ -228,7 +357,13 @@ export function formatWholeListMessage(
   if (scope !== 'pending' && completed.length > 0) {
     message += `*Completed (${completed.length}):*\n`;
     completed.forEach((t) => {
-      message += `• ✅ ~${t.title}~\n`;
+      if (style === 'executive') {
+        message += `[✓] ~${t.title}~\n`;
+      } else if (style === 'crisp') {
+        message += `✅ ~${t.title}~\n`;
+      } else {
+        message += `✓ ~${t.title}~\n`;
+      }
     });
     message += `\n`;
   }

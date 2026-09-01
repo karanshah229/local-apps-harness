@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { Appearance } from 'react-native';
-import { User, List, Task, WhatsAppPayloadConfig, ViewSortConfig, SortPreferences, DEFAULT_SORT_CONFIG } from '@shared/todo';
+import { User, List, Task, WhatsAppPayloadConfig, ViewSortConfig, SortPreferences, DEFAULT_SORT_CONFIG, WhatsAppMessageStyle } from '@shared/todo';
 
 const getInitialDarkMode = (mode: 'system' | 'light' | 'dark'): boolean => {
   if (mode === 'dark') return true;
@@ -42,6 +42,11 @@ interface UiState {
 
   whatsappConfig: WhatsAppPayloadConfig | null;
   setWhatsappConfig: (config: WhatsAppPayloadConfig | null) => void;
+
+  defaultWhatsAppStyle: WhatsAppMessageStyle;
+  setDefaultWhatsAppStyle: (style: WhatsAppMessageStyle) => void;
+  defaultWhatsAppIncludeNotes: boolean;
+  setDefaultWhatsAppIncludeNotes: (include: boolean) => void;
 
   isListsSheetOpen: boolean;
   setIsListsSheetOpen: (open: boolean) => void;
@@ -116,6 +121,11 @@ export const useUiStore = create<UiState>((set, get) => ({
 
   whatsappConfig: null,
   setWhatsappConfig: (config) => set({ whatsappConfig: config }),
+
+  defaultWhatsAppStyle: 'modern',
+  setDefaultWhatsAppStyle: (style) => set({ defaultWhatsAppStyle: style }),
+  defaultWhatsAppIncludeNotes: true,
+  setDefaultWhatsAppIncludeNotes: (include) => set({ defaultWhatsAppIncludeNotes: include }),
 
   isListsSheetOpen: false,
   setIsListsSheetOpen: (open) => set({ isListsSheetOpen: open }),

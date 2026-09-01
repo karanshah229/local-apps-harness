@@ -221,6 +221,7 @@ export function useAddSubtaskMutation() {
   const mutate = useCallback(({ taskId, title }: { taskId: number; title: string }) => {
     const newStep = localTodoDb.createSubtask(taskId, title);
     notifyDbChange('subtasks');
+    notifyDbChange('tasks');
     return newStep;
   }, []);
 
@@ -235,6 +236,7 @@ export function useUpdateSubtaskMutation() {
   const mutate = useCallback(({ id, taskId, ...data }: Partial<Subtask> & { id: number; taskId: number }) => {
     const updated = localTodoDb.updateSubtask(id, taskId, data);
     notifyDbChange('subtasks');
+    notifyDbChange('tasks');
     return updated;
   }, []);
 
@@ -249,6 +251,7 @@ export function useDeleteSubtaskMutation() {
   const mutate = useCallback(({ id }: { id: number; taskId: number }) => {
     localTodoDb.deleteSubtask(id);
     notifyDbChange('subtasks');
+    notifyDbChange('tasks');
   }, []);
 
   const mutateAsync = useCallback(async (params: { id: number; taskId: number }) => {

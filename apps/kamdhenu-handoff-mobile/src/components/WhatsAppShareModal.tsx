@@ -10,6 +10,7 @@ import {
   StyleSheet,
   Linking,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import {
   Send,
@@ -20,11 +21,15 @@ import {
   MessageSquare,
   X,
   Users,
+  Sparkles,
+  FileText,
+  CheckSquare,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   User,
   WhatsAppPayloadConfig,
+  WhatsAppMessageStyle,
   formatSingleTaskMessage,
   formatBatchTasksMessage,
   formatWholeListMessage,
@@ -62,6 +67,8 @@ export default function WhatsAppShareModal({
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>('modern');
+  const [includeNotes, setIncludeNotes] = useState<boolean>(true);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -73,11 +80,16 @@ export default function WhatsAppShareModal({
       if (config.recipientUserId) {
         setSelectedUserId(config.recipientUserId);
       }
-      fetchPayload(config.recipientUserId || null, config.customPhone || '');
+      fetchPayload(config.recipientUserId || null, config.customPhone || '', selectedStyle, includeNotes);
     }
   }, [isOpen, config]);
 
-  const fetchPayload = async (userId: number | null, customPhone: string) => {
+  const fetchPayload = async (
+    userId: number | null,
+    customPhone: string,
+    style: WhatsAppMessageStyle = selectedStyle,
+    notes: boolean = includeNotes
+  ) => {
     if (!config) return;
     setLoading(true);
     try {
@@ -111,7 +123,12 @@ export default function WhatsAppShareModal({
               targetPhone = task.assignee_phone;
               targetName = task.assignee_name || targetName;
             }
-            generatedMessage = formatSingleTaskMessage(task, { name: targetName, phone: targetPhone }, subtasks);
+            generatedMessage = formatSingleTaskMessage(
+              task,
+              { name: targetName, phone: targetPhone },
+              subtasks,
+              { style, includeNotes: notes }
+            );
             localTodoDb.logWhatsAppMessage({
               taskId: task.id,
               phone: targetPhone,
@@ -122,7 +139,7 @@ export default function WhatsAppShareModal({
         } else if (config.type === 'batch' && config.taskIds && config.taskIds.length > 0) {
           const allTasks = localTodoDb.getTasks();
           const selectedTasks = allTasks.filter((t) => config.taskIds?.includes(t.id));
-          generatedMessage = formatBatchTasksMessage(selectedTasks);
+          generatedMessage = formatBatchTasksMessage(selectedTasks, { style, includeNotes: notes });
           localTodoDb.logWhatsAppMessage({
             taskId: null,
             phone: targetPhone,
@@ -136,7 +153,11 @@ export default function WhatsAppShareModal({
             const tasks = localTodoDb.getTasks({ listId: list.id });
             const scope = (list.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
             const targetTasks = scope === 'pending' ? tasks.filter((t) => !t.is_completed) : tasks;
-            generatedMessage = formatWholeListMessage(list, targetTasks, { scope });
+            generatedMessage = formatWholeListMessage(list, targetTasks, {
+              scope,
+              style,
+              includeNotes: notes,
+            });
             localTodoDb.logWhatsAppMessage({
               taskId: null,
               phone: targetPhone,
@@ -156,15 +177,25 @@ export default function WhatsAppShareModal({
     }
   };
 
+  const handleStyleChange = (newStyle: WhatsAppMessageStyle) => {
+    setSelectedStyle(newStyle);
+    fetchPayload(selectedUserId, recipientPhone, newStyle, includeNotes);
+  };
+
+  const handleNotesToggle = (val: boolean) => {
+    setIncludeNotes(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, val);
+  };
+
   const handleUserSelect = (userId: number | null) => {
     setSelectedUserId(userId);
     const u = users.find((x) => x.id === userId);
-    fetchPayload(userId, u ? u.phone : '');
+    fetchPayload(userId, u ? u.phone : '', selectedStyle, includeNotes);
   };
 
   const handleCustomPhoneChange = (phone: string) => {
     setRecipientPhone(phone);
-    fetchPayload(selectedUserId, phone);
+    fetchPayload(selectedUserId, phone, selectedStyle, includeNotes);
   };
 
   const handleCopy = () => {
@@ -374,6 +405,70 @@ export default function WhatsAppShareModal({
                 onChangeText={handleCustomPhoneChange}
                 keyboardType="phone-pad"
                 style={[styles.phoneInput, { color: colors.text }]}
+              />
+            </View>
+
+            {/* Message Style System */}
+            <Text style={[styles.sectionHeader, { marginTop: 14 }]}>MESSAGE STYLE</Text>
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
+              {(['modern', 'executive', 'crisp'] as const).map((st) => {
+                const isSelected = selectedStyle === st;
+                return (
+                  <TouchableOpacity
+                    key={st}
+                    onPress={() => handleStyleChange(st)}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      paddingHorizontal: 8,
+                      borderRadius: 12,
+                      backgroundColor: isSelected
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.2)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: isSelected ? '#0078d4' : (isDarkMode ? '#e4e4e7' : '#334155'),
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {st}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            {/* Include Notes Toggle */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                borderRadius: 12,
+                backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                borderWidth: 1,
+                borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                marginBottom: 16,
+              }}
+            >
+              <Text style={{ fontSize: 13, fontWeight: '700', color: colors.text }}>
+                Include Task Notes
+              </Text>
+              <Switch
+                value={includeNotes}
+                onValueChange={handleNotesToggle}
+                trackColor={{ false: isDarkMode ? '#3f3f46' : '#cbd5e1', true: '#25D366' }}
+                thumbColor="#ffffff"
               />
             </View>
 

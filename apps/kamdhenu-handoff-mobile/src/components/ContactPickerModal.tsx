@@ -1,11 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   Modal,
-  ScrollView,
+  FlatList,
+  Platform,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
@@ -31,6 +32,85 @@ export const SELF_USER: User = {
   phone: '',
   active: 1,
 };
+
+const ContactPickerItem = React.memo(({
+  user,
+  isSelected,
+  isDarkMode,
+  onSelect,
+}: {
+  user: User;
+  isSelected: boolean;
+  isDarkMode: boolean;
+  onSelect: (user: User) => void;
+}) => {
+  return (
+    <TouchableOpacity
+      onPress={() => onSelect(user)}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        paddingHorizontal: 12,
+        borderRadius: 16,
+        marginBottom: 8,
+        backgroundColor: isSelected
+          ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
+          : (isDarkMode ? '#27272a' : '#f8fafc'),
+        borderWidth: isSelected ? 1.5 : 1,
+        borderColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+      }}
+      activeOpacity={0.7}
+    >
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+        <View
+          style={{
+            width: 38,
+            height: 38,
+            borderRadius: 19,
+            backgroundColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Phone size={18} color={isSelected ? '#ffffff' : '#0078d4'} />
+        </View>
+
+        <View style={{ flex: 1 }}>
+          <Text
+            style={{
+              fontSize: 15,
+              fontWeight: '700',
+              color: isDarkMode ? '#ffffff' : '#0f172a',
+            }}
+            numberOfLines={1}
+          >
+            {user.name}
+          </Text>
+          <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+            {user.phone || user.email || 'No phone'}
+          </Text>
+        </View>
+      </View>
+
+      {isSelected && (
+        <View
+          style={{
+            width: 24,
+            height: 24,
+            borderRadius: 12,
+            backgroundColor: '#25D366',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Check size={14} color="#ffffff" strokeWidth={3} />
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+});
 
 export interface ContactPickerModalProps {
   visible: boolean;
@@ -97,6 +177,218 @@ export function ContactPickerModal({
         return 0;
       });
   }, [individualContacts, searchQuery]);
+
+  const handleSelectUser = useCallback(
+    (user: User) => {
+      onSelectContact(user);
+      onClose();
+    },
+    [onSelectContact, onClose]
+  );
+
+  const renderItem = useCallback(
+    ({ item }: { item: User }) => (
+      <ContactPickerItem
+        user={item}
+        isSelected={selectedContactId === item.id}
+        isDarkMode={isDarkMode}
+        onSelect={handleSelectUser}
+      />
+    ),
+    [selectedContactId, isDarkMode, handleSelectUser]
+  );
+
+  const keyExtractor = useCallback((item: User) => String(item.id), []);
+
+  const ListHeader = useMemo(() => {
+    const isGroupMatch = !searchQuery.trim() || fuzzyMatch('WhatsApp Group', searchQuery);
+    const isSelfMatch = !searchQuery.trim() || fuzzyMatch('Self (You)', searchQuery) || fuzzyMatch('Self', searchQuery);
+
+    return (
+      <View>
+        {/* Option to clear default */}
+        {Boolean(selectedContactId && onClearContact) && (
+          <TouchableOpacity
+            onPress={() => {
+              onClearContact?.();
+              onClose();
+            }}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'center',
+              paddingVertical: 11,
+              borderRadius: 14,
+              marginBottom: 10,
+              backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
+              borderWidth: 1,
+              borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fecaca',
+            }}
+            activeOpacity={0.7}
+          >
+            <Text style={{ fontSize: 13, fontWeight: '700', color: '#ef4444' }}>
+              ✕ Clear Default Contact
+            </Text>
+          </TouchableOpacity>
+        )}
+
+        {/* Item 1: WhatsApp Group */}
+        {isGroupMatch && (
+          <TouchableOpacity
+            onPress={() => handleSelectUser(WHATSAPP_GROUP_USER)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 12,
+              paddingHorizontal: 12,
+              borderRadius: 16,
+              marginBottom: 8,
+              backgroundColor: isGroupSelected
+                ? (isDarkMode ? 'rgba(37, 211, 102, 0.18)' : '#ecfdf5')
+                : (isDarkMode ? '#27272a' : '#f8fafc'),
+              borderWidth: isGroupSelected ? 1.5 : 1,
+              borderColor: isGroupSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isGroupSelected ? '#25D366' : 'rgba(37, 211, 102, 0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Users size={18} color={isGroupSelected ? '#ffffff' : '#25D366'} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    WhatsApp Group
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7',
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
+                  </View>
+                </View>
+                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                  Opens WhatsApp group selector
+                </Text>
+              </View>
+            </View>
+
+            {isGroupSelected && (
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: '#25D366',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Check size={14} color="#ffffff" strokeWidth={3} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+
+        {/* Item 2: Self (You) */}
+        {isSelfMatch && (
+          <TouchableOpacity
+            onPress={() => handleSelectUser(SELF_USER)}
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              paddingVertical: 12,
+              paddingHorizontal: 12,
+              borderRadius: 16,
+              marginBottom: 8,
+              backgroundColor: isSelfSelected
+                ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
+                : (isDarkMode ? '#27272a' : '#f8fafc'),
+              borderWidth: isSelfSelected ? 1.5 : 1,
+              borderColor: isSelfSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+            }}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+              <View
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 19,
+                  backgroundColor: isSelfSelected ? '#25D366' : '#0078d4',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <UserIcon size={18} color="#ffffff" />
+              </View>
+
+              <View style={{ flex: 1 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                    }}
+                    numberOfLines={1}
+                  >
+                    Self (You)
+                  </Text>
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.2)' : '#eff6ff',
+                      paddingHorizontal: 6,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>
+                      You
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                  Opens WhatsApp chat selector
+                </Text>
+              </View>
+            </View>
+
+            {isSelfSelected && (
+              <View
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: 12,
+                  backgroundColor: '#25D366',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Check size={14} color="#ffffff" strokeWidth={3} />
+              </View>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  }, [searchQuery, selectedContactId, onClearContact, isDarkMode, isGroupSelected, isSelfSelected, handleSelectUser, onClose]);
 
   if (!visible) return null;
 
@@ -207,271 +499,20 @@ export function ContactPickerModal({
             )}
           </View>
 
-          {/* Scrollable Options List */}
-          <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 360 }}>
-            {/* Option to clear default */}
-            {Boolean(selectedContactId && onClearContact) && (
-              <TouchableOpacity
-                onPress={() => {
-                  onClearContact?.();
-                  onClose();
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  paddingVertical: 11,
-                  borderRadius: 14,
-                  marginBottom: 10,
-                  backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2',
-                  borderWidth: 1,
-                  borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fecaca',
-                }}
-                activeOpacity={0.7}
-              >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#ef4444' }}>
-                  ✕ Clear Default Contact
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {/* Item 1: WhatsApp Group */}
-            {(!searchQuery.trim() || fuzzyMatch('WhatsApp Group', searchQuery)) && (
-              <TouchableOpacity
-                onPress={() => {
-                  onSelectContact(WHATSAPP_GROUP_USER);
-                  onClose();
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  borderRadius: 16,
-                  marginBottom: 8,
-                  backgroundColor: isGroupSelected
-                    ? (isDarkMode ? 'rgba(37, 211, 102, 0.18)' : '#ecfdf5')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: isGroupSelected ? 1.5 : 1,
-                  borderColor: isGroupSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: isGroupSelected ? '#25D366' : 'rgba(37, 211, 102, 0.15)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Users size={18} color={isGroupSelected ? '#ffffff' : '#25D366'} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                        WhatsApp Group
-                      </Text>
-                      <View
-                        style={{
-                          backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.2)' : '#dcfce7',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
-                      </View>
-                    </View>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                      Opens WhatsApp group selector
-                    </Text>
-                  </View>
-                </View>
-
-                {isGroupSelected && (
-                  <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#25D366',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {/* Item 2: Self (You) */}
-            {(!searchQuery.trim() || fuzzyMatch('Self (You)', searchQuery) || fuzzyMatch('Self', searchQuery)) && (
-              <TouchableOpacity
-                onPress={() => {
-                  onSelectContact(SELF_USER);
-                  onClose();
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  paddingVertical: 12,
-                  paddingHorizontal: 12,
-                  borderRadius: 16,
-                  marginBottom: 8,
-                  backgroundColor: isSelfSelected
-                    ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: isSelfSelected ? 1.5 : 1,
-                  borderColor: isSelfSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: isSelfSelected ? '#25D366' : '#0078d4',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <UserIcon size={18} color="#ffffff" />
-                  </View>
-
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                      <Text
-                        style={{
-                          fontSize: 15,
-                          fontWeight: '700',
-                          color: isDarkMode ? '#ffffff' : '#0f172a',
-                        }}
-                        numberOfLines={1}
-                      >
-                        Self (You)
-                      </Text>
-                      <View
-                        style={{
-                          backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.2)' : '#eff6ff',
-                          paddingHorizontal: 6,
-                          paddingVertical: 2,
-                          borderRadius: 6,
-                        }}
-                      >
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>
-                          You
-                        </Text>
-                      </View>
-                    </View>
-
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                      Opens WhatsApp chat selector
-                    </Text>
-                  </View>
-                </View>
-
-                {isSelfSelected && (
-                  <View
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 12,
-                      backgroundColor: '#25D366',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
-            )}
-
-            {/* Individual Contacts from Library */}
-            {filteredIndividuals.map((u) => {
-              const isSelected = selectedContactId === u.id;
-
-              return (
-                <TouchableOpacity
-                  key={u.id}
-                  onPress={() => {
-                    onSelectContact(u);
-                    onClose();
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    paddingVertical: 12,
-                    paddingHorizontal: 12,
-                    borderRadius: 16,
-                    marginBottom: 8,
-                    backgroundColor: isSelected
-                      ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
-                      : (isDarkMode ? '#27272a' : '#f8fafc'),
-                    borderWidth: isSelected ? 1.5 : 1,
-                    borderColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                    <View
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 19,
-                        backgroundColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Phone size={18} color={isSelected ? '#ffffff' : '#0078d4'} />
-                    </View>
-
-                    <View style={{ flex: 1 }}>
-                      <Text
-                        style={{
-                          fontSize: 15,
-                          fontWeight: '700',
-                          color: isDarkMode ? '#ffffff' : '#0f172a',
-                        }}
-                        numberOfLines={1}
-                      >
-                        {u.name}
-                      </Text>
-                      <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-                        {u.phone || u.email || 'No phone'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {isSelected && (
-                    <View
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 12,
-                        backgroundColor: '#25D366',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                      }}
-                    >
-                      <Check size={14} color="#ffffff" strokeWidth={3} />
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+          {/* Virtualized Options List */}
+          <FlatList
+            data={filteredIndividuals}
+            renderItem={renderItem}
+            keyExtractor={keyExtractor}
+            ListHeaderComponent={ListHeader}
+            showsVerticalScrollIndicator={false}
+            initialNumToRender={15}
+            maxToRenderPerBatch={15}
+            windowSize={5}
+            removeClippedSubviews={Platform.OS === 'android'}
+            keyboardShouldPersistTaps="handled"
+            style={{ maxHeight: 380 }}
+          />
         </View>
       </View>
     </Modal>

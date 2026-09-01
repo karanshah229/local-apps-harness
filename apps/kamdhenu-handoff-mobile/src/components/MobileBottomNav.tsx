@@ -14,6 +14,7 @@ import {
   ListTodo,
   Users
 } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { User, List } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
@@ -74,12 +75,25 @@ export default function MobileBottomNav({
           activeOpacity={0.7}
         >
           <View style={styles.iconWrap}>
-            <CheckSquare
-              size={20}
-              color={isAllTasksActive ? '#0078d4' : colors.textMuted}
-            />
+            {isAllTasksActive ? (
+              <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+                <Rect x="2.5" y="2.5" width="19" height="19" rx="4.5" fill="#0078d4" />
+                <Path
+                  d="M7.5 12.5L10.5 15.5L16.5 8.5"
+                  stroke="#ffffff"
+                  strokeWidth="2.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </Svg>
+            ) : (
+              <CheckSquare
+                size={20}
+                color={colors.textMuted}
+              />
+            )}
             {Boolean(taskCounts['all-tasks'] && taskCounts['all-tasks'] > 0) && (
-              <View style={styles.badge}>
+              <View style={[styles.badge, { backgroundColor: '#f59e0b' }]}>
                 <Text style={styles.badgeText}>{taskCounts['all-tasks']}</Text>
               </View>
             )}
@@ -108,7 +122,7 @@ export default function MobileBottomNav({
             <Star
               size={20}
               color={isImportantActive ? '#742774' : colors.textMuted}
-              fill={isImportantActive ? '#742774' : 'transparent'}
+              fill={isImportantActive ? '#742774' : 'none'}
             />
             {Boolean(taskCounts['important'] && taskCounts['important'] > 0) && (
               <View style={[styles.badge, { backgroundColor: '#742774' }]}>
@@ -140,6 +154,7 @@ export default function MobileBottomNav({
             <UserIcon
               size={20}
               color={isAssignedActive ? '#d83b01' : colors.textMuted}
+              strokeWidth={isAssignedActive ? 2.5 : 2}
             />
             {Boolean(taskCounts['assigned-to-me'] && taskCounts['assigned-to-me'] > 0) && (
               <View style={[styles.badge, { backgroundColor: '#d83b01' }]}>
@@ -173,6 +188,7 @@ export default function MobileBottomNav({
             <ListTodo
               size={20}
               color={(activeView === 'lists' || isCustomListActive) ? '#0078d4' : colors.textMuted}
+              strokeWidth={(activeView === 'lists' || isCustomListActive) ? 2.5 : 2}
             />
             {Boolean(lists.length > 0) && (
               <View style={[styles.badge, { backgroundColor: '#64748b' }]}>

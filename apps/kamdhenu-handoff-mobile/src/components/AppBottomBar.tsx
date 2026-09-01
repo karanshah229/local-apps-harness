@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { CheckSquare, Star, UserCheck, ListTodo, Settings, Layers } from 'lucide-react-native';
+import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { useUiStore } from '../store/useUiStore';
 import {
   useTaskCountsQuery,
@@ -29,10 +30,53 @@ interface DynamicTabItem {
   customViewId?: number;
   listId?: number;
   label: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
+  icon: React.ComponentType<{ size: number; color: string; fill?: string; strokeWidth?: number }>;
   badgeCount: number;
   activeColor: string;
   badgeColor: string;
+}
+
+function renderTabIcon(tab: DynamicTabItem, isFocused: boolean, color: string, inactiveColor: string) {
+  if (tab.key === 'tasks_main') {
+    if (isFocused) {
+      return (
+        <Svg width={20} height={20} viewBox="0 0 24 24" fill="none">
+          <Rect x="2.5" y="2.5" width="19" height="19" rx="4.5" fill={color} />
+          <Path
+            d="M7.5 12.5L10.5 15.5L16.5 8.5"
+            stroke="#ffffff"
+            strokeWidth="2.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </Svg>
+      );
+    }
+    return <CheckSquare size={20} color={inactiveColor} strokeWidth={2} />;
+  }
+
+  if (tab.key === 'pinned_important' || tab.targetScreen === 'important') {
+    return <Star size={20} color={color} fill={isFocused ? color : 'none'} strokeWidth={2} />;
+  }
+
+  if (tab.key === 'pinned_assigned' || tab.targetScreen === 'assigned') {
+    return <UserCheck size={20} color={color} strokeWidth={isFocused ? 2.5 : 2} />;
+  }
+
+  if (tab.key === 'tab_lists_and_views' || tab.type === 'list') {
+    return <ListTodo size={20} color={color} strokeWidth={isFocused ? 2.5 : 2} />;
+  }
+
+  if (tab.type === 'custom_view') {
+    return <Layers size={20} color={color} strokeWidth={isFocused ? 2.5 : 2} />;
+  }
+
+  if (tab.key === 'tab_settings') {
+    return <Settings size={20} color={color} strokeWidth={isFocused ? 2.5 : 2} />;
+  }
+
+  const Icon = tab.icon;
+  return <Icon size={20} color={color} strokeWidth={isFocused ? 2.5 : 2} />;
 }
 
 export function AppBottomBar(props: AppBottomBarProps) {
@@ -78,7 +122,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
       icon: CheckSquare,
       badgeCount: taskCounts['all-tasks'] || 0,
       activeColor: '#0078d4',
-      badgeColor: '#0078d4',
+      badgeColor: '#f59e0b', // Yellow badge background matching filters
     });
 
     // 2. Pinned Views in exact order of pinning
@@ -264,7 +308,6 @@ export function AppBottomBar(props: AppBottomBarProps) {
           isFocused = currentScreenName === tab.targetScreen && !activeCustomViewId && !activeListId;
         }
 
-        const Icon = tab.icon;
         const inactiveColor = isDarkMode ? '#a1a1aa' : '#64748b';
         const color = isFocused ? tab.activeColor : inactiveColor;
 
@@ -281,7 +324,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
             }}
           >
             <View style={{ position: 'relative', width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
-              <Icon size={20} color={color} />
+              {renderTabIcon(tab, isFocused, color, inactiveColor)}
               {tab.badgeCount > 0 && (
                 <View
                   style={{
@@ -289,15 +332,17 @@ export function AppBottomBar(props: AppBottomBarProps) {
                     top: -4,
                     right: -10,
                     backgroundColor: tab.badgeColor,
-                    borderRadius: 8,
+                    borderRadius: 9,
                     paddingHorizontal: 4,
-                    minWidth: 16,
-                    height: 16,
+                    minWidth: 18,
+                    height: 18,
                     alignItems: 'center',
                     justifyContent: 'center',
+                    borderWidth: 1.5,
+                    borderColor: isDarkMode ? '#18181b' : '#ffffff',
                   }}
                 >
-                  <Text style={{ color: '#ffffff', fontSize: 9, fontWeight: '800' }}>
+                  <Text style={{ color: '#ffffff', fontSize: 10, fontWeight: '800' }}>
                     {tab.badgeCount}
                   </Text>
                 </View>

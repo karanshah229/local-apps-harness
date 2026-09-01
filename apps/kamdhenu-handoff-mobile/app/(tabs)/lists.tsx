@@ -63,11 +63,13 @@ import {
   CustomView,
   List,
   User,
+  WhatsAppMessageStyle,
 } from '@shared/todo';
 import { SingleListView } from '../../src/components/SingleListView';
 import { TasksView } from '../../src/components/TasksView';
 import { ListOrViewDropdownModal } from '../../src/components/ListOrViewDropdownModal';
 import { ContactPickerModal } from '../../src/components/ContactPickerModal';
+import { WhatsAppFormatBottomSheet } from '../../src/components/WhatsAppFormatBottomSheet';
 
 interface ListsDirectoryViewProps {
   onSelectList: (id: number) => void;
@@ -161,18 +163,32 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const addUserMutation = useAddUserMutation();
   const updateUserMutation = useUpdateUserMutation();
 
-  // WhatsApp Contact & Scope Picker Modal States for Lists and Views
+  // WhatsApp Contact, Scope & Format Picker Modal States for Lists and Views
   const [dropdownY, setDropdownY] = useState(150);
   const [selectedItemForConfig, setSelectedItemForConfig] = useState<{
     type: 'list' | 'view';
     id: number;
     title: string;
+    color_theme?: string;
     default_whatsapp_contact_id?: number | null;
     default_whatsapp_share_scope?: string | null;
+    whatsapp_message_style?: string | null;
+    whatsapp_include_notes?: number | boolean | null;
   } | null>(null);
   const [showContactPicker, setShowContactPicker] = useState(false);
   const [contactPickerSearch, setContactPickerSearch] = useState('');
   const [showScopePickerModal, setShowScopePickerModal] = useState(false);
+  const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+
+  const liveConfigItem = useMemo(() => {
+    if (!selectedItemForConfig) return null;
+    if (selectedItemForConfig.type === 'view') {
+      const found = customViews.find((v) => v.id === selectedItemForConfig.id);
+      return found ? { ...found, type: 'view' as const } : selectedItemForConfig;
+    }
+    const found = lists.find((l) => l.id === selectedItemForConfig.id);
+    return found ? { ...found, type: 'list' as const } : selectedItemForConfig;
+  }, [selectedItemForConfig, lists, customViews]);
 
   const handleSelectDefaultContact = async (contactId: number | null) => {
     if (!selectedItemForConfig) return;
@@ -211,6 +227,28 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
       setShowScopePickerModal(false);
     } catch (e: any) {
       showAlertDialog('Error', e?.message || 'Failed to update scope');
+    }
+  };
+
+  const handleSaveWhatsAppFormat = async (style: WhatsAppMessageStyle, includeNotes: boolean) => {
+    if (!selectedItemForConfig) return;
+    try {
+      if (selectedItemForConfig.type === 'view') {
+        await updateCustomViewMutation.mutateAsync({
+          id: selectedItemForConfig.id,
+          whatsapp_message_style: style,
+          whatsapp_include_notes: includeNotes ? 1 : 0,
+        });
+      } else {
+        await updateListMutation.mutateAsync({
+          id: selectedItemForConfig.id,
+          whatsapp_message_style: style,
+          whatsapp_include_notes: includeNotes ? 1 : 0,
+        });
+      }
+      setShowFormatPickerModal(false);
+    } catch (e: any) {
+      showAlertDialog('Error', e?.message || 'Failed to update format options');
     }
   };
 
@@ -1016,6 +1054,17 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
           });
           setShowScopePickerModal(true);
         }}
+        onOpenFormatPicker={() => {
+          if (!activeDropdown) return;
+          setSelectedItemForConfig({
+            type: activeDropdown.type,
+            id: activeDropdown.data.id,
+            title: activeDropdown.data.title,
+            default_whatsapp_contact_id: activeDropdown.data.default_whatsapp_contact_id,
+            default_whatsapp_share_scope: activeDropdown.data.default_whatsapp_share_scope,
+          });
+          setShowFormatPickerModal(true);
+        }}
         onTogglePin={() => {
           if (!activeDropdown) return;
           const pinKey = activeDropdown.type === 'view'
@@ -1065,16 +1114,16 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         }}
       />
 
-      {/* Default WhatsApp Contact Picker Modal */}
+      {/* Global Contact Picker Modal for Lists and Views */}
       <ContactPickerModal
         visible={showContactPicker}
         onClose={() => setShowContactPicker(false)}
         title="Default WhatsApp Contact"
-        subtitle={`Choose who receives updates for "${selectedItemForConfig?.title || 'this item'}"`}
-        selectedContactId={selectedItemForConfig?.default_whatsapp_contact_id}
+        subtitle={`Choose who receives updates for "${liveConfigItem?.title || 'this item'}"`}
+        selectedContactId={liveConfigItem?.default_whatsapp_contact_id}
         users={users}
         onSelectContact={(user) => {
-          handleSelectDefaultContact(user.id);
+          handleSelectDefaultContact(user ? user.id : null);
         }}
         onClearContact={() => {
           handleSelectDefaultContact(null);
@@ -1113,7 +1162,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   Tasks to Send
                 </Text>
                 <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                  Choose which tasks to include when sharing "{selectedItemForConfig?.title}" on WhatsApp
+                  Choose which tasks to include when sharing "{liveConfigItem?.title}" on WhatsApp
                 </Text>
               </View>
               <TouchableOpacity
@@ -1136,9 +1185,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: selectedItemForConfig?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
-                  borderColor: selectedItemForConfig?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'pending'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
+                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -1160,11 +1211,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       Pending Tasks
                     </Text>
                     <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Only incomplete tasks in this {selectedItemForConfig?.type === 'view' ? 'view' : 'list'}
+                      Only incomplete tasks in this {liveConfigItem?.type === 'view' ? 'view' : 'list'}
                     </Text>
                   </View>
                 </View>
-                {selectedItemForConfig?.default_whatsapp_share_scope === 'pending' && (
+                {liveConfigItem?.default_whatsapp_share_scope === 'pending' && (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
                     <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
@@ -1180,9 +1231,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: selectedItemForConfig?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
-                  borderColor: selectedItemForConfig?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
+                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -1208,7 +1261,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     </Text>
                   </View>
                 </View>
-                {selectedItemForConfig?.default_whatsapp_share_scope === 'current_view' && (
+                {liveConfigItem?.default_whatsapp_share_scope === 'current_view' && (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
                     <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
@@ -1224,9 +1277,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: selectedItemForConfig?.default_whatsapp_share_scope === 'all' ? 2 : 1,
-                  borderColor: selectedItemForConfig?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
+                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -1252,7 +1307,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     </Text>
                   </View>
                 </View>
-                {selectedItemForConfig?.default_whatsapp_share_scope === 'all' && (
+                {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
                     <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
@@ -1268,9 +1323,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: !selectedItemForConfig?.default_whatsapp_share_scope ? 2 : 1,
-                  borderColor: !selectedItemForConfig?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  backgroundColor: !liveConfigItem?.default_whatsapp_share_scope
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: !liveConfigItem?.default_whatsapp_share_scope ? 2 : 1,
+                  borderColor: !liveConfigItem?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -1296,7 +1353,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     </Text>
                   </View>
                 </View>
-                {!selectedItemForConfig?.default_whatsapp_share_scope && (
+                {!liveConfigItem?.default_whatsapp_share_scope && (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
                     <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
@@ -1306,6 +1363,18 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
           </View>
         </View>
       </Modal>
+
+      {/* WhatsApp Message Format Bottom Sheet */}
+      <WhatsAppFormatBottomSheet
+        visible={showFormatPickerModal}
+        onClose={() => setShowFormatPickerModal(false)}
+        currentStyle={((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) || 'modern'}
+        includeNotes={(liveConfigItem as any)?.whatsapp_include_notes !== 0}
+        onSave={handleSaveWhatsAppFormat}
+        title={`Message Format: ${liveConfigItem?.title || ''}`}
+        isDarkMode={isDarkMode}
+        themePrimary={getThemePrimary(liveConfigItem?.color_theme || 'teal', isDarkMode)}
+      />
 
       {/* Dedicated Rename Modal */}
       {Boolean(renameTarget) && (

@@ -35,8 +35,11 @@ import {
   UserX,
   Star,
   Users,
+  MoreVertical,
+  Sparkles,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from '../../src/components/WhatsAppIcon';
+import { WhatsAppFormatBottomSheet } from '../../src/components/WhatsAppFormatBottomSheet';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useTasksQuery,
@@ -67,6 +70,7 @@ import {
   formatDueDateDDMMYY,
   isTaskOverdue,
   getThemePrimary,
+  WhatsAppMessageStyle,
 } from '@shared/todo';
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -231,6 +235,83 @@ const ListPickerItem = React.memo(({
   );
 });
 
+const StepRowItem = React.memo(({
+  step,
+  isDarkMode,
+  themePrimary,
+  onToggle,
+  onUpdateTitle,
+  onDelete,
+}: {
+  step: { id: number; title: string; is_completed: number | boolean };
+  isDarkMode: boolean;
+  themePrimary: string;
+  onToggle: (id: number, currentCompleted: number | boolean) => void;
+  onUpdateTitle: (id: number, newTitle: string) => void;
+  onDelete: (id: number) => void;
+}) => {
+  const isCompleted = Boolean(step.is_completed);
+
+  return (
+    <View
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        minHeight: 40,
+        paddingVertical: 4,
+        gap: 10,
+      }}
+    >
+      {/* Checkbox ONLY */}
+      <TouchableOpacity
+        onPress={() => onToggle(step.id, step.is_completed)}
+        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        style={{
+          width: 20,
+          height: 20,
+          borderRadius: 6,
+          borderWidth: 2,
+          borderColor: isCompleted ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
+          backgroundColor: isCompleted ? themePrimary : 'transparent',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+        accessibilityLabel={isCompleted ? "Mark step as incomplete" : "Mark step as complete"}
+      >
+        {isCompleted && <Check size={12} color="#ffffff" strokeWidth={3} />}
+      </TouchableOpacity>
+
+      {/* Editable Step Name / Title */}
+      <TextInput
+        value={step.title}
+        onChangeText={(text) => onUpdateTitle(step.id, text)}
+        placeholder="Step name..."
+        placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+        style={{
+          flex: 1,
+          fontSize: 14,
+          fontWeight: '600',
+          color: isDarkMode ? '#ffffff' : '#0f172a',
+          textDecorationLine: isCompleted ? 'line-through' : 'none',
+          paddingVertical: 2,
+          paddingHorizontal: 0,
+        }}
+      />
+
+      {/* Delete button */}
+      <TouchableOpacity
+        onPress={() => onDelete(step.id)}
+        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        style={{ padding: 6 }}
+        accessibilityLabel="Delete step"
+      >
+        <Trash2 size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+      </TouchableOpacity>
+    </View>
+  );
+});
+
 export default function TaskDetailScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{
@@ -297,8 +378,15 @@ export default function TaskDetailScreen() {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showListsModal, setShowListsModal] = useState(false);
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
   const [listSearchQuery, setListSearchQuery] = useState('');
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
+
+  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
+  const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
 
   const addUserMutation = useAddUserMutation();
   const initializedTaskIdRef = useRef<number | string | null>(null);
@@ -410,6 +498,16 @@ export default function TaskDetailScreen() {
     }
   };
 
+  const handleUpdateStepTitle = useCallback((stepId: number, newTitle: string) => {
+    if (isNewTask) {
+      setLocalSteps((prev) =>
+        prev.map((s) => (s.id === stepId ? { ...s, title: newTitle } : s))
+      );
+    } else if (task) {
+      updateSubtaskMutation.mutate({ id: stepId, taskId: task.id, title: newTitle });
+    }
+  }, [isNewTask, task?.id, updateSubtaskMutation]);
+
   const [calendarDate, setCalendarDate] = useState(() => new Date());
 
   const calendarYear = calendarDate.getFullYear();
@@ -520,11 +618,16 @@ export default function TaskDetailScreen() {
     if (!task) return;
     const assignee = users.find((u) => u.id === task.assigned_to_user_id);
     const targetPhone = assignee?.phone;
+    const formatConfig = {
+      style: defaultWhatsAppStyle || 'modern',
+      includeNotes: defaultWhatsAppIncludeNotes !== false,
+    };
     if (!targetPhone) {
       const message = formatSingleTaskMessage(
         task,
-        { name: assignee?.name || 'Contact', phone: '' },
-        serverSubtasks
+        assignee?.name ? { name: assignee.name, phone: '' } : undefined,
+        serverSubtasks,
+        formatConfig
       );
       const url = `whatsapp://send?text=${encodeURIComponent(message)}`;
       Linking.canOpenURL(url).then((supported) => {
@@ -538,8 +641,9 @@ export default function TaskDetailScreen() {
     }
     const message = formatSingleTaskMessage(
       task,
-      { name: assignee?.name || 'Contact', phone: targetPhone },
-      serverSubtasks
+      { name: assignee?.name, phone: targetPhone },
+      serverSubtasks,
+      formatConfig
     );
     const deepLink = generateWhatsAppDeepLink(targetPhone, message);
     Linking.canOpenURL(deepLink).then((supported) => {
@@ -701,35 +805,25 @@ export default function TaskDetailScreen() {
               <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Create</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              onPress={() => {
-                if (!task) return;
-                showConfirmDialog({
-                  title: 'Delete Task',
-                  message: `Are you sure you want to delete "${task.title}"?`,
-                  type: 'danger',
-                  confirmLabel: 'Delete Task',
-                  onConfirm: () => {
-                    deleteTaskMutation.mutate(task.id);
-                    router.back();
-                  },
-                });
-              }}
-              activeOpacity={0.7}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 22,
-                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-              }}
-            >
-              <Trash2 size={18} color="#ef4444" />
-            </TouchableOpacity>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowMoreMenu(true)}
+                activeOpacity={0.7}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 22,
+                  backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                }}
+              >
+                <MoreVertical size={20} color={isDarkMode ? '#ffffff' : '#0f172a'} />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
 
@@ -892,54 +986,15 @@ export default function TaskDetailScreen() {
             </View>
 
             {effectiveSteps.map((step) => (
-              <View
+              <StepRowItem
                 key={step.id}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  minHeight: 40,
-                  paddingVertical: 4,
-                }}
-              >
-                <TouchableOpacity
-                  onPress={() => handleToggleStep(step.id, step.is_completed)}
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}
-                >
-                  <View
-                    style={{
-                      width: 20,
-                      height: 20,
-                      borderRadius: 6,
-                      borderWidth: 2,
-                      borderColor: step.is_completed ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
-                      backgroundColor: step.is_completed ? themePrimary : 'transparent',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    {Boolean(step.is_completed) && <Check size={12} color="#ffffff" strokeWidth={3} />}
-                  </View>
-                  <Text
-                    style={{
-                      fontSize: 14,
-                      fontWeight: '600',
-                      color: isDarkMode ? '#ffffff' : '#0f172a',
-                      textDecorationLine: step.is_completed ? 'line-through' : 'none',
-                    }}
-                  >
-                    {step.title}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => handleDeleteStep(step.id)}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={{ padding: 6 }}
-                >
-                  <Trash2 size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
-                </TouchableOpacity>
-              </View>
+                step={step}
+                isDarkMode={isDarkMode}
+                themePrimary={themePrimary}
+                onToggle={handleToggleStep}
+                onUpdateTitle={handleUpdateStepTitle}
+                onDelete={handleDeleteStep}
+              />
             ))}
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 42, marginTop: 4 }}>
@@ -1711,6 +1766,8 @@ export default function TaskDetailScreen() {
         {!isNewTask && task && (
           <TouchableOpacity
             onPress={handleWhatsAppDirect}
+            onLongPress={() => setShowFormatPickerModal(true)}
+            delayLongPress={350}
             activeOpacity={0.85}
             style={{
               position: 'absolute',
@@ -1733,6 +1790,114 @@ export default function TaskDetailScreen() {
             <WhatsAppIcon size={30} color="#ffffff" />
           </TouchableOpacity>
         )}
+
+        {/* 3-Dot More Menu Modal */}
+        <Modal
+          visible={showMoreMenu}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowMoreMenu(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-start', alignItems: 'flex-end', paddingTop: topInset + 56, paddingRight: 16 }}>
+            <TouchableOpacity
+              style={{ position: 'absolute', top: 0, bottom: 0, left: 0, right: 0 }}
+              activeOpacity={1}
+              onPress={() => setShowMoreMenu(false)}
+            />
+            <View
+              style={{
+                width: 250,
+                backgroundColor: isDarkMode ? '#1e1e24' : '#ffffff',
+                borderRadius: 20,
+                paddingVertical: 8,
+                shadowColor: '#000',
+                shadowOffset: { width: 0, height: 8 },
+                shadowOpacity: 0.25,
+                shadowRadius: 16,
+                elevation: 10,
+                borderWidth: 1,
+                borderColor: isDarkMode ? '#2f2f38' : '#e2e8f0',
+              }}
+            >
+              {/* Option 1: WhatsApp Message Format */}
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMoreMenu(false);
+                  setShowFormatPickerModal(true);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                }}
+                activeOpacity={0.7}
+              >
+                <Sparkles size={18} color="#8b5cf6" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    Message Format
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#8b5cf6', fontWeight: '700', marginTop: 1 }}>
+                    {defaultWhatsAppStyle === 'executive' ? 'Executive' : defaultWhatsAppStyle === 'crisp' ? 'Crisp' : 'Modern (Default)'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Divider */}
+              <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 4 }} />
+
+              {/* Option 2: Delete Task */}
+              <TouchableOpacity
+                onPress={() => {
+                  setShowMoreMenu(false);
+                  if (!task) return;
+                  showConfirmDialog({
+                    title: 'Delete Task',
+                    message: `Are you sure you want to delete "${task.title}"?`,
+                    type: 'danger',
+                    confirmLabel: 'Delete Task',
+                    onConfirm: () => {
+                      deleteTaskMutation.mutate(task.id);
+                      router.back();
+                    },
+                  });
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                }}
+                activeOpacity={0.7}
+              >
+                <Trash2 size={18} color="#ef4444" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#ef4444' }}>
+                  Delete Task
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* WhatsApp Format Bottom Sheet */}
+        <WhatsAppFormatBottomSheet
+          visible={showFormatPickerModal}
+          onClose={() => setShowFormatPickerModal(false)}
+          currentStyle={defaultWhatsAppStyle || 'modern'}
+          includeNotes={defaultWhatsAppIncludeNotes !== false}
+          sampleTask={task}
+          onSave={(style, notes) => {
+            setDefaultWhatsAppStyle(style);
+            setDefaultWhatsAppIncludeNotes(notes);
+            setShowFormatPickerModal(false);
+          }}
+          title="WhatsApp Message Format"
+          isDarkMode={isDarkMode}
+          themePrimary={themePrimary}
+        />
       </View>
     </KeyboardAvoidingView>
   );

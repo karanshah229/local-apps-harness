@@ -9,6 +9,7 @@ import {
   Alert,
   Platform,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -16,13 +17,16 @@ import {
   ArrowLeft,
   Search,
   UserPlus,
+  RefreshCw,
   X,
 } from 'lucide-react-native';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useUsersQuery,
   useAddUserMutation,
+  useBatchImportUsersMutation,
 } from '../../src/hooks/useTodoQueries';
+import { syncDeviceContacts } from '../../src/services/nativeContacts';
 import { User, normalizeToE164, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
 
 const ITEM_HEIGHT = 72;
@@ -116,11 +120,30 @@ export default function ContactsScreen() {
   const [showAddUser, setShowAddUser] = useState(false);
   const [newName, setNewName] = useState('');
   const [newPhone, setNewPhone] = useState('');
-  const [newEmail, setNewEmail] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   const { isDarkMode, showAlertDialog } = useUiStore();
   const { data: users = [] } = useUsersQuery();
   const addUserMutation = useAddUserMutation();
+  const batchImportMutation = useBatchImportUsersMutation();
+
+  const handleRefreshContacts = useCallback(async () => {
+    setIsRefreshing(true);
+    try {
+      const res = await syncDeviceContacts(async (contacts) => {
+        await batchImportMutation.mutateAsync(contacts);
+      }, true);
+      if (res.success) {
+        showAlertDialog('Contacts Synced', 'Successfully refreshed and synced contacts.');
+      } else if (res.error) {
+        showAlertDialog('Sync Contacts', res.error);
+      }
+    } catch {
+      showAlertDialog('Error', 'Failed to refresh contacts.');
+    } finally {
+      setIsRefreshing(false);
+    }
+  }, [batchImportMutation, showAlertDialog]);
 
   const handleAddUser = useCallback(async () => {
     if (!newName.trim()) return;
@@ -128,16 +151,14 @@ export default function ContactsScreen() {
       await addUserMutation.mutateAsync({
         name: newName.trim(),
         phone: normalizeToE164(newPhone.trim()) || newPhone.trim(),
-        email: newEmail.trim() || undefined,
       });
       setNewName('');
       setNewPhone('');
-      setNewEmail('');
       setShowAddUser(false);
     } catch {
       showAlertDialog('Error', 'Failed to add contact.');
     }
-  }, [newName, newPhone, newEmail, addUserMutation, showAlertDialog]);
+  }, [newName, newPhone, addUserMutation, showAlertDialog]);
 
   const filteredUsers = useMemo(() => {
     const q = searchQuery.trim();
@@ -196,7 +217,7 @@ export default function ContactsScreen() {
           <Text style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
             New Contact
           </Text>
-          <TouchableOpacity onPress={() => setShowAddUser(false)}>
+          <TouchableOpacity onPress={() => setShowAddUser(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
             <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
           </TouchableOpacity>
         </View>
@@ -236,25 +257,6 @@ export default function ContactsScreen() {
           }}
         />
 
-        <TextInput
-          placeholder="Email Address (optional)"
-          placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-          value={newEmail}
-          onChangeText={setNewEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          style={{
-            backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-            paddingHorizontal: 12,
-            paddingVertical: 10,
-            borderRadius: 12,
-            borderWidth: 1,
-            borderColor: isDarkMode ? '#3f3f46' : '#cbd5e1',
-            color: isDarkMode ? '#ffffff' : '#0f172a',
-            fontSize: 13,
-          }}
-        />
-
         <TouchableOpacity
           onPress={handleAddUser}
           disabled={!newName.trim()}
@@ -271,7 +273,7 @@ export default function ContactsScreen() {
         </TouchableOpacity>
       </View>
     );
-  }, [showAddUser, isDarkMode, newName, newPhone, newEmail, handleAddUser]);
+  }, [showAddUser, isDarkMode, newName, newPhone, handleAddUser]);
 
   const ListEmpty = useMemo(
     () => (
@@ -286,54 +288,95 @@ export default function ContactsScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}>
-      {/* Header */}
-      <View style={{ paddingHorizontal: 16, paddingTop: 8, paddingBottom: 12 }}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-            <TouchableOpacity
-              onPress={() => router.back()}
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 12,
-                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-              }}
-            >
-              <ArrowLeft size={20} color={isDarkMode ? '#ffffff' : '#0f172a'} />
-            </TouchableOpacity>
+      {/* Header Bar - Consistent with Task Detail Header */}
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingHorizontal: 16,
+          paddingVertical: 12,
+          borderBottomWidth: 1,
+          borderBottomColor: isDarkMode ? '#27272a' : '#f1f5f9',
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            activeOpacity={0.7}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            }}
+          >
+            <ArrowLeft size={20} color={isDarkMode ? '#ffffff' : '#0f172a'} />
+          </TouchableOpacity>
 
-            <View>
-              <Text style={{ fontSize: 22, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                Contacts
-              </Text>
-              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                {users.length} contacts
-              </Text>
-            </View>
+          <View>
+            <Text style={{ fontSize: 17, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              Contacts
+            </Text>
+            <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+              {users.length} contacts
+            </Text>
           </View>
+        </View>
 
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {/* Refresh Button on left of Add Contact button */}
+          <TouchableOpacity
+            onPress={handleRefreshContacts}
+            disabled={isRefreshing}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: 22,
+              backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+              alignItems: 'center',
+              justifyContent: 'center',
+              borderWidth: 1,
+              borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            }}
+            accessibilityLabel="Refresh and sync contacts"
+          >
+            {isRefreshing ? (
+              <ActivityIndicator size="small" color="#0078d4" />
+            ) : (
+              <RefreshCw size={18} color={isDarkMode ? '#ffffff' : '#0f172a'} />
+            )}
+          </TouchableOpacity>
+
+          {/* Add Contact Button */}
           <TouchableOpacity
             onPress={() => setShowAddUser(!showAddUser)}
+            activeOpacity={0.7}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
               gap: 6,
               backgroundColor: '#0078d4',
-              paddingHorizontal: 12,
-              paddingVertical: 8,
-              borderRadius: 12,
+              paddingHorizontal: 14,
+              height: 44,
+              borderRadius: 22,
             }}
           >
-            <UserPlus size={15} color="#ffffff" />
+            <UserPlus size={16} color="#ffffff" />
             <Text style={{ fontSize: 13, fontWeight: '800', color: '#ffffff' }}>Add Contact</Text>
           </TouchableOpacity>
         </View>
+      </View>
 
-        {/* Search Bar */}
+      {/* Search Bar */}
+      <View style={{ paddingHorizontal: 16, paddingTop: 12, paddingBottom: 8 }}>
         <View
           style={{
             flexDirection: 'row',
@@ -343,8 +386,7 @@ export default function ContactsScreen() {
             borderWidth: 1,
             borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
             paddingHorizontal: 12,
-            paddingVertical: 8,
-            marginTop: 14,
+            height: 44,
           }}
         >
           <Search size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 8 }} />
@@ -362,7 +404,7 @@ export default function ContactsScreen() {
             }}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
+            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
               <X size={14} color={isDarkMode ? '#71717a' : '#94a3b8'} />
             </TouchableOpacity>
           )}

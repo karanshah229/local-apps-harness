@@ -51,6 +51,7 @@ import { ContactPickerModal, WHATSAPP_GROUP_USER, SELF_USER } from './ContactPic
 import { SortModal } from './SortModal';
 import { FilterBottomSheet } from './FilterBottomSheet';
 import { ListOrViewDropdownModal } from './ListOrViewDropdownModal';
+import { WhatsAppFormatBottomSheet } from './WhatsAppFormatBottomSheet';
 import { useUiStore } from '../store/useUiStore';
 import {
   useTasksQuery,
@@ -95,6 +96,7 @@ import {
   formatDueDateDisplay,
   formatDueDateDDMMYY,
   isTaskOverdue,
+  WhatsAppMessageStyle,
 } from '@shared/todo';
 
 function hexToRgba(hex: string, alpha: number): string {
@@ -377,7 +379,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const [showLongPressShareModal, setShowLongPressShareModal] = useState(false);
   const [shareScope, setShareScope] = useState<'pending' | 'all' | 'current_view'>('pending');
   const [longPressRecipient, setLongPressRecipient] = useState<User | null>(null);
-  const pendingContactRef = useRef<User | null>(null);
+  const pendingContactRef = useRef<{ id?: number; name?: string; phone?: string; is_group?: number | boolean } | null>(null);
 
   // Filter States
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
@@ -467,6 +469,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     updatePrefs.mutate({ sort_preferences: updated });
   }, [viewKey, sortPreferences, setViewSort, updatePrefs]);
 
+  const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
+  const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
 
   const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
   const isListPinned = Boolean(activeList && pinnedViews.includes(`list:${activeList.id}`));
@@ -666,7 +673,12 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [activeList?.default_whatsapp_share_scope]);
 
   const executeShareWithContactAndScope = useCallback(
-    (contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean }, chosenScope: 'pending' | 'all' | 'current_view') => {
+    (
+      contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean },
+      chosenScope: 'pending' | 'all' | 'current_view',
+      overrideStyle?: WhatsAppMessageStyle,
+      overrideNotes?: boolean
+    ) => {
       if (!activeList || !contact) return;
 
       let targetTasks: Task[] = [];
@@ -686,10 +698,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         return;
       }
 
-      const message = formatWholeListMessage(activeList, targetTasks, { scope: chosenScope });
+      const styleToUse = overrideStyle || (activeList as any).whatsapp_message_style || defaultWhatsAppStyle || 'modern';
+      const notesToUse = overrideNotes !== undefined ? overrideNotes : (activeList as any).whatsapp_include_notes !== 0;
+
+      const message = formatWholeListMessage(activeList, targetTasks, {
+        scope: chosenScope,
+        style: styleToUse,
+        includeNotes: notesToUse,
+      });
       openWhatsAppWithMessage(contact.phone || '', message);
     },
-    [activeList, tasks, filteredTasks, openWhatsAppWithMessage, showAlertDialog]
+    [activeList, tasks, filteredTasks, defaultWhatsAppStyle, openWhatsAppWithMessage, showAlertDialog]
   );
 
   const handleWhatsAppList = useCallback(() => {
@@ -711,20 +730,27 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     }
 
     if (!defaultContact) {
-      // Ask for default WhatsApp contact if not selected
+      // Step 1: Ask for default WhatsApp contact
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
       return;
     }
 
-    // 2. Ask for Tasks to send option first time only (if not yet chosen)
+    // 2. Step 2: Ask for Tasks to send option first time only (if not yet chosen)
     if (!activeList.default_whatsapp_share_scope) {
       pendingContactRef.current = defaultContact;
       setShowScopePickerModal(true);
       return;
     }
 
-    // Both are set -> send immediately
+    // 3. Step 3: Ask for Message format option first time only (if not yet chosen)
+    if (!(activeList as any).whatsapp_message_style) {
+      pendingContactRef.current = defaultContact;
+      setShowFormatPickerModal(true);
+      return;
+    }
+
+    // All set -> send immediately
     executeShareWithContactAndScope(
       defaultContact,
       activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
@@ -745,19 +771,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
       if (isSharingFromPicker && user) {
         setIsSharingFromPicker(false);
-        // Ask for Tasks to send option first time only if not yet set
+        pendingContactRef.current = user;
+        // Advance to step 2: Tasks to send
         if (!activeList.default_whatsapp_share_scope) {
-          pendingContactRef.current = user;
           setShowScopePickerModal(true);
         } else {
-          executeShareWithContactAndScope(
-            user,
-            activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
-          );
+          // Advance to step 3: Format bottom sheet
+          setShowFormatPickerModal(true);
         }
       }
     },
-    [activeList, isSharingFromPicker, updateListMutation, executeShareWithContactAndScope]
+    [activeList, isSharingFromPicker, updateListMutation]
   );
 
   const handleChooseTasksToSendScope = useCallback(
@@ -770,22 +794,36 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       });
       setShowScopePickerModal(false);
 
-      const contact =
-        pendingContactRef.current ||
-        (activeList.default_whatsapp_contact_id
-          ? users.find((u) => u.id === activeList.default_whatsapp_contact_id)
-          : null) ||
-        (activeList.default_whatsapp_contact_phone
-          ? { name: activeList.default_whatsapp_contact_name || 'Contact', phone: activeList.default_whatsapp_contact_phone }
-          : null);
-
-      pendingContactRef.current = null;
-
-      if (contact?.phone) {
-        executeShareWithContactAndScope(contact, scope);
+      if (pendingContactRef.current) {
+        // Advance to step 3: Format bottom sheet
+        setShowFormatPickerModal(true);
       }
     },
-    [activeList, users, updateListMutation, executeShareWithContactAndScope]
+    [activeList, updateListMutation]
+  );
+
+  const handleSaveWhatsAppFormat = useCallback(
+    (style: WhatsAppMessageStyle, includeNotes: boolean) => {
+      if (!activeList) return;
+      updateListMutation.mutate({
+        id: activeList.id,
+        whatsapp_message_style: style,
+        whatsapp_include_notes: includeNotes ? 1 : 0,
+      });
+      setShowFormatPickerModal(false);
+
+      const contact = pendingContactRef.current;
+      pendingContactRef.current = null;
+      if (contact) {
+        executeShareWithContactAndScope(
+          contact,
+          (activeList.default_whatsapp_share_scope as any) || shareScope || 'pending',
+          style,
+          includeNotes
+        );
+      }
+    },
+    [activeList, updateListMutation, shareScope, executeShareWithContactAndScope]
   );
 
   const handleSelectShareScope = useCallback(
@@ -807,8 +845,19 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     setShareScope(initialScope);
 
     let recipient: User | null = null;
-    if (activeList.default_whatsapp_contact_id) {
+    if (activeList.default_whatsapp_contact_id === -1) {
+      recipient = WHATSAPP_GROUP_USER;
+    } else if (activeList.default_whatsapp_contact_id === 1) {
+      recipient = SELF_USER;
+    } else if (activeList.default_whatsapp_contact_id) {
       recipient = users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
+    } else if (activeList.default_whatsapp_contact_phone) {
+      recipient = {
+        id: 0,
+        name: activeList.default_whatsapp_contact_name || 'Contact',
+        email: '',
+        phone: activeList.default_whatsapp_contact_phone,
+      };
     } else {
       const assignedUserIds = tasks
         .map((t) => t.assigned_to_user_id)
@@ -926,14 +975,26 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     const message = formatWholeListMessage(activeList, targetTasks, { scope: shareScope });
     setShowLongPressShareModal(false);
 
-    const recipientPhone = longPressRecipient?.phone || activeList.default_whatsapp_contact_phone;
-    if (recipientPhone) {
-      openWhatsAppWithMessage(recipientPhone, message);
+    const recipient =
+      longPressRecipient ||
+      (activeList.default_whatsapp_contact_id === -1
+        ? WHATSAPP_GROUP_USER
+        : activeList.default_whatsapp_contact_id === 1
+        ? SELF_USER
+        : activeList.default_whatsapp_contact_id
+        ? users.find((u) => u.id === activeList.default_whatsapp_contact_id)
+        : null) ||
+      (activeList.default_whatsapp_contact_phone
+        ? { name: activeList.default_whatsapp_contact_name || 'Contact', phone: activeList.default_whatsapp_contact_phone }
+        : null);
+
+    if (recipient) {
+      openWhatsAppWithMessage(recipient.phone || '', message);
     } else {
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
     }
-  }, [activeList, shareScope, tasks, filteredTasks, longPressRecipient, openWhatsAppWithMessage]);
+  }, [activeList, shareScope, tasks, filteredTasks, longPressRecipient, users, openWhatsAppWithMessage, showAlertDialog]);
 
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
 
@@ -1203,6 +1264,28 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 />
               )}
             </TouchableOpacity>
+
+            {/* Universal Clear All Filters, Search & Sort Button */}
+            {(activeFiltersCount > 0 || currentSort.field !== 'smart' || searchQuery.trim().length > 0) && (
+              <TouchableOpacity
+                onPress={handleResetFilters}
+                activeOpacity={0.7}
+                style={{
+                  height: 52,
+                  paddingHorizontal: 12,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fca5a5',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 5,
+                }}
+              >
+                <RotateCcw size={16} color="#ef4444" />
+                <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>Clear</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Active Filter & Sort Indicator Chips */}
@@ -1220,28 +1303,36 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 </TouchableOpacity>
               )}
               {filterStatus !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterStatus('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Status: {filterStatus}</Text>
-                </View>
+                  <X size={12} color={themePrimary} />
+                </TouchableOpacity>
               )}
               {filterImportance !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterImportance('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>{filterImportance}</Text>
-                </View>
+                  <X size={12} color="#f59e0b" />
+                </TouchableOpacity>
               )}
               {filterDue !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Due: {filterDue}</Text>
-                </View>
-              )}
-              {activeFiltersCount > 0 && (
                 <TouchableOpacity
-                  onPress={handleResetFilters}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={{ paddingHorizontal: 8, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                  onPress={() => setFilterDue('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
                 >
-                  <RotateCcw size={12} color="#ef4444" />
-                  <Text style={{ fontSize: 11, fontWeight: '700', color: '#ef4444' }}>Clear</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Due: {filterDue}</Text>
+                  <X size={12} color={themePrimary} />
                 </TouchableOpacity>
               )}
             </View>
@@ -1561,6 +1652,9 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         }}
         onOpenScopePicker={() => {
           setShowScopePickerModal(true);
+        }}
+        onOpenFormatPicker={() => {
+          setShowFormatPickerModal(true);
         }}
         onTogglePin={() => {
           if (activeList) {
@@ -2066,9 +2160,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: 1.5,
-                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                  backgroundColor: shareScope === 'pending'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: shareScope === 'pending' ? 2 : 1,
+                  borderColor: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -2099,10 +2195,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     </Text>
                   </View>
                 </View>
-                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                    {pendingTasks.length}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      {pendingTasks.length}
+                    </Text>
+                  </View>
+                  {shareScope === 'pending' && (
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={14} color="#ffffff" strokeWidth={3} />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -2115,9 +2218,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: 1.5,
-                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                  backgroundColor: shareScope === 'all'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: shareScope === 'all' ? 2 : 1,
+                  borderColor: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -2143,10 +2248,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     </Text>
                   </View>
                 </View>
-                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                    {tasks.length}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      {tasks.length}
+                    </Text>
+                  </View>
+                  {shareScope === 'all' && (
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={14} color="#ffffff" strokeWidth={3} />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
 
@@ -2159,9 +2271,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                  borderWidth: 1.5,
-                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                  backgroundColor: shareScope === 'current_view'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: shareScope === 'current_view' ? 2 : 1,
+                  borderColor: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
                 activeOpacity={0.7}
               >
@@ -2187,16 +2301,35 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     </Text>
                   </View>
                 </View>
-                <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                  <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                    {filteredTasks.length}
-                  </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
+                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      {filteredTasks.length}
+                    </Text>
+                  </View>
+                  {shareScope === 'current_view' && (
+                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <Check size={14} color="#ffffff" strokeWidth={3} />
+                    </View>
+                  )}
                 </View>
               </TouchableOpacity>
             </View>
           </View>
         </View>
       </Modal>
+
+      {/* WhatsApp Message Format Bottom Sheet */}
+      <WhatsAppFormatBottomSheet
+        visible={showFormatPickerModal}
+        onClose={() => setShowFormatPickerModal(false)}
+        currentStyle={((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern'}
+        includeNotes={(activeList as any)?.whatsapp_include_notes !== 0}
+        onSave={handleSaveWhatsAppFormat}
+        title={`Message Format: ${activeList?.title || 'List'}`}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+      />
 
       {/* Long Press WhatsApp Share Dialog */}
       <Modal
@@ -2445,6 +2578,69 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   {filteredTasks.length}
                 </Text>
               </TouchableOpacity>
+            </View>
+
+            {/* Section 3: Message Format */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                Message Format
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLongPressShareModal(false);
+                  setShowFormatPickerModal(true);
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '800', color: '#8b5cf6' }}>
+                  Customize & Preview
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+              {(['modern', 'executive', 'crisp'] as const).map((st) => {
+                const currentSt = ((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern';
+                const isSelected = currentSt === st;
+                return (
+                  <TouchableOpacity
+                    key={st}
+                    onPress={() => {
+                      if (activeList) {
+                        updateListMutation.mutate({
+                          id: activeList.id,
+                          whatsapp_message_style: st,
+                        });
+                      }
+                      setDefaultWhatsAppStyle(st);
+                    }}
+                    style={{
+                      flex: 1,
+                      paddingVertical: 10,
+                      paddingHorizontal: 6,
+                      borderRadius: 14,
+                      backgroundColor: isSelected
+                        ? (isDarkMode ? 'rgba(139, 92, 246, 0.2)' : '#f5f3ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: isSelected ? 2 : 1,
+                      borderColor: isSelected ? '#8b5cf6' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      alignItems: 'center',
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontWeight: '800',
+                        color: isSelected ? '#8b5cf6' : (isDarkMode ? '#e4e4e7' : '#334155'),
+                        textTransform: 'capitalize',
+                      }}
+                    >
+                      {st}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
 
             {/* Action CTA Button */}

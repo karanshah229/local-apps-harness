@@ -52,6 +52,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUiStore } from '../store/useUiStore';
 import { ListOrViewDropdownModal } from './ListOrViewDropdownModal';
+import { WhatsAppFormatBottomSheet } from './WhatsAppFormatBottomSheet';
 import { ContactPickerModal, WHATSAPP_GROUP_USER, SELF_USER } from './ContactPickerModal';
 import {
   useTasksQuery,
@@ -96,6 +97,7 @@ import {
   formatDueDateDisplay,
   formatDueDateDDMMYY,
   isTaskOverdue,
+  WhatsAppMessageStyle,
 } from '@shared/todo';
 import { SortModal } from './SortModal';
 import { FilterBottomSheet } from './FilterBottomSheet';
@@ -232,19 +234,22 @@ const TaskItem = React.memo(({
                   </View>
                 );
               })()}
-              {task.lists?.map((l) => (
-                <View
-                  key={l.id}
-                  style={{
-                    backgroundColor: hexToRgba(themePrimary, 0.12),
-                    paddingHorizontal: 7,
-                    paddingVertical: 2.5,
-                    borderRadius: 6,
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: themePrimary }}>{l.title}</Text>
-                </View>
-              ))}
+              {task.lists?.map((l) => {
+                const listColor = getThemePrimary((l as any).color_theme || (l as any).theme_color, isDarkMode);
+                return (
+                  <View
+                    key={l.id}
+                    style={{
+                      backgroundColor: hexToRgba(listColor, isDarkMode ? 0.2 : 0.12),
+                      paddingHorizontal: 7,
+                      paddingVertical: 2.5,
+                      borderRadius: 6,
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: listColor }}>{l.title}</Text>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -420,6 +425,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
+  const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
 
   const effectiveView = fixedCustomViewId ? 'all-tasks' : (fixedView || storeView || 'all-tasks');
   const effectiveListId = (fixedView || fixedCustomViewId) ? null : activeListId;
@@ -931,7 +939,12 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, []);
 
   const executeShareWithContactAndScope = useCallback(
-    (contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean }, chosenScope: 'pending' | 'all' | 'current_view') => {
+    (
+      contact: { id?: number; name?: string; phone?: string; is_group?: number | boolean },
+      chosenScope: 'pending' | 'all' | 'current_view',
+      overrideStyle?: WhatsAppMessageStyle,
+      overrideNotes?: boolean
+    ) => {
       if (!customView || !contact) return;
 
       let targetTasks: Task[] = [];
@@ -951,10 +964,17 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         return;
       }
 
-      const message = formatWholeListMessage(customView, targetTasks, { scope: chosenScope });
+      const styleToUse = overrideStyle || (customView as any).whatsapp_message_style || defaultWhatsAppStyle || 'modern';
+      const notesToUse = overrideNotes !== undefined ? overrideNotes : (customView as any).whatsapp_include_notes !== 0;
+
+      const message = formatWholeListMessage(customView, targetTasks, {
+        scope: chosenScope,
+        style: styleToUse,
+        includeNotes: notesToUse,
+      });
       openWhatsAppWithMessage(contact.phone || '', message);
     },
-    [customView, tasks, filteredTasks, openWhatsAppWithMessage, showAlertDialog]
+    [customView, tasks, filteredTasks, defaultWhatsAppStyle, openWhatsAppWithMessage, showAlertDialog]
   );
 
   const handleWhatsAppView = useCallback(() => {
@@ -974,14 +994,23 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     }
 
     if (!defContact) {
+      // Step 1: Contact
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
       return;
     }
 
     if (!customView.default_whatsapp_share_scope) {
+      // Step 2: Scope
       pendingContactRef.current = defContact;
       setShowScopePickerModal(true);
+      return;
+    }
+
+    if (!(customView as any)?.whatsapp_message_style) {
+      // Step 3: Format
+      pendingContactRef.current = defContact;
+      setShowFormatPickerModal(true);
       return;
     }
 
@@ -1002,18 +1031,15 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
       if (isSharingFromPicker && user) {
         setIsSharingFromPicker(false);
+        pendingContactRef.current = user;
         if (!customView?.default_whatsapp_share_scope) {
-          pendingContactRef.current = user;
           setShowScopePickerModal(true);
         } else {
-          executeShareWithContactAndScope(
-            user,
-            customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
-          );
+          setShowFormatPickerModal(true);
         }
       }
     },
-    [fixedCustomViewId, isSharingFromPicker, customView, updateCustomViewMutation, executeShareWithContactAndScope]
+    [fixedCustomViewId, isSharingFromPicker, customView, updateCustomViewMutation]
   );
 
   const handleChooseTasksToSendScope = useCallback(
@@ -1025,16 +1051,32 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       });
       setShowScopePickerModal(false);
 
-      if (pendingContactRef.current && scope) {
-        const contact = pendingContactRef.current;
-        pendingContactRef.current = null;
-        executeShareWithContactAndScope(
-          contact,
-          scope as 'pending' | 'all' | 'current_view'
-        );
+      if (pendingContactRef.current) {
+        // Advance to step 3: Format bottom sheet
+        setShowFormatPickerModal(true);
       }
     },
-    [fixedCustomViewId, updateCustomViewMutation, executeShareWithContactAndScope]
+    [fixedCustomViewId, updateCustomViewMutation]
+  );
+
+  const handleSaveWhatsAppFormat = useCallback(
+    (style: WhatsAppMessageStyle, includeNotes: boolean) => {
+      if (!fixedCustomViewId) return;
+      updateCustomViewMutation.mutate({
+        id: fixedCustomViewId,
+        whatsapp_message_style: style,
+        whatsapp_include_notes: includeNotes ? 1 : 0,
+      });
+      setShowFormatPickerModal(false);
+
+      const contact = pendingContactRef.current;
+      pendingContactRef.current = null;
+      if (contact) {
+        const scope = (customView?.default_whatsapp_share_scope || 'pending') as 'pending' | 'all' | 'current_view';
+        executeShareWithContactAndScope(contact, scope, style, includeNotes);
+      }
+    },
+    [fixedCustomViewId, customView, updateCustomViewMutation, executeShareWithContactAndScope]
   );
 
   const ListHeader = useMemo(() => (
@@ -1388,38 +1430,58 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                 </TouchableOpacity>
               )}
               {filterStatus !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterStatus('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Status: {filterStatus}</Text>
-                </View>
+                  <X size={12} color={themePrimary} />
+                </TouchableOpacity>
               )}
               {effectiveView !== 'important' && filterImportance !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterImportance('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>{filterImportance}</Text>
-                </View>
+                  <X size={12} color="#f59e0b" />
+                </TouchableOpacity>
               )}
               {filterDue !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: 'rgba(2,132,199,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterDue('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: 'rgba(2,132,199,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#0284c7' }}>Due: {dueLabel}</Text>
-                </View>
+                  <X size={12} color="#0284c7" />
+                </TouchableOpacity>
               )}
               {filterListId !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: 'rgba(168,85,247,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setFilterListId('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: 'rgba(168,85,247,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
+                >
                   <Text style={{ fontSize: 11, fontWeight: '800', color: '#a855f7' }}>List: {listLabel}</Text>
-                </View>
+                  <X size={12} color="#a855f7" />
+                </TouchableOpacity>
               )}
               {effectiveView !== 'assigned-to-me' && filterAssigneeId !== 'all' && (
-                <View style={{ minHeight: 32, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#10b981' }}>Assignee: {assigneeLabel}</Text>
-                </View>
-              )}
-              {activeFiltersCount > 0 && (
                 <TouchableOpacity
-                  onPress={handleClearAllFiltersAndSort}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  style={{ minHeight: 32, flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 6 }}
+                  onPress={() => setFilterAssigneeId('all')}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                  style={{ minHeight: 32, backgroundColor: 'rgba(16,185,129,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
                 >
-                  <RotateCcw size={12} color="#ef4444" />
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#ef4444' }}>Reset</Text>
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#10b981' }}>Assignee: {assigneeLabel}</Text>
+                  <X size={12} color="#10b981" />
                 </TouchableOpacity>
               )}
             </View>
@@ -1561,6 +1623,8 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       {Boolean(fixedCustomViewId) && tasks.length > 0 && (
         <TouchableOpacity
           onPress={handleWhatsAppView}
+          onLongPress={() => setShowFormatPickerModal(true)}
+          delayLongPress={350}
           activeOpacity={0.85}
           style={{
             position: 'absolute',
@@ -1626,15 +1690,13 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
           onOpenScopePicker={() => {
             setShowScopePickerModal(true);
           }}
+          onOpenFormatPicker={() => {
+            setShowFormatPickerModal(true);
+          }}
           onTogglePin={() => {
             if (fixedCustomViewId) {
               togglePinViewMutation.mutate(`custom_view:${fixedCustomViewId}`);
             }
-          }}
-          onEditFilters={() => {
-            setEditViewTitle(customView?.title || '');
-            setEditViewTheme(customView?.color_theme || 'teal');
-            setShowEditCustomViewModal(true);
           }}
           onRename={() => {
             setEditViewTitle(customView?.title || '');
@@ -1793,7 +1855,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  backgroundColor: customView?.default_whatsapp_share_scope === 'pending'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
                   borderWidth: customView?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
                   borderColor: customView?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
@@ -1837,7 +1901,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  backgroundColor: customView?.default_whatsapp_share_scope === 'current_view'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
                   borderWidth: customView?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
                   borderColor: customView?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
@@ -1881,7 +1947,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  backgroundColor: customView?.default_whatsapp_share_scope === 'all'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
                   borderWidth: customView?.default_whatsapp_share_scope === 'all' ? 2 : 1,
                   borderColor: customView?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
@@ -1925,7 +1993,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  backgroundColor: !customView?.default_whatsapp_share_scope
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
                   borderWidth: !customView?.default_whatsapp_share_scope ? 2 : 1,
                   borderColor: !customView?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                 }}
@@ -1963,6 +2033,18 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
           </View>
         </View>
       </Modal>
+
+      {/* WhatsApp Message Format Bottom Sheet */}
+      <WhatsAppFormatBottomSheet
+        visible={showFormatPickerModal}
+        onClose={() => setShowFormatPickerModal(false)}
+        currentStyle={((customView as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern'}
+        includeNotes={(customView as any)?.whatsapp_include_notes !== 0}
+        onSave={handleSaveWhatsAppFormat}
+        title={`Message Format: ${customView?.title || 'View'}`}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+      />
 
       {/* Quick Rename Custom View Modal */}
       {Boolean(fixedCustomViewId) && (

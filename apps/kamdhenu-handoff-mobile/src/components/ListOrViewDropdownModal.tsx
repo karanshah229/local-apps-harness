@@ -17,6 +17,7 @@ import {
   Pin,
   PinOff,
   Layers,
+  Sparkles,
 } from 'lucide-react-native';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { getThemePrimary, List, CustomView, User } from '@shared/todo';
@@ -38,11 +39,11 @@ export interface ListOrViewDropdownModalProps {
   topOffset?: number;
   onOpenContactPicker: () => void;
   onOpenScopePicker: () => void;
+  onOpenFormatPicker?: () => void;
   onTogglePin: () => void;
   onRename: () => void;
   onChangeTheme: () => void;
   onDelete: () => void;
-  onEditFilters?: () => void;
 }
 
 export function ListOrViewDropdownModal({
@@ -56,11 +57,11 @@ export function ListOrViewDropdownModal({
   topOffset,
   onOpenContactPicker,
   onOpenScopePicker,
+  onOpenFormatPicker,
   onTogglePin,
   onRename,
   onChangeTheme,
   onDelete,
-  onEditFilters,
 }: ListOrViewDropdownModalProps) {
   const insets = useSafeAreaInsets();
   const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
@@ -84,6 +85,12 @@ export function ListOrViewDropdownModal({
     : item.default_whatsapp_share_scope === 'pending'
     ? 'Pending Tasks'
     : 'Not set (Ask on send)';
+
+  const styleLabel = (item as any).whatsapp_message_style === 'executive'
+    ? 'Executive'
+    : (item as any).whatsapp_message_style === 'crisp'
+    ? 'Crisp'
+    : 'Modern (Default)';
 
   const calculatedPaddingTop = topOffset !== undefined
     ? Math.max(topInset + 40, Math.min(topOffset - 10, 480))
@@ -191,6 +198,37 @@ export function ListOrViewDropdownModal({
           {/* Divider */}
           <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
 
+          {/* Option 2.5: WhatsApp Message Format */}
+          {onOpenFormatPicker && (
+            <>
+              <TouchableOpacity
+                onPress={() => {
+                  onClose();
+                  onOpenFormatPicker();
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 12,
+                  paddingHorizontal: 16,
+                  paddingVertical: 12,
+                }}
+                activeOpacity={0.7}
+              >
+                <Sparkles size={18} color="#8b5cf6" />
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    Message Format
+                  </Text>
+                  <Text style={{ fontSize: 11, color: '#8b5cf6', fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+                    {styleLabel}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+              <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+            </>
+          )}
+
           {/* Option 3: Pin / Unpin from Bottom Bar */}
           <TouchableOpacity
             onPress={() => {
@@ -215,32 +253,6 @@ export function ListOrViewDropdownModal({
               {isPinned ? 'Unpin from Bottom Bar' : 'Pin to Bottom Bar'}
             </Text>
           </TouchableOpacity>
-
-          {/* Optional: Edit View & Filters (if provided) */}
-          {onEditFilters && (
-            <>
-              <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
-              <TouchableOpacity
-                onPress={() => {
-                  onClose();
-                  onEditFilters();
-                }}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  gap: 12,
-                  paddingHorizontal: 16,
-                  paddingVertical: 12,
-                }}
-                activeOpacity={0.7}
-              >
-                <Layers size={18} color={themePrimary} />
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                  Edit View & Filters
-                </Text>
-              </TouchableOpacity>
-            </>
-          )}
 
           {/* Divider */}
           <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
