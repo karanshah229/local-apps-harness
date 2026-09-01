@@ -445,18 +445,23 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     }
   }, [tasks]);
 
-  // Handle Android hardware back press and back gesture to cancel multi-select mode
+  // Handle Android hardware back press and back gesture to cancel multi-select mode or navigate back
   useEffect(() => {
-    if (!isMultiSelectMode && selectedTaskIds.length === 0) return;
-
     const onBackPress = () => {
-      clearSelectedBatchTasks();
-      return true;
+      if (isMultiSelectMode || selectedTaskIds.length > 0) {
+        clearSelectedBatchTasks();
+        return true;
+      }
+      if (onBack) {
+        onBack();
+        return true;
+      }
+      return false;
     };
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => subscription.remove();
-  }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks]);
+  }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks, onBack]);
 
   const sortPreferences = useUiStore((s) => s.sortPreferences);
   const setViewSort = useUiStore((s) => s.setViewSort);
@@ -474,6 +479,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
   const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
   const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
+  const hasChosenWhatsAppFormat = useUiStore((s) => s.hasChosenWhatsAppFormat);
+  const setHasChosenWhatsAppFormat = useUiStore((s) => s.setHasChosenWhatsAppFormat);
 
   const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
   const isListPinned = Boolean(activeList && pinnedViews.includes(`list:${activeList.id}`));
@@ -743,8 +750,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       return;
     }
 
-    // 3. Step 3: Ask for Message format option first time only (if not yet chosen)
-    if (!(activeList as any).whatsapp_message_style) {
+    // 3. Step 3: Ask for Message format option ONLY first time ever in the app
+    if (!hasChosenWhatsAppFormat) {
       pendingContactRef.current = defaultContact;
       setShowFormatPickerModal(true);
       return;
@@ -755,7 +762,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       defaultContact,
       activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
     );
-  }, [activeList, tasks.length, users, executeShareWithContactAndScope, showAlertDialog]);
+  }, [activeList, tasks.length, users, hasChosenWhatsAppFormat, executeShareWithContactAndScope, showAlertDialog]);
 
   const handleSelectDefaultContact = useCallback(
     (user: User | null) => {
@@ -775,13 +782,19 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         // Advance to step 2: Tasks to send
         if (!activeList.default_whatsapp_share_scope) {
           setShowScopePickerModal(true);
-        } else {
-          // Advance to step 3: Format bottom sheet
+        } else if (!hasChosenWhatsAppFormat) {
+          // Advance to step 3: Format bottom sheet only first time ever
           setShowFormatPickerModal(true);
+        } else {
+          pendingContactRef.current = null;
+          executeShareWithContactAndScope(
+            user,
+            activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+          );
         }
       }
     },
-    [activeList, isSharingFromPicker, updateListMutation]
+    [activeList, isSharingFromPicker, hasChosenWhatsAppFormat, updateListMutation, executeShareWithContactAndScope]
   );
 
   const handleChooseTasksToSendScope = useCallback(
@@ -795,11 +808,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       setShowScopePickerModal(false);
 
       if (pendingContactRef.current) {
-        // Advance to step 3: Format bottom sheet
-        setShowFormatPickerModal(true);
+        if (!hasChosenWhatsAppFormat) {
+          // Advance to step 3: Format bottom sheet only on first time ever
+          setShowFormatPickerModal(true);
+        } else {
+          const contact = pendingContactRef.current;
+          pendingContactRef.current = null;
+          executeShareWithContactAndScope(contact, scope);
+        }
       }
     },
-    [activeList, updateListMutation]
+    [activeList, hasChosenWhatsAppFormat, updateListMutation, executeShareWithContactAndScope]
   );
 
   const handleSaveWhatsAppFormat = useCallback(
@@ -809,6 +828,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         id: activeList.id,
         whatsapp_message_style: style,
         whatsapp_include_notes: includeNotes ? 1 : 0,
+      });
+      setHasChosenWhatsAppFormat(true);
+      setDefaultWhatsAppStyle(style);
+      setDefaultWhatsAppIncludeNotes(includeNotes);
+      updatePrefs.mutate({
+        has_chosen_whatsapp_format: 1,
+        default_whatsapp_style: style,
+        default_whatsapp_include_notes: includeNotes ? 1 : 0,
       });
       setShowFormatPickerModal(false);
 
@@ -823,7 +850,16 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         );
       }
     },
-    [activeList, updateListMutation, shareScope, executeShareWithContactAndScope]
+    [
+      activeList,
+      updateListMutation,
+      shareScope,
+      setHasChosenWhatsAppFormat,
+      setDefaultWhatsAppStyle,
+      setDefaultWhatsAppIncludeNotes,
+      updatePrefs,
+      executeShareWithContactAndScope,
+    ]
   );
 
   const handleSelectShareScope = useCallback(

@@ -1176,189 +1176,287 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 
             {/* Scope Options */}
             <View style={{ gap: 10, marginTop: 6 }}>
-              {/* Option 1: Pending tasks */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope('pending')}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'pending'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
-                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
+              {liveConfigItem?.type === 'view' ? (
+                <>
+                  {/* Option 1: Current View (Default for views) */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('current_view')}
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? 2 : 1,
+                      borderColor: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                     }}
+                    activeOpacity={0.7}
                   >
-                    <ListTodo size={20} color="#0078d4" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      Pending Tasks
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Only incomplete tasks in this {liveConfigItem?.type === 'view' ? 'view' : 'list'}
-                    </Text>
-                  </View>
-                </View>
-                {liveConfigItem?.default_whatsapp_share_scope === 'pending' && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Layers size={20} color="#a855f7" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          Current View
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Tasks matching active search and filters
+                        </Text>
+                      </View>
+                    </View>
+                    {(liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
-              {/* Option 2: Current View */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope('current_view')}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
-                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
+                  {/* Option 2: Pending tasks */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('pending')}
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'pending'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
+                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                     }}
+                    activeOpacity={0.7}
                   >
-                    <Layers size={20} color="#a855f7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      Current View
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Tasks matching active search and filters
-                    </Text>
-                  </View>
-                </View>
-                {liveConfigItem?.default_whatsapp_share_scope === 'current_view' && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ListTodo size={20} color="#0078d4" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          Pending Tasks
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Only incomplete tasks in this view
+                        </Text>
+                      </View>
+                    </View>
+                    {liveConfigItem?.default_whatsapp_share_scope === 'pending' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
-              {/* Option 3: All Tasks */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope('all')}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
-                  borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
+                  {/* Option 3: All Tasks */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('all')}
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
+                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                     }}
+                    activeOpacity={0.7}
                   >
-                    <CheckSquare size={20} color="#22c55e" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      All Tasks
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Both pending and completed tasks
-                    </Text>
-                  </View>
-                </View>
-                {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CheckSquare size={20} color="#22c55e" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          All Tasks
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Both pending and completed tasks
+                        </Text>
+                      </View>
+                    </View>
+                    {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </>
+              ) : (
+                <>
+                  {/* Option 1: Pending tasks (Default for lists) */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('pending')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' ? 2 : 1,
+                      borderColor: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <ListTodo size={20} color="#0078d4" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          Pending Tasks
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Only incomplete tasks in this list
+                        </Text>
+                      </View>
+                    </View>
+                    {(liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
 
-              {/* Option 4: Ask on send */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope(null)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: !liveConfigItem?.default_whatsapp_share_scope
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: !liveConfigItem?.default_whatsapp_share_scope ? 2 : 1,
-                  borderColor: !liveConfigItem?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
+                  {/* Option 2: Current View */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('current_view')}
                     style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
+                      flexDirection: 'row',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
+                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
                     }}
+                    activeOpacity={0.7}
                   >
-                    <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      Not Set (Ask on send)
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Prompt to choose scope whenever sharing
-                    </Text>
-                  </View>
-                </View>
-                {!liveConfigItem?.default_whatsapp_share_scope && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Layers size={20} color="#a855f7" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          Current View
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Tasks matching active search and filters
+                        </Text>
+                      </View>
+                    </View>
+                    {liveConfigItem?.default_whatsapp_share_scope === 'current_view' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+
+                  {/* Option 3: All Tasks */}
+                  <TouchableOpacity
+                    onPress={() => handleChooseTasksToSendScope('all')}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: 14,
+                      borderRadius: 16,
+                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
+                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
+                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                      <View
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 19,
+                          backgroundColor: 'rgba(34, 197, 94, 0.12)',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <CheckSquare size={20} color="#22c55e" />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          All Tasks
+                        </Text>
+                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                          Both pending and completed tasks
+                        </Text>
+                      </View>
+                    </View>
+                    {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
+                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                        <Check size={14} color="#ffffff" strokeWidth={3} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                </>
+              )}
             </View>
           </View>
         </View>
@@ -1633,12 +1731,22 @@ export default function ListsScreen() {
     });
   };
 
+  const handleBackToDirectory = () => {
+    setActiveListId(null);
+    setActiveCustomViewId(null);
+    useUiStore.getState().setActiveView('lists');
+    localTodoDb.updateUserPreferences({
+      last_view_type: 'tab',
+      last_view_id: 'lists',
+    });
+  };
+
   if (activeListId) {
-    return <SingleListView listId={activeListId} onBack={() => setActiveListId(null)} />;
+    return <SingleListView listId={activeListId} onBack={handleBackToDirectory} />;
   }
 
   if (activeCustomViewId) {
-    return <TasksView fixedCustomViewId={activeCustomViewId} onBack={() => setActiveCustomViewId(null)} />;
+    return <TasksView fixedCustomViewId={activeCustomViewId} onBack={handleBackToDirectory} />;
   }
 
   return (

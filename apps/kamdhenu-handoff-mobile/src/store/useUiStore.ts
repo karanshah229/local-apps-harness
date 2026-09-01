@@ -47,6 +47,8 @@ interface UiState {
   setDefaultWhatsAppStyle: (style: WhatsAppMessageStyle) => void;
   defaultWhatsAppIncludeNotes: boolean;
   setDefaultWhatsAppIncludeNotes: (include: boolean) => void;
+  hasChosenWhatsAppFormat: boolean;
+  setHasChosenWhatsAppFormat: (val: boolean) => void;
 
   isListsSheetOpen: boolean;
   setIsListsSheetOpen: (open: boolean) => void;
@@ -126,6 +128,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   setDefaultWhatsAppStyle: (style) => set({ defaultWhatsAppStyle: style }),
   defaultWhatsAppIncludeNotes: true,
   setDefaultWhatsAppIncludeNotes: (include) => set({ defaultWhatsAppIncludeNotes: include }),
+  hasChosenWhatsAppFormat: false,
+  setHasChosenWhatsAppFormat: (val) => set({ hasChosenWhatsAppFormat: val }),
 
   isListsSheetOpen: false,
   setIsListsSheetOpen: (open) => set({ isListsSheetOpen: open }),

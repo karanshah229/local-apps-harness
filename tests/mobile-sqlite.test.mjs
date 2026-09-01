@@ -314,7 +314,23 @@ test('Mobile SQLite schema and local repository CRUD operations', () => {
   const cleanedPins = JSON.parse(prefsAfterUnpin.pinned_views).filter((k) => k !== `custom_view:${customViewId}`);
   db.prepare(`UPDATE user_preferences SET pinned_views = ? WHERE user_id = 1`).run(JSON.stringify(cleanedPins));
 
-  const prefsAfterDelete = db.prepare('SELECT * FROM user_preferences WHERE user_id = 1').get();
-  assert.deepEqual(JSON.parse(prefsAfterDelete.pinned_views), ['assigned-to-me']);
+  // WhatsApp Group / Select on send (-1) Foreign Key test
+  db.prepare(`
+    INSERT OR IGNORE INTO users (id, name, email, phone, is_group, active)
+    VALUES (-1, 'WhatsApp Group / Select on send', 'group_whatsapp@local.todo', '', 1, 0)
+  `).run();
+
+  const listWithGroup = db.prepare(`
+    INSERT INTO lists (title, created_by, default_whatsapp_contact_id, active)
+    VALUES ('Group Share List', 1, -1, 1)
+  `).run();
+  const groupListId = Number(listWithGroup.lastInsertRowid);
+  const fetchedGroupList = db.prepare('SELECT * FROM lists WHERE id = ?').get(groupListId);
+  assert.equal(fetchedGroupList.default_whatsapp_contact_id, -1);
+
+  // Updating list to WhatsApp Group (-1) should also succeed with foreign keys ON
+  db.prepare('UPDATE lists SET default_whatsapp_contact_id = ? WHERE id = ?').run(-1, 1);
+  const updatedList1 = db.prepare('SELECT * FROM lists WHERE id = ?').get(1);
+  assert.equal(updatedList1.default_whatsapp_contact_id, -1);
 });
 

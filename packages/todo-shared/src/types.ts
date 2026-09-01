@@ -173,6 +173,9 @@ export interface UserPreferences {
   last_view_id: string;
   sort_preferences?: SortPreferences | string;
   pinned_views?: string[] | string;
+  has_chosen_whatsapp_format?: number | boolean;
+  default_whatsapp_style?: WhatsAppMessageStyle | string;
+  default_whatsapp_include_notes?: number | boolean;
   updated_at?: string;
 }
 

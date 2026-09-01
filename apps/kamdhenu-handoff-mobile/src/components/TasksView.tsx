@@ -38,6 +38,7 @@ import {
   Trash2,
   UserCheck,
   CheckCircle2,
+  Circle,
   ArrowLeft,
   MoreVertical,
   Pencil,
@@ -426,8 +427,15 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
   const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+  const [showLongPressShareModal, setShowLongPressShareModal] = useState(false);
+  const [longPressRecipient, setLongPressRecipient] = useState<User | null>(null);
+  const [shareScope, setShareScope] = useState<'pending' | 'all' | 'current_view'>('current_view');
   const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
+  const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
   const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
+  const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
+  const hasChosenWhatsAppFormat = useUiStore((s) => s.hasChosenWhatsAppFormat);
+  const setHasChosenWhatsAppFormat = useUiStore((s) => s.setHasChosenWhatsAppFormat);
 
   const effectiveView = fixedCustomViewId ? 'all-tasks' : (fixedView || storeView || 'all-tasks');
   const effectiveListId = (fixedView || fixedCustomViewId) ? null : activeListId;
@@ -573,17 +581,23 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [tasks]);
 
   // Handle Android hardware back press and back gesture to cancel multi-select mode
+  // Handle Android hardware back press and back gesture to cancel multi-select mode or navigate back
   useEffect(() => {
-    if (!isMultiSelectMode && selectedTaskIds.length === 0) return;
-
     const onBackPress = () => {
-      clearSelectedBatchTasks();
-      return true;
+      if (isMultiSelectMode || selectedTaskIds.length > 0) {
+        clearSelectedBatchTasks();
+        return true;
+      }
+      if (onBack) {
+        onBack();
+        return true;
+      }
+      return false;
     };
 
     const subscription = BackHandler.addEventListener('hardwareBackPress', onBackPress);
     return () => subscription.remove();
-  }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks]);
+  }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks, onBack]);
 
   const activeList = useMemo(() => (
     effectiveListId ? lists.find((l) => l.id === effectiveListId) : null
@@ -1007,8 +1021,8 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       return;
     }
 
-    if (!(customView as any)?.whatsapp_message_style) {
-      // Step 3: Format
+    if (!hasChosenWhatsAppFormat) {
+      // Step 3: Format ONLY first time ever in the app
       pendingContactRef.current = defContact;
       setShowFormatPickerModal(true);
       return;
@@ -1018,7 +1032,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       defContact,
       customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
     );
-  }, [customView, tasks.length, users, executeShareWithContactAndScope, showAlertDialog]);
+  }, [customView, tasks.length, users, hasChosenWhatsAppFormat, executeShareWithContactAndScope, showAlertDialog]);
 
   const handleSelectDefaultContact = useCallback(
     (user: User | null) => {
@@ -1034,12 +1048,25 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         pendingContactRef.current = user;
         if (!customView?.default_whatsapp_share_scope) {
           setShowScopePickerModal(true);
-        } else {
+        } else if (!hasChosenWhatsAppFormat) {
           setShowFormatPickerModal(true);
+        } else {
+          pendingContactRef.current = null;
+          executeShareWithContactAndScope(
+            user,
+            customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
+          );
         }
       }
     },
-    [fixedCustomViewId, isSharingFromPicker, customView, updateCustomViewMutation]
+    [
+      fixedCustomViewId,
+      isSharingFromPicker,
+      customView,
+      hasChosenWhatsAppFormat,
+      updateCustomViewMutation,
+      executeShareWithContactAndScope,
+    ]
   );
 
   const handleChooseTasksToSendScope = useCallback(
@@ -1052,11 +1079,20 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       setShowScopePickerModal(false);
 
       if (pendingContactRef.current) {
-        // Advance to step 3: Format bottom sheet
-        setShowFormatPickerModal(true);
+        if (!hasChosenWhatsAppFormat) {
+          // Advance to step 3: Format bottom sheet only on first time ever
+          setShowFormatPickerModal(true);
+        } else {
+          const contact = pendingContactRef.current;
+          pendingContactRef.current = null;
+          executeShareWithContactAndScope(
+            contact,
+            (scope as any) || 'pending'
+          );
+        }
       }
     },
-    [fixedCustomViewId, updateCustomViewMutation]
+    [fixedCustomViewId, hasChosenWhatsAppFormat, updateCustomViewMutation, executeShareWithContactAndScope]
   );
 
   const handleSaveWhatsAppFormat = useCallback(
@@ -1067,17 +1103,77 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         whatsapp_message_style: style,
         whatsapp_include_notes: includeNotes ? 1 : 0,
       });
+      setHasChosenWhatsAppFormat(true);
+      setDefaultWhatsAppStyle(style);
+      setDefaultWhatsAppIncludeNotes(includeNotes);
+      updatePrefsMutation.mutate({
+        has_chosen_whatsapp_format: 1,
+        default_whatsapp_style: style,
+        default_whatsapp_include_notes: includeNotes ? 1 : 0,
+      });
       setShowFormatPickerModal(false);
 
       const contact = pendingContactRef.current;
       pendingContactRef.current = null;
       if (contact) {
-        const scope = (customView?.default_whatsapp_share_scope || 'pending') as 'pending' | 'all' | 'current_view';
+        const scope = (customView?.default_whatsapp_share_scope || 'current_view') as 'pending' | 'all' | 'current_view';
         executeShareWithContactAndScope(contact, scope, style, includeNotes);
       }
     },
-    [fixedCustomViewId, customView, updateCustomViewMutation, executeShareWithContactAndScope]
+    [
+      fixedCustomViewId,
+      customView,
+      updateCustomViewMutation,
+      setHasChosenWhatsAppFormat,
+      setDefaultWhatsAppStyle,
+      setDefaultWhatsAppIncludeNotes,
+      updatePrefsMutation,
+      executeShareWithContactAndScope,
+    ]
   );
+
+  const handleSelectShareScope = useCallback(
+    (scope: 'pending' | 'all' | 'current_view') => {
+      setShareScope(scope);
+      if (fixedCustomViewId) {
+        updateCustomViewMutation.mutate({
+          id: fixedCustomViewId,
+          default_whatsapp_share_scope: scope,
+        });
+      }
+    },
+    [fixedCustomViewId, updateCustomViewMutation]
+  );
+
+  const handleLongPressWhatsApp = useCallback(() => {
+    if (!fixedCustomViewId || !customView) return;
+    const initialScope = (customView.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'current_view';
+    setShareScope(initialScope);
+
+    let recipient: User | null = null;
+    if (customView.default_whatsapp_contact_id === -1) {
+      recipient = WHATSAPP_GROUP_USER;
+    } else if (customView.default_whatsapp_contact_id === 1) {
+      recipient = SELF_USER;
+    } else if (customView.default_whatsapp_contact_id) {
+      recipient = users.find((u) => u.id === customView.default_whatsapp_contact_id) || null;
+    }
+    setLongPressRecipient(recipient);
+    setShowLongPressShareModal(true);
+  }, [fixedCustomViewId, customView, users]);
+
+  const handleExecuteLongPressShare = useCallback(() => {
+    if (!longPressRecipient) {
+      setShowLongPressShareModal(false);
+      setIsSharingFromPicker(false);
+      setShowContactPicker(true);
+      return;
+    }
+    setShowLongPressShareModal(false);
+    const st = ((customView as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern';
+    const incNotes = (customView as any)?.whatsapp_include_notes !== 0;
+    executeShareWithContactAndScope(longPressRecipient, shareScope, st, incNotes);
+  }, [longPressRecipient, customView, defaultWhatsAppStyle, shareScope, executeShareWithContactAndScope]);
 
   const ListHeader = useMemo(() => (
     <View style={{ paddingTop: 8, paddingBottom: 14 }}>
@@ -1623,7 +1719,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       {Boolean(fixedCustomViewId) && tasks.length > 0 && (
         <TouchableOpacity
           onPress={handleWhatsAppView}
-          onLongPress={() => setShowFormatPickerModal(true)}
+          onLongPress={handleLongPressWhatsApp}
           delayLongPress={350}
           activeOpacity={0.85}
           style={{
@@ -1846,7 +1942,53 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
             {/* Scope Options */}
             <View style={{ gap: 10, marginTop: 6 }}>
-              {/* Option 1: Pending tasks */}
+              {/* Option 1: Current View (Default for views) */}
+              <TouchableOpacity
+                onPress={() => handleChooseTasksToSendScope('current_view')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 14,
+                  borderRadius: 16,
+                  backgroundColor: (customView?.default_whatsapp_share_scope || 'current_view') === 'current_view'
+                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  borderWidth: (customView?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? 2 : 1,
+                  borderColor: (customView?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                  <View
+                    style={{
+                      width: 38,
+                      height: 38,
+                      borderRadius: 19,
+                      backgroundColor: 'rgba(168, 85, 247, 0.12)',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Layers size={20} color="#a855f7" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      Current View
+                    </Text>
+                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                      Tasks matching active search and filters
+                    </Text>
+                  </View>
+                </View>
+                {(customView?.default_whatsapp_share_scope || 'current_view') === 'current_view' && (
+                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Option 2: Pending tasks */}
               <TouchableOpacity
                 onPress={() => handleChooseTasksToSendScope('pending')}
                 style={{
@@ -1886,52 +2028,6 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   </View>
                 </View>
                 {customView?.default_whatsapp_share_scope === 'pending' && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              {/* Option 2: Current View */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope('current_view')}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: customView?.default_whatsapp_share_scope === 'current_view'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: customView?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
-                  borderColor: customView?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: 'rgba(168, 85, 247, 0.12)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <Layers size={20} color="#a855f7" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      Current View
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Tasks matching active search and filters
-                    </Text>
-                  </View>
-                </View>
-                {customView?.default_whatsapp_share_scope === 'current_view' && (
                   <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
                     <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
@@ -1983,52 +2079,6 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                   </View>
                 )}
               </TouchableOpacity>
-
-              {/* Option 4: Ask on send */}
-              <TouchableOpacity
-                onPress={() => handleChooseTasksToSendScope(null)}
-                style={{
-                  flexDirection: 'row',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  padding: 14,
-                  borderRadius: 16,
-                  backgroundColor: !customView?.default_whatsapp_share_scope
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
-                  borderWidth: !customView?.default_whatsapp_share_scope ? 2 : 1,
-                  borderColor: !customView?.default_whatsapp_share_scope ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-                  <View
-                    style={{
-                      width: 38,
-                      height: 38,
-                      borderRadius: 19,
-                      backgroundColor: isDarkMode ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
-                      Not Set (Ask on send)
-                    </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
-                      Prompt to choose scope whenever sharing
-                    </Text>
-                  </View>
-                </View>
-                {!customView?.default_whatsapp_share_scope && (
-                  <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
-                    <Check size={14} color="#ffffff" strokeWidth={3} />
-                  </View>
-                )}
-              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -2045,6 +2095,348 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         isDarkMode={isDarkMode}
         themePrimary={themePrimary}
       />
+
+      {/* Long Press WhatsApp Share Dialog for Custom View */}
+      {Boolean(fixedCustomViewId) && (
+        <Modal
+          visible={showLongPressShareModal}
+          transparent
+          animationType="none"
+          onRequestClose={() => setShowLongPressShareModal(false)}
+        >
+          <View
+            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
+          >
+            <TouchableOpacity
+              style={StyleSheet.absoluteFill}
+              activeOpacity={1}
+              onPress={() => setShowLongPressShareModal(false)}
+            />
+            <View
+              style={{
+                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                borderTopLeftRadius: 28,
+                borderTopRightRadius: 28,
+                padding: 20,
+                paddingBottom: Math.max(insets.bottom, 24),
+                borderTopWidth: 1,
+                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+              }}
+            >
+              {/* Header */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <View>
+                  <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    Share on WhatsApp
+                  </Text>
+                  <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    Customize recipient and tasks to send
+                  </Text>
+                </View>
+                <TouchableOpacity
+                  onPress={() => setShowLongPressShareModal(false)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{ padding: 4 }}
+                >
+                  <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                </TouchableOpacity>
+              </View>
+
+              {/* Section 1: Recipient Contact */}
+              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+                Recipient Contact
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowLongPressShareModal(false);
+                  setIsSharingFromPicker(false);
+                  setShowContactPicker(true);
+                }}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  padding: 12,
+                  borderRadius: 16,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                  marginBottom: 18,
+                }}
+                activeOpacity={0.7}
+              >
+                {longPressRecipient ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 19,
+                        backgroundColor: 'rgba(37, 211, 102, 0.2)',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 14, fontWeight: '800', color: '#25D366' }}>
+                        {longPressRecipient.name.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
+                        {longPressRecipient.name}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                        {longPressRecipient.phone}
+                      </Text>
+                    </View>
+                  </View>
+                ) : (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    <View
+                      style={{
+                        width: 38,
+                        height: 38,
+                        borderRadius: 19,
+                        backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Phone size={18} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                    </View>
+                    <Text style={{ fontSize: 14, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
+                      Tap to choose recipient contact
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={{
+                    backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                    paddingHorizontal: 10,
+                    paddingVertical: 6,
+                    borderRadius: 10,
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    {longPressRecipient ? 'Change' : 'Select'}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Section 2: Task Status Filter */}
+              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+                Tasks to Send
+              </Text>
+              <View style={{ gap: 8, marginBottom: 20 }}>
+                {/* Option 1: Current View Tasks (Default for views) */}
+                <TouchableOpacity
+                  onPress={() => handleSelectShareScope('current_view')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 14,
+                    borderRadius: 16,
+                    backgroundColor: shareScope === 'current_view'
+                      ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                      : (isDarkMode ? '#27272a' : '#f8fafc'),
+                    borderWidth: 1.5,
+                    borderColor: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    {shareScope === 'current_view' ? (
+                      <CheckCircle2 size={20} color="#0078d4" />
+                    ) : (
+                      <Circle size={20} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                          Current View
+                        </Text>
+                        <View style={{ backgroundColor: 'rgba(0, 120, 212, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>DEFAULT</Text>
+                        </View>
+                      </View>
+                      <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        Tasks matching active search and filters
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                    {tasks.length}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Option 2: Pending Tasks */}
+                <TouchableOpacity
+                  onPress={() => handleSelectShareScope('pending')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 14,
+                    borderRadius: 16,
+                    backgroundColor: shareScope === 'pending'
+                      ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                      : (isDarkMode ? '#27272a' : '#f8fafc'),
+                    borderWidth: 1.5,
+                    borderColor: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    {shareScope === 'pending' ? (
+                      <CheckCircle2 size={20} color="#0078d4" />
+                    ) : (
+                      <Circle size={20} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        Pending Tasks
+                      </Text>
+                      <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        Only incomplete tasks in this view
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                    {tasks.filter((t) => !t.is_completed).length}
+                  </Text>
+                </TouchableOpacity>
+
+                {/* Option 3: All Tasks */}
+                <TouchableOpacity
+                  onPress={() => handleSelectShareScope('all')}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: 14,
+                    borderRadius: 16,
+                    backgroundColor: shareScope === 'all'
+                      ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                      : (isDarkMode ? '#27272a' : '#f8fafc'),
+                    borderWidth: 1.5,
+                    borderColor: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+                    {shareScope === 'all' ? (
+                      <CheckCircle2 size={20} color="#0078d4" />
+                    ) : (
+                      <Circle size={20} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                    )}
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        All Tasks
+                      </Text>
+                      <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        Both pending and completed tasks
+                      </Text>
+                    </View>
+                  </View>
+                  <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                    {tasks.length}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {/* Section 3: Message Format */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+                  Message Format
+                </Text>
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowLongPressShareModal(false);
+                    setShowFormatPickerModal(true);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '800', color: '#8b5cf6' }}>
+                    Customize & Preview
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
+                {(['modern', 'executive', 'crisp'] as const).map((st) => {
+                  const currentSt = ((customView as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern';
+                  const isSelected = currentSt === st;
+                  return (
+                    <TouchableOpacity
+                      key={st}
+                      onPress={() => {
+                        if (fixedCustomViewId) {
+                          updateCustomViewMutation.mutate({
+                            id: fixedCustomViewId,
+                            whatsapp_message_style: st,
+                          });
+                        }
+                        setDefaultWhatsAppStyle(st);
+                      }}
+                      style={{
+                        flex: 1,
+                        paddingVertical: 10,
+                        paddingHorizontal: 6,
+                        borderRadius: 14,
+                        backgroundColor: isSelected
+                          ? (isDarkMode ? 'rgba(139, 92, 246, 0.2)' : '#f5f3ff')
+                          : (isDarkMode ? '#27272a' : '#f8fafc'),
+                        borderWidth: isSelected ? 2 : 1,
+                        borderColor: isSelected ? '#8b5cf6' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                        alignItems: 'center',
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '800',
+                          color: isSelected ? '#8b5cf6' : (isDarkMode ? '#e4e4e7' : '#334155'),
+                          textTransform: 'capitalize',
+                        }}
+                      >
+                        {st}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {/* Action CTA Button */}
+              <TouchableOpacity
+                onPress={handleExecuteLongPressShare}
+                style={{
+                  backgroundColor: '#25D366',
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                  paddingVertical: 14,
+                  borderRadius: 16,
+                  shadowColor: '#25D366',
+                  shadowOffset: { width: 0, height: 4 },
+                  shadowOpacity: 0.3,
+                  shadowRadius: 8,
+                  elevation: 4,
+                }}
+                activeOpacity={0.85}
+              >
+                <WhatsAppIcon size={20} color="#ffffff" />
+                <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
+                  Share to WhatsApp
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+      )}
 
       {/* Quick Rename Custom View Modal */}
       {Boolean(fixedCustomViewId) && (

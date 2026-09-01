@@ -148,6 +148,13 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     db.runSync(`UPDATE users SET phone = '' WHERE id = 1 AND (phone LIKE '%999999999%' OR phone = '+919999999999')`);
   } catch {}
 
+  // Ensure WhatsApp Group pseudo-user exists for foreign key constraints
+  try {
+    db.runSync(
+      `INSERT OR IGNORE INTO users (id, name, email, phone, is_group, active) VALUES (-1, 'WhatsApp Group / Select on send', 'group_whatsapp@local.todo', '', 1, 0)`
+    );
+  } catch {}
+
   // Remove legacy is_default flags from existing lists
   try {
     db.runSync('UPDATE lists SET is_default = 0 WHERE is_default = 1');
@@ -178,6 +185,15 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   // Ensure pinned_views column exists on user_preferences table
   try {
     db.runSync(`ALTER TABLE user_preferences ADD COLUMN pinned_views TEXT DEFAULT '["important","assigned-to-me"]'`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN has_chosen_whatsapp_format BOOLEAN DEFAULT 0`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_style TEXT DEFAULT 'modern'`);
+  } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_notes BOOLEAN DEFAULT 1`);
   } catch {}
 
   // Create custom_views table
@@ -723,6 +739,14 @@ export const localTodoDb = {
       default_whatsapp_share_scope = null,
     } = data;
 
+    if (default_whatsapp_contact_id === -1) {
+      try {
+        db.runSync(
+          `INSERT OR IGNORE INTO users (id, name, email, phone, is_group, active) VALUES (-1, 'WhatsApp Group / Select on send', 'group_whatsapp@local.todo', '', 1, 0)`
+        );
+      } catch {}
+    }
+
     const result = db.runSync(
       `
       INSERT INTO lists (title, color_theme, icon, created_by, default_whatsapp_contact_id, default_whatsapp_share_scope, active)
@@ -767,8 +791,15 @@ export const localTodoDb = {
       params.push(data.icon);
     }
     if (data.default_whatsapp_contact_id !== undefined) {
+      if (data.default_whatsapp_contact_id === -1) {
+        try {
+          db.runSync(
+            `INSERT OR IGNORE INTO users (id, name, email, phone, is_group, active) VALUES (-1, 'WhatsApp Group / Select on send', 'group_whatsapp@local.todo', '', 1, 0)`
+          );
+        } catch {}
+      }
       updates.push('default_whatsapp_contact_id = ?');
-      params.push(data.default_whatsapp_contact_id || null);
+      params.push(data.default_whatsapp_contact_id ?? null);
     }
     if (data.default_whatsapp_share_scope !== undefined) {
       updates.push('default_whatsapp_share_scope = ?');
@@ -840,7 +871,7 @@ export const localTodoDb = {
       SELECT u.*,
         (SELECT COUNT(*) FROM tasks t WHERE t.assigned_to_user_id = u.id AND t.is_completed = 0 AND t.active = 1) as pending_task_count
       FROM users u
-      WHERE u.active = 1
+      WHERE u.active = 1 AND u.id > 0
       ORDER BY CASE WHEN u.id = 1 THEN 0 WHEN u.is_group = 1 THEN 1 ELSE 2 END, u.name ASC
     `);
   },
@@ -1026,6 +1057,9 @@ export const localTodoDb = {
       last_view_id: 'all-tasks',
       sort_preferences: {},
       pinned_views: ['important', 'assigned-to-me'],
+      has_chosen_whatsapp_format: 0,
+      default_whatsapp_style: 'modern',
+      default_whatsapp_include_notes: 1,
     };
   },
 
@@ -1056,13 +1090,23 @@ export const localTodoDb = {
       nextPinned = JSON.stringify(existing.pinned_views || ['important', 'assigned-to-me']);
     }
 
+    const nextHasFormat = data.has_chosen_whatsapp_format !== undefined
+      ? (data.has_chosen_whatsapp_format ? 1 : 0)
+      : (existing.has_chosen_whatsapp_format ? 1 : 0);
+    const nextDefStyle = data.default_whatsapp_style !== undefined
+      ? (data.default_whatsapp_style as string)
+      : (existing.default_whatsapp_style || 'modern');
+    const nextDefIncludeNotes = data.default_whatsapp_include_notes !== undefined
+      ? (data.default_whatsapp_include_notes ? 1 : 0)
+      : (existing.default_whatsapp_include_notes !== 0 ? 1 : 0);
+
     db.runSync(
       `
       UPDATE user_preferences
-      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, updated_at = CURRENT_TIMESTAMP
+      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = 1
       `,
-      [nextRemember, nextType, nextId, nextSort, nextPinned]
+      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes]
     );
 
     return this.getUserPreferences();

@@ -85,6 +85,16 @@ function RootLayoutNav() {
         }
       }
 
+      if (preferences?.has_chosen_whatsapp_format !== undefined) {
+        useUiStore.getState().setHasChosenWhatsAppFormat(Boolean(preferences.has_chosen_whatsapp_format));
+      }
+      if (preferences?.default_whatsapp_style) {
+        useUiStore.getState().setDefaultWhatsAppStyle(preferences.default_whatsapp_style as any);
+      }
+      if (preferences?.default_whatsapp_include_notes !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeNotes(preferences.default_whatsapp_include_notes !== 0 && preferences.default_whatsapp_include_notes !== false);
+      }
+
       if (preferences?.remember_last_view) {
         const type = preferences.last_view_type;
         const id = preferences.last_view_id;
