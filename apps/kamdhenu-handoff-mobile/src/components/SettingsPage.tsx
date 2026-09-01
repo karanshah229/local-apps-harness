@@ -18,6 +18,7 @@ import {
   BookmarkCheck,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Constants from 'expo-constants';
 import { useUserPreferencesQuery, useUpdateUserPreferencesMutation } from '../hooks/useTodoQueries';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
@@ -227,11 +228,11 @@ export default function SettingsPage({
           >
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Application</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>Kamdhenu Handoff</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{Constants.expoConfig?.name ?? 'Kamdhenu Handoff'}</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Version</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>1.0.1</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0'}</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Platform</Text>

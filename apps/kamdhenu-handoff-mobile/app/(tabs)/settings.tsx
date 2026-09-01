@@ -20,6 +20,7 @@ import {
   BookmarkCheck,
 } from 'lucide-react-native';
 import { useUiStore } from '../../src/store/useUiStore';
+import Constants from 'expo-constants';
 import {
   useUsersQuery,
   useUserPreferencesQuery,
@@ -28,6 +29,8 @@ import {
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const appVersion = Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0';
+  const appName = Constants.expoConfig?.name ?? 'Kamdhenu Handoff';
   const { themeMode, setThemeMode, isDarkMode, setIsDarkMode } = useUiStore();
   const systemColorScheme = useColorScheme();
   const { data: users = [] } = useUsersQuery();
@@ -269,11 +272,11 @@ export default function SettingsScreen() {
         >
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>Application</Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>Kamdhenu Handoff</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>{appName}</Text>
           </View>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
             <Text style={{ fontSize: 13, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>Version</Text>
-            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>1.0.0</Text>
+            <Text style={{ fontSize: 13, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>{appVersion}</Text>
           </View>
         </View>
       </ScrollView>

@@ -1,6 +1,6 @@
 {
   "name": "kamdhenu-handoff",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -10,7 +10,7 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build": "pnpm run build:android && pnpm run build:ios",
-    "build:android": "cd android && JAVA_TOOL_OPTIONS=\"--enable-native-access=ALL-UNNAMED\" ./gradlew assembleRelease",
+    "build:android": "cd android && JAVA_TOOL_OPTIONS=\"--enable-native-access=ALL-UNNAMED\" ./gradlew assembleRelease && node ../scripts/copy-release-apk.mjs",
     "build:ios": "npx expo run:ios --configuration Release",
     "ios:ipa": "eas build --platform ios --local",
     "typecheck": "tsc --noEmit"
