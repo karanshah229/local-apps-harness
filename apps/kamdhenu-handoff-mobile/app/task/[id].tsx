@@ -1916,7 +1916,6 @@ export default function TaskDetailScreen() {
           sampleTask={task}
           onSave={(style, options) => {
             setTaskWhatsAppFormat({ style, ...options });
-            setShowFormatPickerModal(false);
           }}
           title="WhatsApp Message Format"
           isDarkMode={isDarkMode}
