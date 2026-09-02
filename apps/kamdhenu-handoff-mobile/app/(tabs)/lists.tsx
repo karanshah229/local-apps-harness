@@ -1492,6 +1492,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         includeSteps={(liveConfigItem as any)?.whatsapp_include_steps != null ? (liveConfigItem as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
         includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date != null ? (liveConfigItem as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
         includeListName={(liveConfigItem as any)?.whatsapp_include_list_name != null ? (liveConfigItem as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
+        listNameLabel={liveConfigItem?.type === 'view' ? 'View Name' : 'List Name'}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${liveConfigItem?.title || ''}`}
         isDarkMode={isDarkMode}

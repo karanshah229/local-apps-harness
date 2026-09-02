@@ -318,7 +318,7 @@ export function formatWholeListMessage(
     if (scope === 'pending') {
       header += ` • ${pending.length} pending\n━━━━━━━━━━━━━━━\n\n`;
     } else if (scope === 'current_view') {
-      header += ` • ${tasks.length} filtered\n━━━━━━━━━━━━━━━\n\n`;
+      header += includeListName ? `\n━━━━━━━━━━━━━━━\n\n` : '';
     } else {
       header += ` (${tasks.length} total)\n━━━━━━━━━━━━━━━\n\n`;
     }
@@ -327,7 +327,7 @@ export function formatWholeListMessage(
     if (scope === 'pending') {
       header += ` (${pending.length} pending)\n\n`;
     } else if (scope === 'current_view') {
-      header += ` (${tasks.length} filtered)\n\n`;
+      header += includeListName ? `\n` : '';
     } else {
       header += ` (${tasks.length} total)\n\n`;
     }
@@ -337,7 +337,7 @@ export function formatWholeListMessage(
     if (scope === 'pending') {
       header += ` • ${pending.length} pending\n\n`;
     } else if (scope === 'current_view') {
-      header += ` • ${tasks.length} filtered\n\n`;
+      header += includeListName ? `\n` : '';
     } else {
       header += ` (${tasks.length} total)\n\n`;
     }

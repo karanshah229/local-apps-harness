@@ -2120,6 +2120,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         includeSteps={(customView as any)?.whatsapp_include_steps != null ? (customView as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
         includeDueDate={(customView as any)?.whatsapp_include_due_date != null ? (customView as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
         includeListName={(customView as any)?.whatsapp_include_list_name != null ? (customView as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
+        listNameLabel="View Name"
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${customView?.title || 'View'}`}
         isDarkMode={isDarkMode}

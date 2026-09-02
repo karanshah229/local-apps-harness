@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   StyleSheet,
   Switch,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -21,7 +22,13 @@ import {
   Star,
   Calendar,
 } from 'lucide-react-native';
-import { WhatsAppMessageStyle, Task, formatSingleTaskMessage } from '@shared/todo';
+import {
+  WhatsAppMessageStyle,
+  Task,
+  formatSingleTaskMessage,
+  formatBatchTasksMessage,
+  formatWholeListMessage,
+} from '@shared/todo';
 
 export interface WhatsAppFormatOptions {
   includeNotes: boolean;
@@ -49,6 +56,7 @@ interface WhatsAppFormatBottomSheetProps {
   themePrimary?: string;
   sampleTask?: Task | null;
   confirmLabel?: string;
+  listNameLabel?: string;
 }
 
 export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps> = ({
@@ -67,8 +75,23 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   isDarkMode = false,
   themePrimary = '#0078d4',
   sampleTask,
+  listNameLabel = 'List Name',
 }) => {
   const insets = useSafeAreaInsets();
+  const { width: windowWidth } = useWindowDimensions();
+  const previewGap = 12;
+  const [previewCarouselWidth, setPreviewCarouselWidth] = useState(Math.max(260, windowWidth - 40));
+  const previewCardWidth = Math.max(260, previewCarouselWidth);
+  const previewSnapInterval = previewCardWidth + previewGap;
+  const [activePreviewIndex, setActivePreviewIndex] = useState(0);
+  const activePreviewIndexRef = useRef(0);
+  const previewDragStartXRef = useRef(0);
+  const previewScrollRef = useRef<any>(null);
+  const [previewScrollbars, setPreviewScrollbars] = useState<Record<string, {
+    contentHeight: number;
+    viewportHeight: number;
+    scrollY: number;
+  }>>({});
   const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(currentStyle || 'executive');
   const [notesEnabled, setNotesEnabled] = useState<boolean>(includeNotes !== false);
   const [assigneeEnabled, setAssigneeEnabled] = useState<boolean>(includeAssignee !== false);
@@ -79,6 +102,8 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
 
   useEffect(() => {
     if (visible) {
+      setActivePreviewIndex(0);
+      activePreviewIndexRef.current = 0;
       setSelectedStyle(currentStyle || 'executive');
       setNotesEnabled(includeNotes !== false);
       setAssigneeEnabled(includeAssignee !== false);
@@ -111,24 +136,15 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     { id: 2, task_id: defaultSample.id, title: 'Inspect 20 crates', is_completed: 0, active: 1 },
   ], [defaultSample.id]);
 
-  const previewText = useMemo(() => {
-    return formatSingleTaskMessage(
-      defaultSample,
-      { name: defaultSample.assignee_name || undefined },
-      sampleSubtasks,
-      {
-        style: selectedStyle,
-        includeNotes: notesEnabled,
-        includeAssignee: assigneeEnabled,
-        includeImportant: importantEnabled,
-        includeSteps: stepsEnabled,
-        includeDueDate: dueDateEnabled,
-        includeListName: listNameEnabled,
-      }
-    );
-  }, [
-    defaultSample,
-    sampleSubtasks,
+  const previewConfig = useMemo(() => ({
+    style: selectedStyle,
+    includeNotes: notesEnabled,
+    includeAssignee: assigneeEnabled,
+    includeImportant: importantEnabled,
+    includeSteps: stepsEnabled,
+    includeDueDate: dueDateEnabled,
+    includeListName: listNameEnabled,
+  }), [
     selectedStyle,
     notesEnabled,
     assigneeEnabled,
@@ -136,6 +152,45 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     stepsEnabled,
     dueDateEnabled,
     listNameEnabled,
+  ]);
+
+  const previewCards = useMemo(() => {
+    const secondSample: Task = {
+      ...defaultSample,
+      id: defaultSample.id + 1,
+      title: 'Inspect 20 crates',
+      notes: null,
+      is_important: 0,
+      is_completed: 1,
+      reminder_time: null,
+    };
+    return [
+      {
+        label: 'Single Task',
+        text: formatSingleTaskMessage(
+          defaultSample,
+          { name: defaultSample.assignee_name || undefined },
+          sampleSubtasks,
+          previewConfig
+        ),
+      },
+      {
+        label: 'Multiple Tasks',
+        text: formatBatchTasksMessage([defaultSample, secondSample], previewConfig),
+      },
+      {
+        label: 'List',
+        text: formatWholeListMessage(
+          { title: defaultSample.list_title || 'Dairy Ops' },
+          [defaultSample, secondSample],
+          { ...previewConfig, scope: 'all' }
+        ),
+      },
+    ];
+  }, [
+    defaultSample,
+    sampleSubtasks,
+    previewConfig,
   ]);
 
   const triggerSave = (
@@ -200,8 +255,8 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     },
     {
       id: 'listName',
-      label: 'List Name',
-      description: 'Show the list name in the shared message',
+      label: listNameLabel,
+      description: `Show the ${listNameLabel === 'View Name' ? 'view' : 'list'} name in the shared message`,
       value: listNameEnabled,
       icon: FileText,
       color: '#14b8a6',
@@ -424,25 +479,174 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             </View>
 
             <View
+              onLayout={(event) => {
+                const carouselWidth = event.nativeEvent.layout.width;
+                if (carouselWidth > 0 && carouselWidth !== previewCarouselWidth) {
+                  setPreviewCarouselWidth(carouselWidth);
+                }
+              }}
               style={{
-                backgroundColor: isDarkMode ? '#09090b' : '#f1f5f9',
-                padding: 14,
+                height: 228,
                 borderRadius: 16,
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-                marginBottom: 16,
+                overflow: 'hidden',
               }}
             >
-              <Text
-                style={{
-                  fontFamily: 'monospace',
-                  fontSize: 12.5,
-                  lineHeight: 19,
-                  color: isDarkMode ? '#22c55e' : '#0f766e',
-                }}
-              >
-                {previewText}
-              </Text>
+            <ScrollView
+              ref={previewScrollRef}
+              horizontal
+              pagingEnabled
+              snapToInterval={previewSnapInterval}
+              snapToAlignment="start"
+              disableIntervalMomentum
+              decelerationRate="normal"
+              onScrollBeginDrag={(event) => {
+                previewDragStartXRef.current = event.nativeEvent.contentOffset?.x ?? 0;
+              }}
+              onScrollEndDrag={(event) => {
+                const endX = event.nativeEvent.contentOffset?.x ?? previewDragStartXRef.current;
+                const delta = endX - previewDragStartXRef.current;
+                const direction = delta > 4 ? 1 : delta < -4 ? -1 : 0;
+                const targetIndex = Math.min(
+                  previewCards.length - 1,
+                  Math.max(0, activePreviewIndexRef.current + direction)
+                );
+                activePreviewIndexRef.current = targetIndex;
+                setActivePreviewIndex(targetIndex);
+                previewScrollRef.current?.scrollTo({
+                  x: targetIndex * previewSnapInterval,
+                  animated: true,
+                });
+              }}
+              onMomentumScrollEnd={(event) => {
+                const targetIndex = activePreviewIndexRef.current;
+                if (Math.abs(event.nativeEvent.contentOffset.x - targetIndex * previewSnapInterval) > 1) {
+                  previewScrollRef.current?.scrollTo({
+                    x: targetIndex * previewSnapInterval,
+                    animated: false,
+                  });
+                }
+              }}
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 0 }}
+              style={{
+                height: 228,
+              }}
+            >
+              {previewCards.map((card) => (
+                <View
+                  key={card.label}
+                  style={{
+                    width: previewCardWidth,
+                    height: 228,
+                    marginRight: previewGap,
+                    backgroundColor: isDarkMode ? '#09090b' : '#f1f5f9',
+                    padding: 14,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                  }}
+                >
+                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary, textTransform: 'uppercase', marginBottom: 8 }}>
+                    {card.label}
+                  </Text>
+                  <ScrollView
+                    nestedScrollEnabled
+                    showsVerticalScrollIndicator
+                    persistentScrollbar
+                    scrollEventThrottle={16}
+                    onLayout={(event) => {
+                      const viewportHeight = event.nativeEvent.layout.height;
+                      setPreviewScrollbars((current) => ({
+                        ...current,
+                        [card.label]: {
+                          ...(current[card.label] || { contentHeight: 0, scrollY: 0 }),
+                          viewportHeight,
+                        },
+                      }));
+                    }}
+                    onContentSizeChange={(_, contentHeight) => {
+                      setPreviewScrollbars((current) => ({
+                        ...current,
+                        [card.label]: {
+                          ...(current[card.label] || { viewportHeight: 0, scrollY: 0 }),
+                          contentHeight,
+                        },
+                      }));
+                    }}
+                    onScroll={(event) => {
+                      const scrollY = event.nativeEvent.contentOffset?.y ?? 0;
+                      setPreviewScrollbars((current) => ({
+                        ...current,
+                        [card.label]: {
+                          ...(current[card.label] || { contentHeight: 0, viewportHeight: 0 }),
+                          scrollY,
+                        },
+                      }));
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: 12.5,
+                        lineHeight: 19,
+                        color: isDarkMode ? '#22c55e' : '#0f766e',
+                      }}
+                    >
+                      {card.text}
+                    </Text>
+                  </ScrollView>
+                  {(() => {
+                    const metrics = previewScrollbars[card.label];
+                    if (!metrics || metrics.contentHeight <= metrics.viewportHeight) return null;
+                    const trackHeight = 178;
+                    const thumbHeight = Math.max(30, trackHeight * (metrics.viewportHeight / metrics.contentHeight));
+                    const maxThumbTop = trackHeight - thumbHeight;
+                    const maxScrollTop = metrics.contentHeight - metrics.viewportHeight;
+                    const thumbTop = maxScrollTop > 0
+                      ? Math.min(maxThumbTop, Math.max(0, (metrics.scrollY / maxScrollTop) * maxThumbTop))
+                      : 0;
+                    return (
+                    <View
+                      pointerEvents="none"
+                      style={{
+                        position: 'absolute',
+                        top: 40,
+                        right: 12,
+                        bottom: 10,
+                        width: 6,
+                        borderRadius: 2,
+                        backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1',
+                      }}
+                      >
+                        <View
+                          style={{
+                            width: 6,
+                          height: thumbHeight,
+                          transform: [{ translateY: thumbTop }],
+                          borderRadius: 2,
+                          backgroundColor: themePrimary,
+                        }}
+                      />
+                    </View>
+                    );
+                  })()}
+                </View>
+              ))}
+            </ScrollView>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, height: 22, marginBottom: 16 }}>
+              {previewCards.map((card, index) => (
+                <View
+                  key={card.label}
+                  style={{
+                    width: activePreviewIndex === index ? 18 : 6,
+                    height: 6,
+                    borderRadius: 3,
+                    backgroundColor: activePreviewIndex === index ? themePrimary : (isDarkMode ? '#52525b' : '#cbd5e1'),
+                  }}
+                />
+              ))}
             </View>
 
             {/* Section 3: Task Fields Toggles */}
