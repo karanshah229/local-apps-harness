@@ -123,6 +123,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
       last_view_type TEXT DEFAULT 'tab',
       last_view_id TEXT DEFAULT 'all-tasks',
       sort_preferences TEXT DEFAULT '{}',
+      default_whatsapp_include_list_name BOOLEAN DEFAULT 1,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -186,6 +187,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_due_date BOOLEAN');
   } catch {}
   try {
+    db.runSync('ALTER TABLE lists ADD COLUMN whatsapp_include_list_name BOOLEAN');
+  } catch {}
+  try {
     db.runSync("ALTER TABLE lists ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
   } catch {}
 
@@ -219,6 +223,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   try {
     db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_due_date BOOLEAN DEFAULT 1`);
   } catch {}
+  try {
+    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_list_name BOOLEAN DEFAULT 1`);
+  } catch {}
 
   // Create custom_views table
   db.execSync(`
@@ -237,6 +244,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
       whatsapp_include_important BOOLEAN,
       whatsapp_include_steps BOOLEAN,
       whatsapp_include_due_date BOOLEAN,
+      whatsapp_include_list_name BOOLEAN,
       whatsapp_list_layout TEXT DEFAULT 'compact',
       position INTEGER DEFAULT 0,
       active BOOLEAN DEFAULT 1,
@@ -272,6 +280,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     }
     if (!cvColNames.has('whatsapp_include_due_date')) {
       db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_due_date BOOLEAN');
+    }
+    if (!cvColNames.has('whatsapp_include_list_name')) {
+      db.runSync('ALTER TABLE custom_views ADD COLUMN whatsapp_include_list_name BOOLEAN');
     }
     if (!cvColNames.has('whatsapp_list_layout')) {
       db.runSync("ALTER TABLE custom_views ADD COLUMN whatsapp_list_layout TEXT DEFAULT 'compact'");
@@ -828,10 +839,10 @@ export const localTodoDb = {
       `
       INSERT INTO lists (
         title, color_theme, icon, created_by, default_whatsapp_contact_id, default_whatsapp_share_scope,
-        whatsapp_message_style, whatsapp_include_notes, whatsapp_include_assignee, whatsapp_include_important, whatsapp_include_steps, whatsapp_include_due_date,
+        whatsapp_message_style, whatsapp_include_notes, whatsapp_include_assignee, whatsapp_include_important, whatsapp_include_steps, whatsapp_include_due_date, whatsapp_include_list_name,
         active
       )
-      VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, 1)
+      VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)
       `,
       [title.trim(), themeToUse, icon, created_by || 1, default_whatsapp_contact_id || null, default_whatsapp_share_scope || null]
     );
@@ -909,6 +920,10 @@ export const localTodoDb = {
     if (data.whatsapp_include_due_date !== undefined) {
       updates.push('whatsapp_include_due_date = ?');
       params.push(data.whatsapp_include_due_date ? 1 : 0);
+    }
+    if (data.whatsapp_include_list_name !== undefined) {
+      updates.push('whatsapp_include_list_name = ?');
+      params.push(data.whatsapp_include_list_name ? 1 : 0);
     }
     if (data.whatsapp_list_layout !== undefined) {
       updates.push('whatsapp_list_layout = ?');
@@ -1161,6 +1176,7 @@ export const localTodoDb = {
       default_whatsapp_include_important: 0,
       default_whatsapp_include_steps: 1,
       default_whatsapp_include_due_date: 1,
+      default_whatsapp_include_list_name: 1,
     };
   },
 
@@ -1212,14 +1228,17 @@ export const localTodoDb = {
     const nextDefIncludeDueDate = data.default_whatsapp_include_due_date !== undefined
       ? (data.default_whatsapp_include_due_date ? 1 : 0)
       : (existing.default_whatsapp_include_due_date !== 0 ? 1 : 0);
+    const nextDefIncludeListName = data.default_whatsapp_include_list_name !== undefined
+      ? (data.default_whatsapp_include_list_name ? 1 : 0)
+      : (existing.default_whatsapp_include_list_name !== 0 ? 1 : 0);
 
     db.runSync(
       `
       UPDATE user_preferences
-      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, default_whatsapp_include_assignee = ?, default_whatsapp_include_important = ?, default_whatsapp_include_steps = ?, default_whatsapp_include_due_date = ?, updated_at = CURRENT_TIMESTAMP
+      SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, default_whatsapp_include_assignee = ?, default_whatsapp_include_important = ?, default_whatsapp_include_steps = ?, default_whatsapp_include_due_date = ?, default_whatsapp_include_list_name = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = 1
       `,
-      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes, nextDefIncludeAssignee, nextDefIncludeImportant, nextDefIncludeSteps, nextDefIncludeDueDate]
+      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes, nextDefIncludeAssignee, nextDefIncludeImportant, nextDefIncludeSteps, nextDefIncludeDueDate, nextDefIncludeListName]
     );
 
     return this.getUserPreferences();
@@ -1365,7 +1384,7 @@ export const localTodoDb = {
     const result = db.runSync(
       `INSERT INTO custom_views (
         title, color_theme, icon, filter_config, sort_config, default_whatsapp_contact_id, default_whatsapp_share_scope, position,
-        whatsapp_message_style, whatsapp_include_notes, whatsapp_include_assignee, whatsapp_include_important, whatsapp_include_steps, whatsapp_include_due_date,
+        whatsapp_message_style, whatsapp_include_notes, whatsapp_include_assignee, whatsapp_include_important, whatsapp_include_steps, whatsapp_include_due_date, whatsapp_include_list_name,
         active
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
       [title, theme, icon, filterStr, sortStr, contactId, shareScope, position]
@@ -1429,6 +1448,10 @@ export const localTodoDb = {
     if (data.whatsapp_include_due_date !== undefined) {
       updates.push('whatsapp_include_due_date = ?');
       params.push(data.whatsapp_include_due_date ? 1 : 0);
+    }
+    if (data.whatsapp_include_list_name !== undefined) {
+      updates.push('whatsapp_include_list_name = ?');
+      params.push(data.whatsapp_include_list_name ? 1 : 0);
     }
     if (data.whatsapp_list_layout !== undefined) {
       updates.push('whatsapp_list_layout = ?');

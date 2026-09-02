@@ -80,6 +80,20 @@ test('WhatsApp delegator message formats contain pure task details and no app li
   assert.ok(!listMsg.includes('http'));
   assert.ok(!listMsg.includes('Open list'));
 
+  const withoutListName = formatSingleTaskMessage(
+    sampleTask,
+    { name: 'Ramesh Patel', phone: '+919876543210' },
+    steps,
+    { style: 'executive', includeListName: false }
+  );
+  assert.ok(!withoutListName.includes('Logistics'));
+
+  const withoutListHeader = formatWholeListMessage(sampleList, batchTasks, {
+    style: 'executive',
+    includeListName: false,
+  });
+  assert.ok(!withoutListHeader.includes('Daily Logistics'));
+
   // Test WhatsApp Group task formatting - should be ignored even if toggle on
   const groupTask = {
     ...sampleTask,

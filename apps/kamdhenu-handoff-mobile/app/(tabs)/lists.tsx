@@ -169,6 +169,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
   const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
   const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
 
   // WhatsApp Contact, Scope & Format Picker Modal States for Lists and Views
   const [dropdownY, setDropdownY] = useState(150);
@@ -183,6 +184,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     whatsapp_include_notes?: number | boolean | null;
     whatsapp_include_assignee?: number | boolean | null;
     whatsapp_include_important?: number | boolean | null;
+    whatsapp_include_list_name?: number | boolean | null;
     whatsapp_include_steps?: number | boolean | null;
     whatsapp_include_due_date?: number | boolean | null;
   } | null>(null);
@@ -251,6 +253,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         whatsapp_include_important: options.includeImportant ? 1 : 0,
         whatsapp_include_steps: options.includeSteps ? 1 : 0,
         whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+        whatsapp_include_list_name: options.includeListName ? 1 : 0,
       };
       if (selectedItemForConfig.type === 'view') {
         await updateCustomViewMutation.mutateAsync({
@@ -1488,6 +1491,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         includeImportant={(liveConfigItem as any)?.whatsapp_include_important != null ? (liveConfigItem as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
         includeSteps={(liveConfigItem as any)?.whatsapp_include_steps != null ? (liveConfigItem as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
         includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date != null ? (liveConfigItem as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
+        includeListName={(liveConfigItem as any)?.whatsapp_include_list_name != null ? (liveConfigItem as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${liveConfigItem?.title || ''}`}
         isDarkMode={isDarkMode}

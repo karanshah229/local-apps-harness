@@ -78,6 +78,7 @@ export function formatSingleTaskMessage(
   const includeImportant = config?.includeImportant !== false;
   const includeSteps = config?.includeSteps !== false;
   const includeDueDate = config?.includeDueDate !== false;
+  const includeListName = config?.includeListName !== false;
 
   const importantSuffix = (includeImportant && task.is_important) ? ' (Important)' : '';
   const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date) : null;
@@ -108,7 +109,7 @@ export function formatSingleTaskMessage(
       }
     }
 
-    if (listsStr) {
+    if (includeListName && listsStr) {
       const isMulti = listsStr.includes(',');
       message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
     }
@@ -143,7 +144,7 @@ export function formatSingleTaskMessage(
       }
     }
 
-    if (listsStr) {
+    if (includeListName && listsStr) {
       const isMulti = listsStr.includes(',');
       message += `📁 *${isMulti ? 'Lists' : 'List'}:* ${listsStr}\n`;
     }
@@ -171,7 +172,7 @@ export function formatSingleTaskMessage(
 
     const metaParts: string[] = [];
     if (includeDueDate && dueInfo) metaParts.push(`🗓 ${dueInfo.text}${timeStr}`);
-    if (listsStr) metaParts.push(`📁 ${listsStr}`);
+    if (includeListName && listsStr) metaParts.push(`📁 ${listsStr}`);
     if (shouldIncludeAssignee) metaParts.push(`👤 ${assigneeName}`);
 
     if (metaParts.length > 0) {
@@ -208,6 +209,7 @@ export function formatBatchTasksMessage(
   const includeAssignee = config?.includeAssignee !== false;
   const includeImportant = config?.includeImportant !== false;
   const includeDueDate = config?.includeDueDate !== false;
+  const includeListName = config?.includeListName !== false;
 
   const pendingCount = tasks.filter((t) => !t.is_completed).length;
   const completedCount = tasks.filter((t) => Boolean(t.is_completed)).length;
@@ -252,7 +254,7 @@ export function formatBatchTasksMessage(
 
     const tags: string[] = [];
     if (includeDueDate && dueInfo) tags.push(`🗓 ${dueInfo.text}`);
-    if (listsStr) tags.push(`📁 ${listsStr}`);
+    if (includeListName && listsStr) tags.push(`📁 ${listsStr}`);
     if (shouldIncludeAssignee) {
       tags.push(`👤 ${task.assignee_name}`);
     }
@@ -304,6 +306,7 @@ export function formatWholeListMessage(
   const includeAssignee = config?.includeAssignee !== false;
   const includeImportant = config?.includeImportant !== false;
   const includeDueDate = config?.includeDueDate !== false;
+  const includeListName = config?.includeListName !== false;
   const scope = config?.scope || 'all';
 
   const pending = tasks.filter((t) => !t.is_completed);
@@ -311,7 +314,7 @@ export function formatWholeListMessage(
 
   let header = '';
   if (style === 'executive') {
-    header = `📁 *${list.title}*`;
+    header = includeListName ? `📁 *${list.title}*` : '';
     if (scope === 'pending') {
       header += ` • ${pending.length} pending\n━━━━━━━━━━━━━━━\n\n`;
     } else if (scope === 'current_view') {
@@ -320,7 +323,7 @@ export function formatWholeListMessage(
       header += ` (${tasks.length} total)\n━━━━━━━━━━━━━━━\n\n`;
     }
   } else if (style === 'crisp') {
-    header = `📁 *${list.title}*`;
+    header = includeListName ? `📁 *${list.title}*` : '';
     if (scope === 'pending') {
       header += ` (${pending.length} pending)\n\n`;
     } else if (scope === 'current_view') {
@@ -330,7 +333,7 @@ export function formatWholeListMessage(
     }
   } else {
     // Modern
-    header = `📁 *${list.title}*`;
+    header = includeListName ? `📁 *${list.title}*` : '';
     if (scope === 'pending') {
       header += ` • ${pending.length} pending\n\n`;
     } else if (scope === 'current_view') {

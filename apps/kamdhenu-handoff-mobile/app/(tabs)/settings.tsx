@@ -52,6 +52,8 @@ export default function SettingsScreen() {
     setDefaultWhatsAppIncludeSteps,
     defaultWhatsAppIncludeDueDate,
     setDefaultWhatsAppIncludeDueDate,
+    defaultWhatsAppIncludeListName,
+    setDefaultWhatsAppIncludeListName,
   } = useUiStore();
   const systemColorScheme = useColorScheme();
   const { data: users = [] } = useUsersQuery();
@@ -67,6 +69,7 @@ export default function SettingsScreen() {
     setDefaultWhatsAppIncludeImportant(options.includeImportant);
     setDefaultWhatsAppIncludeSteps(options.includeSteps);
     setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
+    setDefaultWhatsAppIncludeListName(options.includeListName);
 
     updatePrefs.mutate({
       default_whatsapp_style: style,
@@ -75,6 +78,7 @@ export default function SettingsScreen() {
       default_whatsapp_include_important: options.includeImportant ? 1 : 0,
       default_whatsapp_include_steps: options.includeSteps ? 1 : 0,
       default_whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+      default_whatsapp_include_list_name: options.includeListName ? 1 : 0,
     });
   };
 
@@ -379,6 +383,7 @@ export default function SettingsScreen() {
         includeImportant={defaultWhatsAppIncludeImportant === true}
         includeSteps={defaultWhatsAppIncludeSteps !== false}
         includeDueDate={defaultWhatsAppIncludeDueDate !== false}
+        includeListName={defaultWhatsAppIncludeListName !== false}
         onSave={handleSaveGlobalFormat}
         title="Default Message Format"
         subtitle="Global format applied to all lists without custom style"

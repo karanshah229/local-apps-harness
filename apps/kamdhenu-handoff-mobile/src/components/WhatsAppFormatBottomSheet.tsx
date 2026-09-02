@@ -29,6 +29,7 @@ export interface WhatsAppFormatOptions {
   includeImportant: boolean;
   includeSteps: boolean;
   includeDueDate: boolean;
+  includeListName: boolean;
 }
 
 interface WhatsAppFormatBottomSheetProps {
@@ -40,6 +41,7 @@ interface WhatsAppFormatBottomSheetProps {
   includeImportant?: boolean;
   includeSteps?: boolean;
   includeDueDate?: boolean;
+  includeListName?: boolean;
   onSave: (style: WhatsAppMessageStyle, options: WhatsAppFormatOptions) => void;
   title?: string;
   subtitle?: string;
@@ -58,6 +60,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   includeImportant = false,
   includeSteps = true,
   includeDueDate = true,
+  includeListName = true,
   onSave,
   title = 'WhatsApp Message Format',
   subtitle = 'Choose how your tasks and lists are styled when shared',
@@ -72,6 +75,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   const [importantEnabled, setImportantEnabled] = useState<boolean>(includeImportant === true);
   const [stepsEnabled, setStepsEnabled] = useState<boolean>(includeSteps !== false);
   const [dueDateEnabled, setDueDateEnabled] = useState<boolean>(includeDueDate !== false);
+  const [listNameEnabled, setListNameEnabled] = useState<boolean>(includeListName !== false);
 
   useEffect(() => {
     if (visible) {
@@ -81,8 +85,9 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       setImportantEnabled(includeImportant === true);
       setStepsEnabled(includeSteps !== false);
       setDueDateEnabled(includeDueDate !== false);
+      setListNameEnabled(includeListName !== false);
     }
-  }, [visible, currentStyle, includeNotes, includeAssignee, includeImportant, includeSteps, includeDueDate]);
+  }, [visible, currentStyle, includeNotes, includeAssignee, includeImportant, includeSteps, includeDueDate, includeListName]);
 
   const defaultSample: Task = useMemo(() => {
     if (sampleTask) return sampleTask;
@@ -118,6 +123,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
         includeImportant: importantEnabled,
         includeSteps: stepsEnabled,
         includeDueDate: dueDateEnabled,
+        includeListName: listNameEnabled,
       }
     );
   }, [
@@ -129,6 +135,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     importantEnabled,
     stepsEnabled,
     dueDateEnabled,
+    listNameEnabled,
   ]);
 
   const triggerSave = (
@@ -137,7 +144,8 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     assignee: boolean,
     important: boolean,
     steps: boolean,
-    dueDate: boolean
+    dueDate: boolean,
+    listName: boolean = listNameEnabled
   ) => {
     onSave(style, {
       includeNotes: notes,
@@ -145,6 +153,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       includeImportant: important,
       includeSteps: steps,
       includeDueDate: dueDate,
+      includeListName: listName,
     });
   };
 
@@ -187,6 +196,18 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       onToggle: (val: boolean) => {
         setAssigneeEnabled(val);
         triggerSave(selectedStyle, notesEnabled, val, importantEnabled, stepsEnabled, dueDateEnabled);
+      },
+    },
+    {
+      id: 'listName',
+      label: 'List Name',
+      description: 'Show the list name in the shared message',
+      value: listNameEnabled,
+      icon: FileText,
+      color: '#14b8a6',
+      onToggle: (val: boolean) => {
+        setListNameEnabled(val);
+        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, stepsEnabled, dueDateEnabled, val);
       },
     },
     {

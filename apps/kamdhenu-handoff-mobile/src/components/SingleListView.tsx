@@ -476,17 +476,12 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
   const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
-  const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
   const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
-  const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
   const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
-  const setDefaultWhatsAppIncludeAssignee = useUiStore((s) => s.setDefaultWhatsAppIncludeAssignee);
   const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
-  const setDefaultWhatsAppIncludeImportant = useUiStore((s) => s.setDefaultWhatsAppIncludeImportant);
   const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
-  const setDefaultWhatsAppIncludeSteps = useUiStore((s) => s.setDefaultWhatsAppIncludeSteps);
   const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
-  const setDefaultWhatsAppIncludeDueDate = useUiStore((s) => s.setDefaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
   const hasChosenWhatsAppFormat = useUiStore((s) => s.hasChosenWhatsAppFormat);
   const setHasChosenWhatsAppFormat = useUiStore((s) => s.setHasChosenWhatsAppFormat);
 
@@ -729,6 +724,9 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       const dueDateToUse = typeof overrideNotes === 'object' && overrideNotes.includeDueDate !== undefined
         ? overrideNotes.includeDueDate
         : ((activeList as any).whatsapp_include_due_date != null ? (activeList as any).whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate);
+      const listNameToUse = typeof overrideNotes === 'object' && overrideNotes.includeListName !== undefined
+        ? overrideNotes.includeListName
+        : ((activeList as any).whatsapp_include_list_name != null ? (activeList as any).whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName);
 
       const message = formatWholeListMessage(activeList, targetTasks, {
         scope: chosenScope,
@@ -738,6 +736,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         includeImportant: importantToUse,
         includeSteps: stepsToUse,
         includeDueDate: dueDateToUse,
+        includeListName: listNameToUse,
       });
       openWhatsAppWithMessage(contact.phone || '', message);
     },
@@ -858,35 +857,16 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
           whatsapp_include_important: options.includeImportant ? 1 : 0,
           whatsapp_include_steps: options.includeSteps ? 1 : 0,
           whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
+          whatsapp_include_list_name: options.includeListName ? 1 : 0,
         });
       }
       setHasChosenWhatsAppFormat(true);
-      setDefaultWhatsAppStyle(style);
-      setDefaultWhatsAppIncludeNotes(options.includeNotes);
-      setDefaultWhatsAppIncludeAssignee(options.includeAssignee);
-      setDefaultWhatsAppIncludeImportant(options.includeImportant);
-      setDefaultWhatsAppIncludeSteps(options.includeSteps);
-      setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
-      updatePrefs.mutate({
-        has_chosen_whatsapp_format: 1,
-        default_whatsapp_style: style,
-        default_whatsapp_include_notes: options.includeNotes ? 1 : 0,
-        default_whatsapp_include_assignee: options.includeAssignee ? 1 : 0,
-        default_whatsapp_include_important: options.includeImportant ? 1 : 0,
-        default_whatsapp_include_steps: options.includeSteps ? 1 : 0,
-        default_whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
-      });
+      updatePrefs.mutate({ has_chosen_whatsapp_format: 1 });
     },
     [
       activeList,
       updateListMutation,
       setHasChosenWhatsAppFormat,
-      setDefaultWhatsAppStyle,
-      setDefaultWhatsAppIncludeNotes,
-      setDefaultWhatsAppIncludeAssignee,
-      setDefaultWhatsAppIncludeImportant,
-      setDefaultWhatsAppIncludeSteps,
-      setDefaultWhatsAppIncludeDueDate,
       updatePrefs,
     ]
   );
@@ -2410,6 +2390,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         includeImportant={(activeList as any)?.whatsapp_include_important != null ? (activeList as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
         includeSteps={(activeList as any)?.whatsapp_include_steps != null ? (activeList as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
         includeDueDate={(activeList as any)?.whatsapp_include_due_date != null ? (activeList as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
+        includeListName={(activeList as any)?.whatsapp_include_list_name != null ? (activeList as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${activeList?.title || 'List'}`}
         isDarkMode={isDarkMode}
@@ -2697,7 +2678,6 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                           whatsapp_message_style: st,
                         });
                       }
-                      setDefaultWhatsAppStyle(st);
                     }}
                     style={{
                       flex: 1,

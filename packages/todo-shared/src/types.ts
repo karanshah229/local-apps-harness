@@ -19,6 +19,7 @@ export interface WhatsAppFormatConfig {
   includeImportant?: boolean;
   includeSteps?: boolean;
   includeDueDate?: boolean;
+  includeListName?: boolean;
   layout?: WhatsAppListLayout;
   scope?: 'pending' | 'all' | 'current_view';
 }
@@ -40,6 +41,7 @@ export interface List {
   whatsapp_include_important?: number | boolean | null;
   whatsapp_include_steps?: number | boolean | null;
   whatsapp_include_due_date?: number | boolean | null;
+  whatsapp_include_list_name?: number | boolean | null;
   whatsapp_list_layout?: WhatsAppListLayout | string | null;
   active?: number | boolean;
   created_at?: string;
@@ -142,6 +144,7 @@ export interface CustomView {
   whatsapp_include_important?: number | boolean | null;
   whatsapp_include_steps?: number | boolean | null;
   whatsapp_include_due_date?: number | boolean | null;
+  whatsapp_include_list_name?: number | boolean | null;
   whatsapp_list_layout?: WhatsAppListLayout | string | null;
   matched_count?: number;
   position?: number;
@@ -192,6 +195,6 @@ export interface UserPreferences {
   default_whatsapp_include_important?: number | boolean;
   default_whatsapp_include_steps?: number | boolean;
   default_whatsapp_include_due_date?: number | boolean;
+  default_whatsapp_include_list_name?: number | boolean;
   updated_at?: string;
 }
-

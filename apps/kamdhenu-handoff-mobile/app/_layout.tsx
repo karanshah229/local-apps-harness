@@ -106,6 +106,9 @@ function RootLayoutNav() {
       if (preferences?.default_whatsapp_include_due_date !== undefined) {
         useUiStore.getState().setDefaultWhatsAppIncludeDueDate(preferences.default_whatsapp_include_due_date !== 0 && preferences.default_whatsapp_include_due_date !== false);
       }
+      if (preferences?.default_whatsapp_include_list_name !== undefined) {
+        useUiStore.getState().setDefaultWhatsAppIncludeListName(preferences.default_whatsapp_include_list_name !== 0 && preferences.default_whatsapp_include_list_name !== false);
+      }
 
       if (preferences?.remember_last_view) {
         const type = preferences.last_view_type;

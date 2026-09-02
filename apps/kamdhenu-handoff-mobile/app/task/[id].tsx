@@ -54,7 +54,6 @@ import {
   useUpdateSubtaskMutation,
   useDeleteSubtaskMutation,
   useAddUserMutation,
-  useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../../src/hooks/useThrottledTaskAutosave';
 import {
@@ -342,7 +341,6 @@ export default function TaskDetailScreen() {
   const addSubtaskMutation = useAddSubtaskMutation();
   const updateSubtaskMutation = useUpdateSubtaskMutation();
   const deleteSubtaskMutation = useDeleteSubtaskMutation();
-  const updatePrefs = useUpdateUserPreferencesMutation();
 
   const task = isNewTask ? null : (directTask || tasks.find((t) => t.id === taskId));
 
@@ -382,21 +380,25 @@ export default function TaskDetailScreen() {
   const [showAssigneeModal, setShowAssigneeModal] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
+  const [taskWhatsAppFormat, setTaskWhatsAppFormat] = useState<{
+    style: WhatsAppMessageStyle;
+    includeNotes: boolean;
+    includeAssignee: boolean;
+    includeImportant: boolean;
+    includeSteps: boolean;
+    includeDueDate: boolean;
+    includeListName: boolean;
+  } | null>(null);
   const [listSearchQuery, setListSearchQuery] = useState('');
   const [assigneeSearchQuery, setAssigneeSearchQuery] = useState('');
 
   const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
-  const setDefaultWhatsAppStyle = useUiStore((s) => s.setDefaultWhatsAppStyle);
   const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
-  const setDefaultWhatsAppIncludeNotes = useUiStore((s) => s.setDefaultWhatsAppIncludeNotes);
   const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
-  const setDefaultWhatsAppIncludeAssignee = useUiStore((s) => s.setDefaultWhatsAppIncludeAssignee);
   const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
-  const setDefaultWhatsAppIncludeImportant = useUiStore((s) => s.setDefaultWhatsAppIncludeImportant);
   const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
-  const setDefaultWhatsAppIncludeSteps = useUiStore((s) => s.setDefaultWhatsAppIncludeSteps);
   const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
-  const setDefaultWhatsAppIncludeDueDate = useUiStore((s) => s.setDefaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
 
   const addUserMutation = useAddUserMutation();
   const initializedTaskIdRef = useRef<number | string | null>(null);
@@ -628,13 +630,17 @@ export default function TaskDetailScreen() {
     if (!task) return;
     const assignee = users.find((u) => u.id === task.assigned_to_user_id);
     const targetPhone = assignee?.phone;
-    const formatConfig = {
+    const taskFormat = taskWhatsAppFormat || {
       style: defaultWhatsAppStyle || 'modern',
       includeNotes: defaultWhatsAppIncludeNotes !== false,
       includeAssignee: defaultWhatsAppIncludeAssignee !== false,
       includeImportant: defaultWhatsAppIncludeImportant !== false,
       includeSteps: defaultWhatsAppIncludeSteps !== false,
       includeDueDate: defaultWhatsAppIncludeDueDate !== false,
+      includeListName: defaultWhatsAppIncludeListName !== false,
+    };
+    const formatConfig = {
+      ...taskFormat,
     };
     if (!targetPhone) {
       const message = formatSingleTaskMessage(
@@ -1900,28 +1906,17 @@ export default function TaskDetailScreen() {
         <WhatsAppFormatBottomSheet
           visible={showFormatPickerModal}
           onClose={() => setShowFormatPickerModal(false)}
-          currentStyle={defaultWhatsAppStyle || 'executive'}
-          includeNotes={defaultWhatsAppIncludeNotes !== false}
-          includeAssignee={defaultWhatsAppIncludeAssignee !== false}
-          includeImportant={defaultWhatsAppIncludeImportant === true}
-          includeSteps={defaultWhatsAppIncludeSteps !== false}
-          includeDueDate={defaultWhatsAppIncludeDueDate !== false}
+          currentStyle={taskWhatsAppFormat?.style || defaultWhatsAppStyle || 'executive'}
+          includeNotes={taskWhatsAppFormat?.includeNotes ?? (defaultWhatsAppIncludeNotes !== false)}
+          includeAssignee={taskWhatsAppFormat?.includeAssignee ?? (defaultWhatsAppIncludeAssignee !== false)}
+          includeImportant={taskWhatsAppFormat?.includeImportant ?? (defaultWhatsAppIncludeImportant === true)}
+          includeSteps={taskWhatsAppFormat?.includeSteps ?? (defaultWhatsAppIncludeSteps !== false)}
+          includeDueDate={taskWhatsAppFormat?.includeDueDate ?? (defaultWhatsAppIncludeDueDate !== false)}
+          includeListName={taskWhatsAppFormat?.includeListName ?? (defaultWhatsAppIncludeListName !== false)}
           sampleTask={task}
           onSave={(style, options) => {
-            setDefaultWhatsAppStyle(style);
-            setDefaultWhatsAppIncludeNotes(options.includeNotes);
-            setDefaultWhatsAppIncludeAssignee(options.includeAssignee);
-            setDefaultWhatsAppIncludeImportant(options.includeImportant);
-            setDefaultWhatsAppIncludeSteps(options.includeSteps);
-            setDefaultWhatsAppIncludeDueDate(options.includeDueDate);
-            updatePrefs.mutate({
-              default_whatsapp_style: style,
-              default_whatsapp_include_notes: options.includeNotes ? 1 : 0,
-              default_whatsapp_include_assignee: options.includeAssignee ? 1 : 0,
-              default_whatsapp_include_important: options.includeImportant ? 1 : 0,
-              default_whatsapp_include_steps: options.includeSteps ? 1 : 0,
-              default_whatsapp_include_due_date: options.includeDueDate ? 1 : 0,
-            });
+            setTaskWhatsAppFormat({ style, ...options });
+            setShowFormatPickerModal(false);
           }}
           title="WhatsApp Message Format"
           isDarkMode={isDarkMode}

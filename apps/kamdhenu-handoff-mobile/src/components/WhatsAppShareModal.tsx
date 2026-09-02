@@ -72,6 +72,7 @@ export default function WhatsAppShareModal({
   const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
   const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
   const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
 
   const [message, setMessage] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
@@ -84,6 +85,7 @@ export default function WhatsAppShareModal({
   const [includeImportant, setIncludeImportant] = useState<boolean>(defaultWhatsAppIncludeImportant === true);
   const [includeSteps, setIncludeSteps] = useState<boolean>(defaultWhatsAppIncludeSteps !== false);
   const [includeDueDate, setIncludeDueDate] = useState<boolean>(defaultWhatsAppIncludeDueDate !== false);
+  const [includeListName, setIncludeListName] = useState<boolean>(defaultWhatsAppIncludeListName !== false);
 
   const selectedUser = users.find((u) => u.id === selectedUserId);
 
@@ -101,6 +103,7 @@ export default function WhatsAppShareModal({
       const initialImportant = defaultWhatsAppIncludeImportant === true;
       const initialSteps = defaultWhatsAppIncludeSteps !== false;
       const initialDueDate = defaultWhatsAppIncludeDueDate !== false;
+      const initialListName = defaultWhatsAppIncludeListName !== false;
 
       setSelectedStyle(initialStyle);
       setIncludeNotes(initialNotes);
@@ -108,6 +111,7 @@ export default function WhatsAppShareModal({
       setIncludeImportant(initialImportant);
       setIncludeSteps(initialSteps);
       setIncludeDueDate(initialDueDate);
+      setIncludeListName(initialListName);
 
       fetchPayload(config.recipientUserId || null, config.customPhone || '', initialStyle, {
         includeNotes: initialNotes,
@@ -115,9 +119,10 @@ export default function WhatsAppShareModal({
         includeImportant: initialImportant,
         includeSteps: initialSteps,
         includeDueDate: initialDueDate,
+        includeListName: initialListName,
       });
     }
-  }, [isOpen, config, defaultWhatsAppStyle, defaultWhatsAppIncludeNotes, defaultWhatsAppIncludeAssignee, defaultWhatsAppIncludeImportant, defaultWhatsAppIncludeSteps, defaultWhatsAppIncludeDueDate]);
+  }, [isOpen, config, defaultWhatsAppStyle, defaultWhatsAppIncludeNotes, defaultWhatsAppIncludeAssignee, defaultWhatsAppIncludeImportant, defaultWhatsAppIncludeSteps, defaultWhatsAppIncludeDueDate, defaultWhatsAppIncludeListName]);
 
   const fetchPayload = async (
     userId: number | null,
@@ -129,12 +134,14 @@ export default function WhatsAppShareModal({
       includeImportant?: boolean;
       includeSteps?: boolean;
       includeDueDate?: boolean;
+      includeListName?: boolean;
     } = {
       includeNotes,
       includeAssignee,
       includeImportant,
       includeSteps,
       includeDueDate,
+      includeListName,
     }
   ) => {
     if (!config) return;
@@ -169,6 +176,7 @@ export default function WhatsAppShareModal({
           includeImportant: options.includeImportant !== false,
           includeSteps: options.includeSteps !== false,
           includeDueDate: options.includeDueDate !== false,
+          includeListName: options.includeListName !== false,
         };
 
         if (config.type === 'single' && config.taskId) {
@@ -251,6 +259,7 @@ export default function WhatsAppShareModal({
       includeImportant,
       includeSteps,
       includeDueDate,
+      includeListName,
     });
   };
 
@@ -262,6 +271,7 @@ export default function WhatsAppShareModal({
       includeImportant,
       includeSteps,
       includeDueDate,
+      includeListName,
     });
   };
 
@@ -273,6 +283,7 @@ export default function WhatsAppShareModal({
       includeImportant: val,
       includeSteps,
       includeDueDate,
+      includeListName,
     });
   };
 
@@ -284,6 +295,7 @@ export default function WhatsAppShareModal({
       includeImportant,
       includeSteps: val,
       includeDueDate,
+      includeListName,
     });
   };
 
@@ -295,6 +307,19 @@ export default function WhatsAppShareModal({
       includeImportant,
       includeSteps,
       includeDueDate: val,
+      includeListName,
+    });
+  };
+
+  const handleListNameToggle = (val: boolean) => {
+    setIncludeListName(val);
+    fetchPayload(selectedUserId, recipientPhone, selectedStyle, {
+      includeNotes,
+      includeAssignee,
+      includeImportant,
+      includeSteps,
+      includeDueDate,
+      includeListName: val,
     });
   };
 
@@ -310,6 +335,7 @@ export default function WhatsAppShareModal({
       includeImportant,
       includeSteps,
       includeDueDate,
+      includeListName,
     });
   };
 
@@ -576,6 +602,14 @@ export default function WhatsAppShareModal({
             <Text style={[styles.sectionHeader, { marginTop: 10, marginBottom: 8 }]}>TASK FIELDS</Text>
             <View style={{ gap: 6, marginBottom: 16 }}>
               {[
+                {
+                  id: 'listName',
+                  label: 'List Name',
+                  value: includeListName,
+                  icon: FileText,
+                  color: '#14b8a6',
+                  onToggle: handleListNameToggle,
+                },
                 {
                   id: 'assignee',
                   label: 'Assignee',

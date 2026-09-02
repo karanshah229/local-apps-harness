@@ -55,6 +55,8 @@ interface UiState {
   setDefaultWhatsAppIncludeSteps: (include: boolean) => void;
   defaultWhatsAppIncludeDueDate: boolean;
   setDefaultWhatsAppIncludeDueDate: (include: boolean) => void;
+  defaultWhatsAppIncludeListName: boolean;
+  setDefaultWhatsAppIncludeListName: (include: boolean) => void;
   hasChosenWhatsAppFormat: boolean;
   setHasChosenWhatsAppFormat: (val: boolean) => void;
 
@@ -144,6 +146,8 @@ export const useUiStore = create<UiState>((set, get) => ({
   setDefaultWhatsAppIncludeSteps: (include) => set({ defaultWhatsAppIncludeSteps: include }),
   defaultWhatsAppIncludeDueDate: true,
   setDefaultWhatsAppIncludeDueDate: (include) => set({ defaultWhatsAppIncludeDueDate: include }),
+  defaultWhatsAppIncludeListName: true,
+  setDefaultWhatsAppIncludeListName: (include) => set({ defaultWhatsAppIncludeListName: include }),
   hasChosenWhatsAppFormat: false,
   setHasChosenWhatsAppFormat: (val) => set({ hasChosenWhatsAppFormat: val }),
 
