@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kamdhenu Handoff",
     "slug": "kamdhenu-handoff",
-    "version": "1.0.10",
+    "version": "1.0.11",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
         "backgroundColor": "#0078d4"
       },
       "package": "com.kamdhenu.handoff",
-      "versionCode": 10,
+      "versionCode": 11,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "READ_CONTACTS",
