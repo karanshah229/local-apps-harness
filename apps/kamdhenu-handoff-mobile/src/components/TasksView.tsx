@@ -16,9 +16,10 @@ import {
   Linking,
   BackHandler,
   StyleSheet,
+  useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Plus,
   Star,
@@ -105,6 +106,7 @@ import { FilterBottomSheet } from './FilterBottomSheet';
 import { WhatsAppIcon } from './WhatsAppIcon';
 import { BulkDueDatePickerModal } from './BulkDueDatePickerModal';
 import { BulkAssigneePickerModal } from './BulkAssigneePickerModal';
+import { BulkListPickerModal } from './BulkListPickerModal';
 
 function hexToRgba(hex: string, alpha: number): string {
   let cleanHex = hex.replace('#', '');
@@ -426,6 +428,10 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
+  const [showBulkListModal, setShowBulkListModal] = useState(false);
+  const [showBulkActionsModal, setShowBulkActionsModal] = useState(false);
+  const bulkActionsTriggerRef = useRef<View>(null);
+  const [bulkActionsAnchor, setBulkActionsAnchor] = useState({ x: 0, y: 0, width: 0, height: 0 });
   const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
   const [showLongPressShareModal, setShowLongPressShareModal] = useState(false);
   const [longPressRecipient, setLongPressRecipient] = useState<User | null>(null);
@@ -439,10 +445,26 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
   const hasChosenWhatsAppFormat = useUiStore((s) => s.hasChosenWhatsAppFormat);
   const setHasChosenWhatsAppFormat = useUiStore((s) => s.setHasChosenWhatsAppFormat);
+  const { width: windowWidth } = useWindowDimensions();
+
+  const openBulkActions = useCallback(() => {
+    bulkActionsTriggerRef.current?.measureInWindow((x, y, width, height) => {
+      setBulkActionsAnchor({ x, y, width, height });
+      setShowBulkActionsModal(true);
+    });
+  }, []);
 
   const effectiveView = fixedCustomViewId ? 'all-tasks' : (fixedView || storeView || 'all-tasks');
   const effectiveListId = (fixedView || fixedCustomViewId) ? null : activeListId;
   const viewKey = fixedCustomViewId ? `custom_view_${fixedCustomViewId}` : (effectiveListId ? `list_${effectiveListId}` : effectiveView);
+
+  // Batch selection is view-local. Clear it when this screen becomes active or changes scope.
+  useFocusEffect(useCallback(() => {
+    clearSelectedBatchTasks();
+  }, [clearSelectedBatchTasks]));
+  useEffect(() => {
+    clearSelectedBatchTasks();
+  }, [viewKey, clearSelectedBatchTasks]);
 
   const currentSort: ViewSortConfig = useMemo(() => {
     if (fixedCustomViewId && customView?.sort_config) {
@@ -724,6 +746,21 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     }
     clearSelectedBatchTasks();
   }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
+
+  const handleBulkAddToLists = useCallback((listIds: number[]) => {
+    if (selectedTaskIds.length === 0 || listIds.length === 0) return;
+    const selectedListIdSet = new Set(listIds);
+    const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
+
+    for (const task of selectedTasks) {
+      const existingListIds = task.list_ids?.length
+        ? task.list_ids
+        : (task.lists?.map((list) => list.id) || (task.list_id ? [task.list_id] : []));
+      const nextListIds = Array.from(new Set([...existingListIds, ...selectedListIdSet]));
+      updateTaskMutation.mutate({ id: task.id, list_ids: nextListIds });
+    }
+    clearSelectedBatchTasks();
+  }, [selectedTaskIds, tasks, updateTaskMutation, clearSelectedBatchTasks]);
 
   const handleBulkDelete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
@@ -1300,11 +1337,11 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
             </Text>
           </View>
 
-          {/* Right: 6 Action Icons */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {/* Share Together */}
+          {/* Keep the most frequent actions visible; secondary actions scale in the menu. */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <TouchableOpacity
               onPress={handleBulkShare}
+              accessibilityLabel="Share selected tasks on WhatsApp"
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               style={{
                 width: 36,
@@ -1317,74 +1354,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
             >
               <WhatsAppIcon size={18} color="#ffffff" />
             </TouchableOpacity>
-
-            {/* Mark Complete */}
-            <TouchableOpacity
-              onPress={handleBulkComplete}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <CheckCircle2 size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Mark Important */}
-            <TouchableOpacity
-              onPress={handleBulkImportant}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Star size={18} color="#f59e0b" fill="#f59e0b" />
-            </TouchableOpacity>
-
-            {/* Assign Due Date */}
-            <TouchableOpacity
-              onPress={() => setShowBulkDueModal(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Calendar size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Assign Assignee */}
-            <TouchableOpacity
-              onPress={() => setShowBulkAssigneeModal(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <UserCheck size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Delete All */}
             <TouchableOpacity
               onPress={handleBulkDelete}
+              accessibilityLabel="Delete selected tasks"
               hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               style={{
                 width: 36,
@@ -1396,6 +1368,14 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
               }}
             >
               <Trash2 size={18} color="#ef4444" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              ref={bulkActionsTriggerRef}
+              onPress={openBulkActions}
+              accessibilityLabel="More bulk actions"
+              style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+            >
+              <MoreVertical size={19} color="#ffffff" />
             </TouchableOpacity>
           </View>
         </View>
@@ -1879,6 +1859,45 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         isDarkMode={isDarkMode}
         themePrimary={themePrimary}
         viewTitle={headerTitle}
+      />
+
+      {/* Overflow keeps the selection bar stable as bulk actions grow. */}
+      <Modal
+        visible={showBulkActionsModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBulkActionsModal(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setShowBulkActionsModal(false)}>
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.08)' }}>
+            <TouchableWithoutFeedback onPress={(event) => event.stopPropagation()}>
+              <View style={{ position: 'absolute', top: bulkActionsAnchor.y + bulkActionsAnchor.height + 8, right: Math.max(12, windowWidth - (bulkActionsAnchor.x + bulkActionsAnchor.width)), width: 250, backgroundColor: isDarkMode ? '#18181b' : '#ffffff', borderRadius: 16, paddingVertical: 7, borderWidth: 1, borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0', shadowColor: '#000000', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.22, shadowRadius: 12, elevation: 12 }}>
+                {[
+                  { label: 'Mark complete', icon: <View style={{ width: 20, height: 20, borderRadius: 7, borderWidth: 2, borderColor: themePrimary, backgroundColor: themePrimary, alignItems: 'center', justifyContent: 'center' }}><Check size={13} color="#ffffff" strokeWidth={3} /></View>, onPress: handleBulkComplete },
+                  { label: 'Mark important', icon: <Star size={18} color="#f59e0b" fill="#f59e0b" />, onPress: handleBulkImportant },
+                  { label: 'Add to list', icon: <ListTodo size={18} color={themePrimary} />, onPress: () => setShowBulkListModal(true) },
+                  { label: 'Set due date', icon: <Calendar size={18} color={themePrimary} />, onPress: () => setShowBulkDueModal(true) },
+                  { label: 'Assign task', icon: <UserCheck size={18} color={themePrimary} />, onPress: () => setShowBulkAssigneeModal(true) },
+                ].map((action) => (
+                  <TouchableOpacity key={action.label} onPress={() => { setShowBulkActionsModal(false); action.onPress(); }} activeOpacity={0.7} style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 12, gap: 12 }}>
+                    {action.icon}
+                    <Text style={{ color: isDarkMode ? '#f4f4f5' : '#0f172a', fontSize: 14, fontWeight: '700' }}>{action.label}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+
+      <BulkListPickerModal
+        visible={showBulkListModal}
+        selectedCount={selectedTaskIds.length}
+        lists={lists}
+        isDarkMode={isDarkMode}
+        themePrimary={themePrimary}
+        onClose={() => setShowBulkListModal(false)}
+        onAddToLists={handleBulkAddToLists}
       />
 
       {/* Bulk Due Date Picker Modal */}

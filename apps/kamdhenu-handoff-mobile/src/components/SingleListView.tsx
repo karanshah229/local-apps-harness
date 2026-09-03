@@ -16,7 +16,7 @@ import {
   BackHandler,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   ArrowLeft,
   Plus,
@@ -358,6 +358,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
   const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
   const showAlertDialog = useUiStore((s) => s.showAlertDialog);
+
+  // A selection must not leak into another list while this route remains mounted.
+  useFocusEffect(useCallback(() => {
+    clearSelectedBatchTasks();
+  }, [clearSelectedBatchTasks]));
+  useEffect(() => {
+    clearSelectedBatchTasks();
+  }, [listId, clearSelectedBatchTasks]);
 
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
