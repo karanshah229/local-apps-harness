@@ -153,8 +153,10 @@ export function useCreateTaskMutation() {
   }, []);
 
   const mutateAsync = useCallback(async (taskData: any) => {
-    return mutate(taskData);
-  }, [mutate]);
+    const newTask = await localTodoDb.createTaskWithSubtasks(taskData);
+    notifyDbChange('tasks');
+    return newTask;
+  }, []);
 
   return { mutate, mutateAsync, isPending: false };
 }

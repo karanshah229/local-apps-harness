@@ -6,6 +6,7 @@ interface ClientLogEvent {
   outcome: 'failure';
   durationMs?: number;
   taskId?: number;
+  attemptId?: string;
 }
 
 export function logClientEvent(event: ClientLogEvent) {

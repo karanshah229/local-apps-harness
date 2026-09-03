@@ -1,6 +1,6 @@
 {
   "name": "kamdhenu-handoff",
-  "version": "1.0.11",
+  "version": "1.0.12",
   "private": true,
   "main": "expo-router/entry",
   "scripts": {
@@ -17,7 +17,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@expo/metro-runtime": "~57.0.14",
+    "@expo/metro-runtime": "~57.0.15",
     "@react-native-community/datetimepicker": "^9.1.0",
     "@rn-primitives/avatar": "^1.1.0",
     "@rn-primitives/dialog": "^1.1.0",
@@ -28,12 +28,12 @@
     "@shared/todo": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "expo": "~57.0.18",
-    "expo-constants": "~57.0.16",
+    "expo": "~57.0.19",
+    "expo-constants": "~57.0.17",
     "expo-contacts": "~57.0.4",
     "expo-linear-gradient": "~57.0.1",
-    "expo-linking": "~57.0.8",
-    "expo-router": "~57.0.17",
+    "expo-linking": "~57.0.9",
+    "expo-router": "~57.0.18",
     "expo-splash-screen": "~57.0.8",
     "expo-sqlite": "~57.0.2",
     "expo-status-bar": "~57.0.1",

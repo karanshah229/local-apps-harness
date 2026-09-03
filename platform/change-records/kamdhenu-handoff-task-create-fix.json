@@ -1,0 +1,24 @@
+{
+  "appId": "kamdhenu-handoff",
+  "request": "Prevent duplicate task creation and UI freezing when creating a task in the local mobile app without changing existing task behavior.",
+  "acceptance": [
+    "Rapid repeated taps on Create produce at most one task.",
+    "The Create button is disabled and indicates progress while creation is running.",
+    "Task fields, list memberships, assignee behavior, subtasks, and navigation remain unchanged for a successful creation.",
+    "Task and draft subtasks are committed atomically in local SQLite."
+  ],
+  "excluded": [
+    "Changes to existing-task editing and autosave behavior.",
+    "Changes to the local query hook interface.",
+    "Remote synchronization, deployment, or public access."
+  ],
+  "surfaces": ["mobile", "database", "tests", "registry"],
+  "risk": "automatic",
+  "verification": [
+    "Run mobile TypeScript typecheck.",
+    "Run workspace platform checks and tests.",
+    "Build the Android release artifact when the local build environment is available.",
+    "Manually verify new-task creation with rapid taps, lists, assignee, due date, notes, and subtasks."
+  ],
+  "rollback": "Revert this local Git change; the existing SQLite database remains compatible because no schema changes were made."
+}

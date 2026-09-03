@@ -606,6 +606,126 @@ export const localTodoDb = {
     return this.getTaskById(taskId)!;
   },
 
+  async createTaskWithSubtasks(taskData: {
+    title: string;
+    notes?: string | null;
+    is_important?: number | boolean;
+    is_my_day?: number | boolean;
+    is_completed?: number | boolean;
+    due_date?: string | null;
+    reminder_time?: string | null;
+    assigned_to_user_id?: number | null;
+    created_by?: number;
+    list_id?: number | null;
+    list_ids?: number[];
+    draft_subtasks?: string[];
+  }): Promise<Task> {
+    const db = getDatabase();
+    const {
+      title,
+      notes = null,
+      is_important = 0,
+      is_my_day = 0,
+      is_completed = 0,
+      due_date = null,
+      reminder_time = null,
+      assigned_to_user_id = null,
+      created_by = 1,
+      list_id = null,
+      list_ids,
+      draft_subtasks,
+    } = taskData;
+    let taskId = 0;
+
+    await db.withTransactionAsync(async () => {
+      const targetListIds = Array.isArray(list_ids) && list_ids.length > 0
+        ? list_ids
+        : (list_id ? [list_id] : []);
+      let primaryListId: number | null = null;
+      const validListIds: number[] = [];
+
+      for (const lid of targetListIds) {
+        const numLid = Number(lid);
+        if (!isNaN(numLid) && numLid > 0) {
+          const l = await db.getFirstAsync<{ id: number }>(
+            'SELECT id FROM lists WHERE id = ? AND active = 1',
+            [numLid]
+          );
+          if (l) {
+            validListIds.push(numLid);
+            if (!primaryListId) primaryListId = numLid;
+          }
+        }
+      }
+
+      let validAssigneeId: number | null = null;
+      if (assigned_to_user_id) {
+        const u = await db.getFirstAsync<{ id: number }>(
+          'SELECT id FROM users WHERE id = ? AND active = 1',
+          [assigned_to_user_id]
+        );
+        if (u) validAssigneeId = u.id;
+      }
+
+      const insertResult = await db.runAsync(
+        `INSERT INTO tasks (list_id, title, notes, is_important, is_my_day, is_completed, due_date, reminder_time, assigned_to_user_id, created_by, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        [
+          primaryListId,
+          title.trim(),
+          notes || null,
+          is_important ? 1 : 0,
+          is_my_day ? 1 : 0,
+          is_completed ? 1 : 0,
+          due_date || null,
+          reminder_time || null,
+          validAssigneeId,
+          created_by || 1,
+        ]
+      );
+      taskId = insertResult.lastInsertRowId;
+
+      for (const lid of validListIds) {
+        await db.runAsync(
+          'INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)',
+          [taskId, lid]
+        );
+      }
+
+      if (Array.isArray(draft_subtasks)) {
+        let position = 0;
+        for (const stTitle of draft_subtasks) {
+          if (typeof stTitle === 'string' && stTitle.trim()) {
+            position += 1;
+            await db.runAsync(
+              'INSERT INTO subtasks (task_id, title, position, active) VALUES (?, ?, ?, 1)',
+              [taskId, stTitle.trim(), position]
+            );
+          }
+        }
+      }
+
+      if (validAssigneeId) {
+        for (const lid of validListIds) {
+          const currentList = await db.getFirstAsync<{ default_whatsapp_contact_id: number | null }>(
+            'SELECT default_whatsapp_contact_id FROM lists WHERE id = ? AND active = 1',
+            [lid]
+          );
+          if (currentList && !currentList.default_whatsapp_contact_id) {
+            await db.runAsync(
+              'UPDATE lists SET default_whatsapp_contact_id = ? WHERE id = ? AND active = 1',
+              [validAssigneeId, lid]
+            );
+          }
+        }
+      }
+    });
+
+    const created = this.getTaskById(taskId);
+    if (!created) throw new Error('Task was created but could not be loaded');
+    return created;
+  },
+
   updateTask(id: number, data: Partial<Task>): Task {
     const db = getDatabase();
     const updates: string[] = [];

@@ -56,6 +56,7 @@ import {
   useAddUserMutation,
 } from '../../src/hooks/useTodoQueries';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../../src/hooks/useThrottledTaskAutosave';
+import { logClientEvent } from '../../src/services/clientLogger';
 import {
   Task,
   User,
@@ -330,7 +331,6 @@ export default function TaskDetailScreen() {
   const showAlertDialog = useUiStore((s) => s.showAlertDialog);
 
   const { data: directTask, isLoading: isDirectTaskLoading } = useTaskQuery(isNewTask ? null : taskId);
-  const { data: tasks = [], isLoading: isTasksLoading } = useTasksQuery({});
   const { data: lists = [] } = useListsQuery();
   const { data: users = [] } = useUsersQuery();
   const { data: serverSubtasks = [] } = useSubtasksQuery(taskId);
@@ -342,7 +342,7 @@ export default function TaskDetailScreen() {
   const updateSubtaskMutation = useUpdateSubtaskMutation();
   const deleteSubtaskMutation = useDeleteSubtaskMutation();
 
-  const task = isNewTask ? null : (directTask || tasks.find((t) => t.id === taskId));
+  const task = isNewTask ? null : directTask;
 
   const saveExistingTask = useCallback((updates: Partial<Task> & { id: number }) => (
     updateTaskMutation.mutateAsync(updates)
@@ -402,6 +402,8 @@ export default function TaskDetailScreen() {
 
   const addUserMutation = useAddUserMutation();
   const initializedTaskIdRef = useRef<number | string | null>(null);
+  const creatingTaskRef = useRef(false);
+  const [isCreatingTask, setIsCreatingTask] = useState(false);
 
   // Initialize state once per task identity
   useEffect(() => {
@@ -594,13 +596,19 @@ export default function TaskDetailScreen() {
   };
 
   const handleSaveNewTask = async () => {
+    if (creatingTaskRef.current) return;
     if (!title.trim()) {
       showAlertDialog('Required', 'Please enter a task title.');
       return;
     }
 
+    creatingTaskRef.current = true;
+    setIsCreatingTask(true);
+    const attemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const startedAt = Date.now();
+
     try {
-      const created = await createTaskMutation.mutateAsync({
+      await createTaskMutation.mutateAsync({
         title: title.trim(),
         notes: notes.trim() || undefined,
         due_date: dueDate || undefined,
@@ -609,19 +617,20 @@ export default function TaskDetailScreen() {
         list_ids: selectedListIds,
         is_important: isImportant ? 1 : 0,
         created_by: 1,
+        draft_subtasks: localSteps.map((step) => step.title),
       });
-
-      if (created?.id && localSteps.length > 0) {
-        for (const step of localSteps) {
-          await addSubtaskMutation.mutateAsync({
-            taskId: created.id,
-            title: step.title,
-          });
-        }
-      }
 
       router.back();
     } catch {
+      creatingTaskRef.current = false;
+      setIsCreatingTask(false);
+      logClientEvent({
+        level: 'error',
+        event: 'task_create_failed',
+        outcome: 'failure',
+        durationMs: Date.now() - startedAt,
+        attemptId,
+      });
       showAlertDialog('Error', 'Failed to create task.');
     }
   };
@@ -738,7 +747,7 @@ export default function TaskDetailScreen() {
       });
   }, [contactUsers, assigneeSearchQuery]);
 
-  const isTaskLoading = !isNewTask && !task && (isDirectTaskLoading || isTasksLoading);
+  const isTaskLoading = !isNewTask && !task && isDirectTaskLoading;
 
   if (isTaskLoading) {
     return (
@@ -809,7 +818,7 @@ export default function TaskDetailScreen() {
           {isNewTask ? (
             <TouchableOpacity
               onPress={handleSaveNewTask}
-              disabled={!title.trim()}
+              disabled={!title.trim() || isCreatingTask}
               activeOpacity={0.8}
               style={{
                 backgroundColor: themePrimary,
@@ -817,12 +826,17 @@ export default function TaskDetailScreen() {
                 paddingVertical: 10,
                 minHeight: 40,
                 borderRadius: 14,
-                opacity: title.trim() ? 1 : 0.5,
+                opacity: title.trim() && !isCreatingTask ? 1 : 0.5,
                 justifyContent: 'center',
                 alignItems: 'center',
+                flexDirection: 'row',
+                gap: 8,
               }}
             >
-              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>Create</Text>
+              <Text style={{ color: '#ffffff', fontWeight: '800', fontSize: 14 }}>
+                Create
+              </Text>
+              {isCreatingTask && <ActivityIndicator size="small" color="#ffffff" />}
             </TouchableOpacity>
           ) : (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
