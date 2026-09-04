@@ -1,47 +1,40 @@
 import { Task, Subtask, List, CustomView, User, WhatsAppMessageStyle, WhatsAppFormatConfig } from './types.js';
 import { formatDueDateDDMMYY } from './helpers.js';
+import { addCalendarDays, getCalendarDateInTimeZone, getUserTimeZone, isTaskOverdue } from './dates.js';
 
 export interface WhatsAppFormatOptions extends WhatsAppFormatConfig {}
 
 /**
  * Parses and returns a human-friendly due date string with overdue status warnings.
  */
-export function getFriendlyDueText(dueDateStr?: string | null): { text: string; isOverdue: boolean } | null {
+export function getFriendlyDueText(dueDateStr?: string | null, dueTimezone?: string | null): { text: string; isOverdue: boolean } | null {
   if (!dueDateStr) return null;
 
   try {
     const raw = String(dueDateStr).trim();
-    const datePart = raw.includes('T') ? raw.split('T')[0] : raw.split(' ')[0];
+    const timeZone = dueTimezone || getUserTimeZone();
+    const datePart = getCalendarDateInTimeZone(raw, timeZone);
     const parts = datePart.split('-');
     if (parts.length < 3) {
       return { text: raw, isOverdue: false };
     }
 
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1;
-    const day = parseInt(parts[2], 10);
-    const targetDate = new Date(year, month, day);
-    if (isNaN(targetDate.getTime())) {
-      return { text: raw, isOverdue: false };
-    }
+    const today = getCalendarDateInTimeZone(new Date(), timeZone);
+    const tomorrow = addCalendarDays(today, 1);
+    const yesterday = addCalendarDays(today, -1);
+    const ddmmyy = formatDueDateDDMMYY(raw, timeZone);
+    const overdue = isTaskOverdue(raw, false, timeZone);
 
-    const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-
-    const diffMs = targetDate.getTime() - today.getTime();
-    const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
-    const ddmmyy = formatDueDateDDMMYY(datePart);
-
-    if (diffDays < 0) {
-      if (diffDays === -1) {
+    if (overdue || datePart < today) {
+      if (datePart === yesterday) {
         return { text: `⚠️ Overdue (Yesterday • ${ddmmyy})`, isOverdue: true };
       }
       return { text: `⚠️ Overdue (${ddmmyy})`, isOverdue: true };
     }
-    if (diffDays === 0) {
+    if (datePart === today) {
       return { text: `Today (${ddmmyy})`, isOverdue: false };
     }
-    if (diffDays === 1) {
+    if (datePart === tomorrow) {
       return { text: `Tomorrow (${ddmmyy})`, isOverdue: false };
     }
     return { text: ddmmyy, isOverdue: false };
@@ -81,7 +74,7 @@ export function formatSingleTaskMessage(
   const includeListName = config?.includeListName !== false;
 
   const importantSuffix = (includeImportant && task.is_important) ? ' (Important)' : '';
-  const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date) : null;
+  const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date, task.due_timezone) : null;
   const timeStr = (includeDueDate && task.reminder_time) ? ` at ${task.reminder_time}` : '';
   const listsStr = getTaskListsSummary(task);
 
@@ -242,7 +235,7 @@ export function formatBatchTasksMessage(
 
   tasks.forEach((task, index) => {
     const importantSuffix = (includeImportant && task.is_important) ? ' (Important)' : '';
-    const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date) : null;
+    const dueInfo = includeDueDate ? getFriendlyDueText(task.due_date, task.due_timezone) : null;
     const listsStr = getTaskListsSummary(task);
     const isGroup = Boolean(task.assignee_is_group);
     const isSelf = task.assigned_to_user_id === 1 ||
@@ -352,7 +345,7 @@ export function formatWholeListMessage(
 
     pending.forEach((t) => {
       const importantSuffix = (includeImportant && t.is_important) ? ' (Important)' : '';
-      const dueInfo = includeDueDate ? getFriendlyDueText(t.due_date) : null;
+      const dueInfo = includeDueDate ? getFriendlyDueText(t.due_date, t.due_timezone) : null;
       const isGroup = Boolean(t.assignee_is_group);
       const isSelf = t.assigned_to_user_id === 1 ||
         t.assignee_name?.toLowerCase() === 'you' ||

@@ -10,9 +10,26 @@ import {
   ViewFilterConfig,
   ViewSortConfig,
   normalizeToE164,
+  getUserTimeZone,
+  zonedDateTimeToUtcIso,
+  getCalendarDateInTimeZone,
+  getQuickDueDatePresets,
 } from '@shared/todo';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
+
+function normalizeDueDate(dueDate?: string | null, dueTimezone?: string | null) {
+  if (!dueDate) return { dueDate: null, dueTimezone: null };
+  const raw = String(dueDate).trim();
+  const timeZone = dueTimezone || getUserTimeZone();
+  if (raw.includes('T')) {
+    const parsed = new Date(raw);
+    if (!Number.isNaN(parsed.getTime())) {
+      return { dueDate: zonedDateTimeToUtcIso(getCalendarDateInTimeZone(parsed, timeZone), timeZone), dueTimezone: timeZone };
+    }
+  }
+  return { dueDate: zonedDateTimeToUtcIso(raw.slice(0, 10), timeZone), dueTimezone: timeZone };
+}
 
 export function getDatabase(): SQLite.SQLiteDatabase {
   if (!dbInstance) {
@@ -78,6 +95,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
       is_important BOOLEAN DEFAULT 0,
       is_my_day BOOLEAN DEFAULT 0,
       due_date TEXT,
+      due_timezone TEXT,
       reminder_time TEXT,
       assigned_to_user_id INTEGER,
       created_by INTEGER DEFAULT 1,
@@ -164,6 +182,20 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   // Ensure default_whatsapp_contact_id and default_whatsapp_share_scope columns exist on lists
   try {
     db.runSync('ALTER TABLE lists ADD COLUMN default_whatsapp_contact_id INTEGER');
+  } catch {}
+  try {
+    db.runSync('ALTER TABLE tasks ADD COLUMN due_timezone TEXT');
+  } catch {}
+  try {
+    const legacyTasks = db.getAllSync<{ id: number; due_date: string }>(
+      "SELECT id, due_date FROM tasks WHERE due_date IS NOT NULL AND due_date GLOB '????-??-??'"
+    );
+    const timeZone = getUserTimeZone();
+    for (const task of legacyTasks) {
+      db.runSync('UPDATE tasks SET due_date = ?, due_timezone = ? WHERE id = ?', [
+        zonedDateTimeToUtcIso(task.due_date, timeZone), timeZone, task.id,
+      ]);
+    }
   } catch {}
   try {
     db.runSync('ALTER TABLE lists ADD COLUMN default_whatsapp_share_scope TEXT');
@@ -503,6 +535,7 @@ export const localTodoDb = {
     due_date?: string | null;
     reminder_time?: string | null;
     assigned_to_user_id?: number | null;
+    due_timezone?: string | null;
     created_by?: number;
     list_id?: number | null;
     list_ids?: number[];
@@ -516,6 +549,7 @@ export const localTodoDb = {
       is_my_day = 0,
       is_completed = 0,
       due_date = null,
+      due_timezone = null,
       reminder_time = null,
       assigned_to_user_id = null,
       created_by = 1,
@@ -548,10 +582,11 @@ export const localTodoDb = {
       if (u) validAssigneeId = u.id;
     }
 
+    const normalizedDue = normalizeDueDate(due_date, due_timezone);
     const insertResult = db.runSync(
       `
-      INSERT INTO tasks (list_id, title, notes, is_important, is_my_day, is_completed, due_date, reminder_time, assigned_to_user_id, created_by, active)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+      INSERT INTO tasks (list_id, title, notes, is_important, is_my_day, is_completed, due_date, due_timezone, reminder_time, assigned_to_user_id, created_by, active)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
       `,
       [
         primaryListId,
@@ -560,7 +595,8 @@ export const localTodoDb = {
         is_important ? 1 : 0,
         is_my_day ? 1 : 0,
         is_completed ? 1 : 0,
-        due_date || null,
+        normalizedDue.dueDate,
+        normalizedDue.dueTimezone,
         reminder_time || null,
         validAssigneeId,
         created_by || 1,
@@ -615,6 +651,7 @@ export const localTodoDb = {
     due_date?: string | null;
     reminder_time?: string | null;
     assigned_to_user_id?: number | null;
+    due_timezone?: string | null;
     created_by?: number;
     list_id?: number | null;
     list_ids?: number[];
@@ -628,6 +665,7 @@ export const localTodoDb = {
       is_my_day = 0,
       is_completed = 0,
       due_date = null,
+      due_timezone = null,
       reminder_time = null,
       assigned_to_user_id = null,
       created_by = 1,
@@ -667,9 +705,10 @@ export const localTodoDb = {
         if (u) validAssigneeId = u.id;
       }
 
+      const normalizedDue = normalizeDueDate(due_date, due_timezone);
       const insertResult = await db.runAsync(
-        `INSERT INTO tasks (list_id, title, notes, is_important, is_my_day, is_completed, due_date, reminder_time, assigned_to_user_id, created_by, active)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
+        `INSERT INTO tasks (list_id, title, notes, is_important, is_my_day, is_completed, due_date, due_timezone, reminder_time, assigned_to_user_id, created_by, active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)`,
         [
           primaryListId,
           title.trim(),
@@ -677,7 +716,8 @@ export const localTodoDb = {
           is_important ? 1 : 0,
           is_my_day ? 1 : 0,
           is_completed ? 1 : 0,
-          due_date || null,
+          normalizedDue.dueDate,
+          normalizedDue.dueTimezone,
           reminder_time || null,
           validAssigneeId,
           created_by || 1,
@@ -757,7 +797,13 @@ export const localTodoDb = {
     }
     if (data.due_date !== undefined) {
       updates.push('due_date = ?');
-      params.push(data.due_date || null);
+      const normalizedDue = normalizeDueDate(data.due_date, data.due_timezone);
+      params.push(normalizedDue.dueDate);
+      updates.push('due_timezone = ?');
+      params.push(normalizedDue.dueTimezone);
+    } else if (data.due_timezone !== undefined) {
+      updates.push('due_timezone = ?');
+      params.push(data.due_timezone || null);
     }
     if (data.reminder_time !== undefined) {
       updates.push('reminder_time = ?');
@@ -1598,8 +1644,7 @@ export const localTodoDb = {
     let query = 'SELECT COUNT(*) as count FROM tasks t WHERE t.active = 1';
     const params: (string | number)[] = [];
 
-    const todayStr = new Date().toISOString().split('T')[0];
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const presets = getQuickDueDatePresets(getUserTimeZone());
 
     if (filter.status === 'pending') {
       query += ' AND t.is_completed = 0';
@@ -1615,13 +1660,13 @@ export const localTodoDb = {
 
     if (filter.due === 'today') {
       query += ' AND t.due_date = ?';
-      params.push(todayStr);
+      params.push(presets.today);
     } else if (filter.due === 'tomorrow') {
       query += ' AND t.due_date = ?';
-      params.push(tomorrowStr);
+      params.push(presets.tomorrow);
     } else if (filter.due === 'overdue') {
       query += ' AND t.due_date IS NOT NULL AND t.due_date < ? AND t.is_completed = 0';
-      params.push(todayStr);
+      params.push(new Date().toISOString());
     } else if (filter.due === 'has_due') {
       query += ' AND t.due_date IS NOT NULL';
     } else if (filter.due === 'no_due') {

@@ -8,7 +8,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Calendar, X, Sun, Sunrise, CalendarDays, Ban } from 'lucide-react-native';
-import { formatDueDateDDMMYY } from '@shared/todo';
+import { getQuickDueDatePresets, getUserTimeZone } from '@shared/todo';
 
 interface BulkDueDatePickerModalProps {
   visible: boolean;
@@ -16,7 +16,7 @@ interface BulkDueDatePickerModalProps {
   isDarkMode: boolean;
   themePrimary: string;
   onClose: () => void;
-  onSelectDueDate: (dateStr: string | null) => void;
+  onSelectDueDate: (dateStr: string | null, timeZone?: string | null) => void;
 }
 
 export const BulkDueDatePickerModal = ({
@@ -29,22 +29,12 @@ export const BulkDueDatePickerModal = ({
 }: BulkDueDatePickerModalProps) => {
   const [customDate, setCustomDate] = useState('');
 
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  const tomorrow = new Date(Date.now() + 86400000);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-  // Next Monday
-  const nextMonday = new Date();
-  const day = nextMonday.getDay();
-  const diff = nextMonday.getDate() + (day === 0 ? 1 : 8 - day);
-  nextMonday.setDate(diff);
-  const nextMondayStr = nextMonday.toISOString().split('T')[0];
+  const timeZone = getUserTimeZone();
+  const presets = getQuickDueDatePresets(timeZone);
 
   const handleCustomApply = () => {
     if (/^\d{4}-\d{2}-\d{2}$/.test(customDate.trim())) {
-      onSelectDueDate(customDate.trim());
+      onSelectDueDate(customDate.trim(), timeZone);
       setCustomDate('');
       onClose();
     }
@@ -108,7 +98,7 @@ export const BulkDueDatePickerModal = ({
               {/* Quick Presets */}
               <View style={{ gap: 8, marginBottom: 16 }}>
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(todayStr); onClose(); }}
+                  onPress={() => { onSelectDueDate(presets.today, timeZone); onClose(); }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -125,12 +115,12 @@ export const BulkDueDatePickerModal = ({
                     </Text>
                   </View>
                   <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
-                    {formatDueDateDDMMYY(todayStr)}
+                    {presets.todayFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(tomorrowStr); onClose(); }}
+                  onPress={() => { onSelectDueDate(presets.tomorrow, timeZone); onClose(); }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -147,12 +137,12 @@ export const BulkDueDatePickerModal = ({
                     </Text>
                   </View>
                   <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
-                    {formatDueDateDDMMYY(tomorrowStr)}
+                    {presets.tomorrowFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(nextMondayStr); onClose(); }}
+                  onPress={() => { onSelectDueDate(presets.nextMonday, timeZone); onClose(); }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -169,12 +159,12 @@ export const BulkDueDatePickerModal = ({
                     </Text>
                   </View>
                   <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
-                    {formatDueDateDDMMYY(nextMondayStr)}
+                    {presets.nextMondayFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(null); onClose(); }}
+                  onPress={() => { onSelectDueDate(null, null); onClose(); }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',

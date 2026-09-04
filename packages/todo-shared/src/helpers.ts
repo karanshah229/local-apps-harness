@@ -62,56 +62,21 @@ export function hexToRgba(hex: string, alpha: number): string {
   return hex;
 }
 
-/**
- * Formats a YYYY-MM-DD date string into DD-MM-YYYY format.
- * E.g., '2026-07-08' -> '08-07-2026'
- */
-export function formatDueDateDDMMYYYY(dueDate?: string | null): string {
-  if (!dueDate) return '';
-  try {
-    const parts = dueDate.split('-');
-    if (parts.length === 3) {
-      const year = parts[0].trim();
-      const month = parts[1].trim().padStart(2, '0');
-      const day = parts[2].trim().padStart(2, '0');
-      const yyyy = year.length === 2 ? `20${year}` : year;
-      return `${day}-${month}-${yyyy}`;
-    }
-    return dueDate;
-  } catch {
-    return dueDate || '';
-  }
-}
+import {
+  addCalendarDays,
+  formatDueDateDDMMYYYY,
+  formatDueDateDDMMYY,
+  getCalendarDateInTimeZone,
+  getUserTimeZone,
+  isTaskOverdue,
+} from './dates.js';
 
-/**
- * Formats a YYYY-MM-DD date string into DD-MM-YY format.
- * E.g., '2026-07-08' -> '08-07-26'
- */
-export function formatDueDateDDMMYY(dueDate?: string | null): string {
-  if (!dueDate) return '';
-  try {
-    const parts = dueDate.split('-');
-    if (parts.length === 3) {
-      const year = parts[0].trim();
-      const month = parts[1].trim().padStart(2, '0');
-      const day = parts[2].trim().padStart(2, '0');
-      const yy = year.length === 4 ? year.slice(2) : year;
-      return `${day}-${month}-${yy}`;
-    }
-    return dueDate;
-  } catch {
-    return dueDate || '';
-  }
-}
-
-/**
- * Checks if a task is overdue (due_date is in the past and task is not completed).
- */
-export function isTaskOverdue(dueDate?: string | null, isCompleted?: boolean | number): boolean {
-  if (!dueDate || isCompleted) return false;
-  const todayStr = new Date().toISOString().split('T')[0];
-  return dueDate < todayStr;
-}
+export {
+  formatDueDateDDMMYYYY,
+  formatDueDateDDMMYY,
+  isTaskOverdue,
+  getQuickDueDatePresets,
+} from './dates.js';
 
 export interface DueDateDisplay {
   label: string;
@@ -122,35 +87,25 @@ export interface DueDateDisplay {
   isTomorrow: boolean;
 }
 
-export function formatDueDateDisplay(dueDate?: string | null, isCompleted?: boolean | number): DueDateDisplay | null {
+export function formatDueDateDisplay(
+  dueDate?: string | null,
+  isCompleted?: boolean | number,
+  dueTimezone?: string | null,
+): DueDateDisplay | null {
   if (!dueDate) return null;
-  const ddmmyyyy = formatDueDateDDMMYYYY(dueDate);
-  const ddmmyy = formatDueDateDDMMYY(dueDate);
+  const timeZone = dueTimezone || getUserTimeZone();
+  const ddmmyyyy = formatDueDateDDMMYYYY(dueDate, timeZone);
+  const ddmmyy = formatDueDateDDMMYY(dueDate, timeZone);
   try {
-    const parts = dueDate.split('-').map(Number);
-    if (parts.length === 3) {
-      const d = new Date(parts[0], parts[1] - 1, parts[2]);
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const target = new Date(d);
-      target.setHours(0, 0, 0, 0);
-      const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-      
-      const isOverdue = !isCompleted && diffDays < 0;
-      const isToday = diffDays === 0;
-      const isTomorrow = diffDays === 1;
-
-      if (isToday) {
-        return { label: `Today • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: true, isTomorrow: false };
-      }
-      if (isTomorrow) {
-        return { label: `Tomorrow • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: true };
-      }
-      if (isOverdue) {
-        return { label: `Overdue • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: true, isToday: false, isTomorrow: false };
-      }
-      return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
-    }
+    const targetDate = getCalendarDateInTimeZone(dueDate, timeZone);
+    const todayDate = getCalendarDateInTimeZone(new Date(), timeZone);
+    const tomorrowDate = addCalendarDays(todayDate, 1);
+    const isToday = targetDate === todayDate;
+    const isTomorrow = targetDate === tomorrowDate;
+    const overdue = isTaskOverdue(dueDate, isCompleted, timeZone);
+    if (isToday) return { label: `Today • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: true, isTomorrow: false };
+    if (isTomorrow) return { label: `Tomorrow • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: true };
+    if (overdue) return { label: `Overdue • ${ddmmyyyy}`, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: true, isToday: false, isTomorrow: false };
     return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
   } catch {
     return { label: ddmmyyyy, formattedDDMMYY: ddmmyy, formattedDDMMYYYY: ddmmyyyy, isOverdue: false, isToday: false, isTomorrow: false };
@@ -174,27 +129,4 @@ export function formatReminderDisplay(reminderTime?: string | null): string | nu
   } catch {
     return reminderTime;
   }
-}
-
-export function getQuickDueDatePresets() {
-  const today = new Date();
-  const todayStr = today.toISOString().split('T')[0];
-
-  const tomorrow = new Date(Date.now() + 86400000);
-  const tomorrowStr = tomorrow.toISOString().split('T')[0];
-
-  const nextMonday = new Date();
-  const day = nextMonday.getDay();
-  const diff = nextMonday.getDate() + (day === 0 ? 1 : 8 - day);
-  nextMonday.setDate(diff);
-  const nextMondayStr = nextMonday.toISOString().split('T')[0];
-
-  return {
-    today: todayStr,
-    tomorrow: tomorrowStr,
-    nextMonday: nextMondayStr,
-    todayFormatted: today.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-    tomorrowFormatted: tomorrow.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-    nextMondayFormatted: nextMonday.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }),
-  };
 }

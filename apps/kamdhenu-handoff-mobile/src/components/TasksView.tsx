@@ -99,6 +99,9 @@ import {
   formatDueDateDisplay,
   formatDueDateDDMMYY,
   isTaskOverdue,
+  getCalendarDateInTimeZone,
+  getUserTimeZone,
+  addCalendarDays,
   WhatsAppMessageStyle,
 } from '@shared/todo';
 import { SortModal } from './SortModal';
@@ -205,7 +208,7 @@ const TaskItem = React.memo(({
           {(task.due_date || (task.lists && task.lists.length > 0)) && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
               {task.due_date && (() => {
-                const dueInfo = formatDueDateDisplay(task.due_date, task.is_completed);
+                const dueInfo = formatDueDateDisplay(task.due_date, task.is_completed, task.due_timezone);
                 if (!dueInfo) return null;
                 const isOverdue = dueInfo.isOverdue;
                 return (
@@ -731,10 +734,10 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     clearSelectedBatchTasks();
   }, [selectedTaskIds, tasks, updateTaskMutation, clearSelectedBatchTasks]);
 
-  const handleBulkDueDate = useCallback((dueDate: string | null) => {
+  const handleBulkDueDate = useCallback((dueDate: string | null, dueTimezone?: string | null) => {
     if (selectedTaskIds.length === 0) return;
     for (const taskId of selectedTaskIds) {
-      updateTaskMutation.mutate({ id: taskId, due_date: dueDate });
+      updateTaskMutation.mutate({ id: taskId, due_date: dueDate, due_timezone: dueTimezone });
     }
     clearSelectedBatchTasks();
   }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
@@ -838,8 +841,9 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   // Filter & Fuzzy Search Matching
   const filteredTasks = useMemo(() => {
-    const todayStr = new Date().toISOString().split('T')[0];
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+    const timeZone = getUserTimeZone();
+    const todayStr = getCalendarDateInTimeZone(new Date(), timeZone);
+    const tomorrowStr = addCalendarDays(todayStr, 1);
 
     return tasks.filter((task) => {
       // 1. Fuzzy Search matching
@@ -865,9 +869,10 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       }
 
       // 4. Due Date Filter
-      if (filterDue === 'today' && task.due_date !== todayStr) return false;
-      if (filterDue === 'tomorrow' && task.due_date !== tomorrowStr) return false;
-      if (filterDue === 'overdue' && (!task.due_date || task.due_date >= todayStr || task.is_completed)) return false;
+      const taskDate = task.due_date ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || timeZone) : null;
+      if (filterDue === 'today' && taskDate !== todayStr) return false;
+      if (filterDue === 'tomorrow' && taskDate !== tomorrowStr) return false;
+      if (filterDue === 'overdue' && !isTaskOverdue(task.due_date, task.is_completed, task.due_timezone)) return false;
       if (filterDue === 'has_due' && !task.due_date) return false;
       if (filterDue === 'no_due' && task.due_date) return false;
 

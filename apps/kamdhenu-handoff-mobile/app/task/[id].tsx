@@ -70,6 +70,8 @@ import {
   formatDueDateDisplay,
   formatDueDateDDMMYY,
   isTaskOverdue,
+  getCalendarDateInTimeZone,
+  getUserTimeZone,
   getThemePrimary,
   WhatsAppMessageStyle,
 } from '@shared/todo';
@@ -422,7 +424,7 @@ export default function TaskDetailScreen() {
       initializedTaskIdRef.current = task.id;
       setTitle(task.title || '');
       setNotes(task.notes || '');
-      setDueDate(task.due_date || null);
+      setDueDate(task.due_date ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || getUserTimeZone()) : null);
       setAssignedUserId(task.assigned_to_user_id || null);
       setIsCompleted(Boolean(task.is_completed));
       setIsImportant(Boolean(task.is_important));
@@ -1181,7 +1183,7 @@ export default function TaskDetailScreen() {
             }}
           >
             {(() => {
-              const dueInfo = formatDueDateDisplay(dueDate, task?.is_completed);
+              const dueInfo = formatDueDateDisplay(dueDate, task?.is_completed, task?.due_timezone);
               const isOverdue = dueInfo?.isOverdue;
               return (
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>

@@ -60,6 +60,7 @@ export interface Task {
   is_important: number | boolean;
   is_my_day?: number | boolean;
   due_date?: string | null;
+  due_timezone?: string | null;
   reminder_time?: string | null;
   assigned_to_user_id?: number | null;
   created_by?: number | null;

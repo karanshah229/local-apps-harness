@@ -5,7 +5,18 @@ import {
   formatDueDateDDMMYYYY,
   isTaskOverdue,
   formatDueDateDisplay,
+  zonedDateTimeToUtcIso,
+  getCalendarDateInTimeZone,
+  getQuickDueDatePresets,
 } from '../packages/todo-shared/dist/index.js';
+
+test('Due dates use local end-of-day converted to UTC ISO', () => {
+  const stored = zonedDateTimeToUtcIso('2026-09-04', 'Asia/Kolkata');
+  assert.equal(stored, '2026-09-04T18:29:59.999Z');
+  assert.equal(getCalendarDateInTimeZone(stored, 'Asia/Kolkata'), '2026-09-04');
+  const presets = getQuickDueDatePresets('Asia/Kolkata');
+  assert.match(presets.today, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.999Z$/);
+});
 
 test('Due date formatting: DD-MM-YYYY and Overdue styling', () => {
   // 1. formatDueDateDDMMYYYY and formatDueDateDDMMYY

@@ -34,7 +34,7 @@ import {
   X,
   AlertCircle,
 } from 'lucide-react-native';
-import { Task, Subtask, User, List } from '@shared/todo';
+import { Task, Subtask, User, List, getCalendarDateInTimeZone, getUserTimeZone, isTaskOverdue } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../hooks/useThrottledTaskAutosave';
@@ -119,7 +119,7 @@ export default function TaskDetailDrawer({
             : (task.list_id ? [task.list_id] : []));
       setDraftListIds(rawListIds.map((id: any) => Number(id)).filter((id: number) => !isNaN(id) && id > 0));
       setDraftAssigneeId(task.assigned_to_user_id ? Number(task.assigned_to_user_id) : null);
-      setDraftDueDate(task.due_date || null);
+      setDraftDueDate(task.due_date ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || getUserTimeZone()) : null);
       setDraftReminderTime(task.reminder_time || null);
       setDraftIsImportant(task.is_important ? 1 : 0);
       setDraftIsCompleted(task.is_completed ? 1 : 0);
@@ -174,11 +174,7 @@ export default function TaskDetailDrawer({
   const effectiveReminderTime = isDraft ? draftReminderTime : task?.reminder_time;
   const isDone = Boolean(isDraft ? draftIsCompleted : task?.is_completed);
   const isStarred = Boolean(isDraft ? draftIsImportant : task?.is_important);
-  const isOverdue = Boolean(
-    effectiveDueDate &&
-      !isDone &&
-      new Date(effectiveDueDate) < new Date(new Date().setHours(0, 0, 0, 0))
-  );
+  const isOverdue = isTaskOverdue(effectiveDueDate, isDone, task?.due_timezone);
   const effectiveLists = allKnownLists.filter((l) => effectiveListIds.includes(Number(l.id)));
   const effectiveSubtasks = isDraft ? draftSubtasks : subtasks;
   const completedStepsCount = effectiveSubtasks.filter((s) => Boolean(s.is_completed)).length;
@@ -292,7 +288,8 @@ export default function TaskDetailDrawer({
   const formatDisplayDueDate = (dateStr: string | null): string => {
     if (!dateStr) return 'No due date (Tap to set)';
     try {
-      const parts = dateStr.split('-').map(Number);
+      const localDate = getCalendarDateInTimeZone(dateStr, task?.due_timezone || getUserTimeZone());
+      const parts = localDate.split('-').map(Number);
       if (parts.length === 3) {
         const d = new Date(parts[0], parts[1] - 1, parts[2]);
         const today = new Date();
