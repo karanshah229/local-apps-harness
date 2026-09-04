@@ -1,5 +1,6 @@
 import * as Contacts from 'expo-contacts/legacy';
 import { BatchImportContact, normalizeToE164 } from '@shared/todo';
+import { logError } from './clientLogger';
 
 function formatPhoneLabel(rawLabel?: string, index: number = 0): string {
   if (!rawLabel) return `Phone ${index + 1}`;
@@ -100,7 +101,7 @@ export async function getDeviceContacts(shouldRequest: boolean = true): Promise<
       contacts: formatted,
     };
   } catch (err: any) {
-    console.error('Error reading native device contacts:', err);
+    logError({ event: 'device_contacts_read_failed', outcome: 'failure' }, err);
     return {
       granted: false,
       contacts: [],
@@ -130,7 +131,7 @@ export async function syncDeviceContacts(
     const count = (res?.importedCount || 0) + (res?.updatedCount || 0);
     return { success: true, count: count || result.contacts.length };
   } catch (err: any) {
-    console.warn('Sync device contacts error:', err);
+    logError({ event: 'device_contacts_sync_failed', outcome: 'failure' }, err);
     return { success: false, count: 0, error: err?.message || 'Failed to sync contacts.' };
   }
 }
@@ -144,6 +145,6 @@ export async function autoSyncDeviceContacts(
   try {
     await syncDeviceContacts(batchImportFn, true);
   } catch (err) {
-    console.warn('Auto contact sync skipped or failed:', err);
+    logError({ event: 'contact_auto_sync_failed', outcome: 'failure' }, err);
   }
 }

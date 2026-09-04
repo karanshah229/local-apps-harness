@@ -1,0 +1,27 @@
+{
+  "appId": "kamdhenu-handoff",
+  "request": "Add structured mobile logging with react-native-logs, Sentry error/ANR reporting, crash-gated unmasked mobile session replay, and in-app diagnostic sharing without changing product behavior.",
+  "acceptance": [
+    "Application events are normalized through one client logger with bounded local retention and full diagnostic payloads during the temporary office monitoring period.",
+    "Sentry receives actionable errors, breadcrumbs, crash context, and ANR context; ordinary sessions do not upload replay.",
+    "Crash or application-not-responding events can upload the preceding mobile replay buffer when supported by the installed Sentry native SDK.",
+    "Users can share a recent diagnostic report from Settings without accessing application directories.",
+    "Task creation emits correlated start, duplicate-tap, SQLite, success, navigation, and failure events without task content.",
+    "Logging or telemetry failures cannot change or block application behavior."
+  ],
+  "excluded": [
+    "Remote application logging API or backend service; this app remains local-only.",
+    "Uploading the local SQLite database file itself.",
+    "Changes to existing task, list, WhatsApp, SQLite schema, or navigation behavior."
+  ],
+  "surfaces": ["mobile", "environment", "tests", "registry"],
+  "risk": "automatic",
+  "verification": [
+    "Run mobile TypeScript typecheck.",
+    "Run workspace platform checks and app reference scan.",
+    "Build the Android release artifact when the local build environment is available.",
+    "Verify full diagnostic payloads and bounded local log behavior in a release-like build.",
+    "Manually exercise task creation, repeated taps, failure handling, Settings diagnostic sharing, and Sentry crash/replay delivery."
+  ],
+  "rollback": "Revert this local Git change and reinstall the prior mobile build; the SQLite schema and existing application data are unchanged."
+}

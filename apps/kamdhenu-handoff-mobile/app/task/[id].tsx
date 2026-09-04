@@ -56,7 +56,7 @@ import {
   useAddUserMutation,
 } from '../../src/hooks/useTodoQueries';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../../src/hooks/useThrottledTaskAutosave';
-import { logClientEvent } from '../../src/services/clientLogger';
+import { logClientEvent, logError } from '../../src/services/clientLogger';
 import {
   Task,
   User,
@@ -598,7 +598,10 @@ export default function TaskDetailScreen() {
   };
 
   const handleSaveNewTask = async () => {
-    if (creatingTaskRef.current) return;
+    if (creatingTaskRef.current) {
+      logClientEvent({ event: 'task_create_duplicate_tap_ignored', outcome: 'ignored', level: 'warn' });
+      return;
+    }
     if (!title.trim()) {
       showAlertDialog('Required', 'Please enter a task title.');
       return;
@@ -608,8 +611,22 @@ export default function TaskDetailScreen() {
     setIsCreatingTask(true);
     const attemptId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const startedAt = Date.now();
+    logClientEvent({
+      event: 'task_create_started', outcome: 'started', attemptId,
+      data: {
+        assignedUserId,
+        selectedListIds,
+        isImportant,
+        subtaskCount: localSteps.length,
+        listCount: selectedListIds.length,
+        hasNotes: Boolean(notes.trim()),
+        hasDueDate: Boolean(dueDate),
+        hasAssignee: Boolean(assignedUserId),
+      },
+    });
 
     try {
+      logClientEvent({ event: 'task_create_sql_started', outcome: 'started', attemptId });
       await createTaskMutation.mutateAsync({
         title: title.trim(),
         notes: notes.trim() || undefined,
@@ -622,17 +639,18 @@ export default function TaskDetailScreen() {
         draft_subtasks: localSteps.map((step) => step.title),
       });
 
+      logClientEvent({ event: 'task_create_sql_committed', outcome: 'success', durationMs: Date.now() - startedAt, attemptId });
       router.back();
-    } catch {
+      logClientEvent({ event: 'task_create_navigation_completed', outcome: 'success', durationMs: Date.now() - startedAt, attemptId });
+    } catch (error) {
       creatingTaskRef.current = false;
       setIsCreatingTask(false);
-      logClientEvent({
-        level: 'error',
+      logError({
         event: 'task_create_failed',
         outcome: 'failure',
         durationMs: Date.now() - startedAt,
         attemptId,
-      });
+      }, error);
       showAlertDialog('Error', 'Failed to create task.');
     }
   };

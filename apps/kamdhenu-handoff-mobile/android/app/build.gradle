@@ -81,6 +81,10 @@ def enableMinifyInReleaseBuilds = (findProperty('android.enableMinifyInReleaseBu
  */
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
+// Keep Sentry build configuration in the Android project root while credentials
+// continue to come from the untracked SENTRY_AUTH_TOKEN environment variable.
+project.ext.sentryCli = [sentryProperties: file("$rootDir/sentry.properties")]
+apply from: new File(["node", "--print", "require.resolve('@sentry/react-native/package.json')"].execute().text.trim(), "../sentry.gradle")
 android {
     ndkVersion = rootProject.ext.ndkVersion
 
@@ -92,8 +96,8 @@ android {
         applicationId = 'com.kamdhenu.handoff'
         minSdkVersion = rootProject.ext.minSdkVersion
         targetSdkVersion = rootProject.ext.targetSdkVersion
-        versionCode = 14
-        versionName = "1.0.14"
+        versionCode = 17
+        versionName = "1.0.17"
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }

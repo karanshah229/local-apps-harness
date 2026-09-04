@@ -15,6 +15,7 @@ import {
   getCalendarDateInTimeZone,
   getQuickDueDatePresets,
 } from '@shared/todo';
+import { logError } from '../services/clientLogger';
 
 let dbInstance: SQLite.SQLiteDatabase | null = null;
 
@@ -1467,7 +1468,7 @@ export const localTodoDb = {
         [data.taskId || null, data.phone || null, data.recipientName || null, data.message || null, data.status || 'sent']
       );
     } catch (e: any) {
-      console.warn('Error logging WhatsApp message locally:', e?.message);
+      logError({ event: 'whatsapp_history_log_failed', outcome: 'failure', data: { hasTaskId: Boolean(data.taskId), hasRecipient: Boolean(data.phone || data.recipientName), status: data.status } }, e);
     }
   },
 

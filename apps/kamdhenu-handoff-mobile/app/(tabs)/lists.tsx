@@ -70,6 +70,7 @@ import { TasksView } from '../../src/components/TasksView';
 import { ListOrViewDropdownModal } from '../../src/components/ListOrViewDropdownModal';
 import { ContactPickerModal } from '../../src/components/ContactPickerModal';
 import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
+import { logError } from '../../src/services/clientLogger';
 
 interface ListsDirectoryViewProps {
   onSelectList: (id: number) => void;
@@ -148,10 +149,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         customViewsQuery.refetch(),
         usersQuery.refetch(),
       ]);
+    } catch (error) {
+      logError({ event: 'lists_refresh_failed', outcome: 'failure' }, error);
+      showAlertDialog('Refresh failed', 'Unable to refresh lists right now.');
     } finally {
       setRefreshing(false);
     }
-  }, [listsQuery, taskCountsQuery, customViewsQuery, usersQuery]);
+  }, [listsQuery, taskCountsQuery, customViewsQuery, usersQuery, showAlertDialog]);
 
   const createListMutation = useCreateListMutation();
   const updateListMutation = useUpdateListMutation();

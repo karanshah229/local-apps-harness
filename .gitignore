@@ -89,3 +89,11 @@ ehthumbs.db
 
 # Expo folder
 .expo/
+
+# Sentry properties containing secrets
+sentry.properties
+android/sentry.properties
+ios/sentry.properties
+
+#Graphics folder
+graphics/

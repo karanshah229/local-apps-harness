@@ -1,4 +1,4 @@
-import { useSyncExternalStore, useCallback, useMemo } from 'react';
+import { useSyncExternalStore, useCallback, useMemo, useState } from 'react';
 import {
   Task,
   List,
@@ -9,6 +9,7 @@ import {
   CustomView,
 } from '@shared/todo';
 import { localTodoDb } from '../db/sqlite';
+import { logError } from '../services/clientLogger';
 
 // Event emitter pattern for instant local DB reactive updates
 type DbEvent = 'tasks' | 'lists' | 'users' | 'subtasks' | 'preferences' | 'views';
@@ -22,7 +23,7 @@ function notifyDbChange(_event?: DbEvent) {
     try {
       listener();
     } catch (e) {
-      console.warn('Listener notification error:', e);
+      logError({ event: 'local_db_listener_failed', outcome: 'failure' }, e);
     }
   }
 }
@@ -40,6 +41,64 @@ const EMPTY_COUNTS: Record<string, number> = Object.freeze({}) as any;
 const EMPTY_LISTS: List[] = Object.freeze([]) as any;
 const EMPTY_USERS: User[] = Object.freeze([]) as any;
 const EMPTY_CUSTOM_VIEWS: CustomView[] = Object.freeze([]) as any;
+
+function useMutationState<TInput, TResult>(
+  operationName: string,
+  operation: (input: TInput) => TResult,
+  asyncOperation: (input: TInput) => Promise<TResult> | TResult = operation,
+) {
+  const [state, setState] = useState<{ status: 'idle' | 'pending' | 'success' | 'error'; error?: unknown }>({ status: 'idle' });
+  const failureData = (input: TInput, startedAt: number) => {
+    const data: Record<string, unknown> = {
+      operation: operationName,
+      durationMs: Date.now() - startedAt,
+    };
+    if (typeof input === 'number') data.itemId = input;
+    if (Array.isArray(input)) data.count = input.length;
+    if (input && typeof input === 'object' && !Array.isArray(input)) {
+      const candidate = input as Record<string, unknown>;
+      if (typeof candidate.id === 'number') data.itemId = candidate.id;
+      if (typeof candidate.taskId === 'number') data.taskId = candidate.taskId;
+      if (Array.isArray(candidate.contacts)) data.count = candidate.contacts.length;
+    }
+    return data;
+  };
+  const mutate = useCallback((input: TInput) => {
+    const startedAt = Date.now();
+    setState({ status: 'pending' });
+    try {
+      const result = operation(input);
+      setState({ status: 'success' });
+      return result;
+    } catch (error) {
+      setState({ status: 'error', error });
+      logError({ event: 'local_mutation_failed', outcome: 'failure', data: failureData(input, startedAt) }, error);
+      throw error;
+    }
+  }, [operation, operationName]);
+  const mutateAsync = useCallback(async (input: TInput) => {
+    const startedAt = Date.now();
+    setState({ status: 'pending' });
+    try {
+      const result = await asyncOperation(input);
+      setState({ status: 'success' });
+      return result;
+    } catch (error) {
+      setState({ status: 'error', error });
+      logError({ event: 'local_mutation_failed', outcome: 'failure', data: failureData(input, startedAt) }, error);
+      throw error;
+    }
+  }, [asyncOperation, operationName]);
+  return {
+    mutate,
+    mutateAsync,
+    isPending: state.status === 'pending',
+    isSuccess: state.status === 'success',
+    isError: state.status === 'error',
+    error: state.error,
+    status: state.status,
+  };
+}
 
 // ----------------------------------------------------
 // IN-MEMORY SNAPSHOT CACHES FOR ZERO-LAG JSI RETRIEVAL
@@ -158,7 +217,7 @@ export function useCreateTaskMutation() {
     return newTask;
   }, []);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('create_task', mutate, mutateAsync);
 }
 
 export function useUpdateTaskMutation() {
@@ -172,7 +231,7 @@ export function useUpdateTaskMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_task', mutate, mutateAsync);
 }
 
 export function useDeleteTaskMutation() {
@@ -185,7 +244,7 @@ export function useDeleteTaskMutation() {
     mutate(taskId);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('delete_task', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------
@@ -231,7 +290,7 @@ export function useAddSubtaskMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('add_subtask', mutate, mutateAsync);
 }
 
 export function useUpdateSubtaskMutation() {
@@ -246,7 +305,7 @@ export function useUpdateSubtaskMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_subtask', mutate, mutateAsync);
 }
 
 export function useDeleteSubtaskMutation() {
@@ -260,7 +319,7 @@ export function useDeleteSubtaskMutation() {
     mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('delete_subtask', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------
@@ -302,7 +361,7 @@ export function useCreateListMutation() {
     return mutate(listData);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('create_list', mutate, mutateAsync);
 }
 
 export function useUpdateListMutation() {
@@ -316,7 +375,7 @@ export function useUpdateListMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_list', mutate, mutateAsync);
 }
 
 export function useDeleteListMutation() {
@@ -329,7 +388,7 @@ export function useDeleteListMutation() {
     mutate(listId);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('delete_list', mutate, mutateAsync);
 }
 
 export function useShareListMutation() {
@@ -341,7 +400,7 @@ export function useShareListMutation() {
     mutate(data);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('share_list', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------
@@ -389,7 +448,7 @@ export function useAddUserMutation() {
     return mutate(userData);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('add_user', mutate, mutateAsync);
 }
 
 export function useUpdateUserMutation() {
@@ -403,7 +462,7 @@ export function useUpdateUserMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_user', mutate, mutateAsync);
 }
 
 export function useDeleteUserMutation() {
@@ -416,7 +475,7 @@ export function useDeleteUserMutation() {
     mutate(userId);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('delete_user', mutate, mutateAsync);
 }
 
 export function useBatchImportUsersMutation() {
@@ -430,7 +489,7 @@ export function useBatchImportUsersMutation() {
     return mutate(contacts);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('batch_import_users', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------
@@ -474,7 +533,7 @@ export function useUpdateUserPreferencesMutation() {
     return mutate(prefs);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_user_preferences', mutate, mutateAsync);
 }
 
 export function usePinnedViewsQuery() {
@@ -508,7 +567,7 @@ export function useTogglePinViewMutation() {
     return mutate(viewKey);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('toggle_pin_view', mutate, mutateAsync);
 }
 
 export function usePinViewMutation() {
@@ -522,7 +581,7 @@ export function usePinViewMutation() {
     return mutate(viewKey);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('pin_view', mutate, mutateAsync);
 }
 
 export function useUnpinViewMutation() {
@@ -536,7 +595,7 @@ export function useUnpinViewMutation() {
     return mutate(viewKey);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('unpin_view', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------
@@ -612,7 +671,7 @@ export function useCreateCustomViewMutation() {
     return mutate(data);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('create_custom_view', mutate, mutateAsync);
 }
 
 export function useUpdateCustomViewMutation() {
@@ -626,7 +685,7 @@ export function useUpdateCustomViewMutation() {
     return mutate(params);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('update_custom_view', mutate, mutateAsync);
 }
 
 export function useDeleteCustomViewMutation() {
@@ -639,7 +698,7 @@ export function useDeleteCustomViewMutation() {
     mutate(viewId);
   }, [mutate]);
 
-  return { mutate, mutateAsync, isPending: false };
+  return useMutationState('delete_custom_view', mutate, mutateAsync);
 }
 
 // ----------------------------------------------------

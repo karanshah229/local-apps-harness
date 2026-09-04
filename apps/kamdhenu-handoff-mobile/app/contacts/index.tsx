@@ -28,6 +28,7 @@ import {
 } from '../../src/hooks/useTodoQueries';
 import { syncDeviceContacts } from '../../src/services/nativeContacts';
 import { User, normalizeToE164, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
+import { logError } from '../../src/services/clientLogger';
 
 const ITEM_HEIGHT = 72;
 
@@ -138,7 +139,8 @@ export default function ContactsScreen() {
       } else if (res.error) {
         showAlertDialog('Sync Contacts', res.error);
       }
-    } catch {
+    } catch (error) {
+      logError({ event: 'contacts_refresh_failed', outcome: 'failure' }, error);
       showAlertDialog('Error', 'Failed to refresh contacts.');
     } finally {
       setIsRefreshing(false);
@@ -155,7 +157,8 @@ export default function ContactsScreen() {
       setNewName('');
       setNewPhone('');
       setShowAddUser(false);
-    } catch {
+    } catch (error) {
+      logError({ event: 'contact_create_failed', outcome: 'failure' }, error);
       showAlertDialog('Error', 'Failed to add contact.');
     }
   }, [newName, newPhone, addUserMutation, showAlertDialog]);

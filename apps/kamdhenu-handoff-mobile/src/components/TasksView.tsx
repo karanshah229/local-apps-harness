@@ -73,6 +73,7 @@ import {
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
+import { logError } from '../services/clientLogger';
 import {
   Task,
   User,
@@ -510,10 +511,13 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
         usersQuery.refetch(),
         fixedCustomViewId ? customViewQuery.refetch() : Promise.resolve(),
       ]);
+    } catch (error) {
+      logError({ event: 'tasks_refresh_failed', outcome: 'failure' }, error);
+      showAlertDialog('Refresh failed', 'Unable to refresh tasks right now.');
     } finally {
       setRefreshing(false);
     }
-  }, [tasksQuery, listsQuery, usersQuery, fixedCustomViewId, customViewQuery]);
+  }, [tasksQuery, listsQuery, usersQuery, fixedCustomViewId, customViewQuery, showAlertDialog]);
 
   const updateTaskMutation = useUpdateTaskMutation();
   const deleteTaskMutation = useDeleteTaskMutation();

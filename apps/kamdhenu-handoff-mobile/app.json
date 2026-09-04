@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kamdhenu Handoff",
     "slug": "kamdhenu-handoff",
-    "version": "1.0.14",
+    "version": "1.0.17",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -22,7 +22,7 @@
         "backgroundColor": "#0078d4"
       },
       "package": "com.kamdhenu.handoff",
-      "versionCode": 14,
+      "versionCode": 17,
       "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "READ_CONTACTS",
@@ -47,6 +47,14 @@
           "image": "./assets/splash.png",
           "resizeMode": "contain",
           "backgroundColor": "#0078d4"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "kamdhenu-todo",
+          "organization": "personal-4ck"
         }
       ]
     ],

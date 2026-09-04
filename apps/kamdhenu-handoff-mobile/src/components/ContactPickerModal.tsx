@@ -15,6 +15,7 @@ import { Search, X, Users, Phone, Check, User as UserIcon, RefreshCw } from 'luc
 import { User, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
 import { syncDeviceContacts } from '../services/nativeContacts';
 import { useBatchImportUsersMutation } from '../hooks/useTodoQueries';
+import { logError } from '../services/clientLogger';
 
 export const WHATSAPP_GROUP_USER: User = {
   id: -1,
@@ -149,7 +150,7 @@ export function ContactPickerModal({
         await batchImportMutation.mutateAsync(contacts);
       }, true);
     } catch (err) {
-      console.warn('Refresh contacts failed:', err);
+      logError({ event: 'contact_picker_refresh_failed', outcome: 'failure' }, err);
     } finally {
       setIsRefreshing(false);
     }

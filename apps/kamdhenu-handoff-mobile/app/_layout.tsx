@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { View, useColorScheme, Platform } from 'react-native';
+import { View, useColorScheme, Platform, AppState } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -12,7 +12,11 @@ import { getDatabase } from '../src/db/sqlite';
 import { useUiStore } from '../src/store/useUiStore';
 import { autoSyncDeviceContacts } from '../src/services/nativeContacts';
 import { ThemedConfirmModal } from '../src/components/ThemedConfirmModal';
+import { initializeObservability } from '../src/services/sentry';
+import { logClientEvent, logError } from '../src/services/clientLogger';
 import '../global.css';
+
+initializeObservability();
 
 // Keep the splash screen visible while loading initial route
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -32,9 +36,17 @@ function RootLayoutNav() {
   useEffect(() => {
     try {
       getDatabase();
+      logClientEvent({ event: 'sqlite_initialized', outcome: 'success' });
     } catch (e) {
-      console.error('Failed to initialize local SQLite database:', e);
+      logError({ event: 'sqlite_initialize_failed', outcome: 'failure' }, e);
     }
+  }, []);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', state => {
+      logClientEvent({ event: `app_state_${state}`, outcome: 'success', level: 'debug' });
+    });
+    return () => subscription.remove();
   }, []);
 
   useEffect(() => {
@@ -59,7 +71,7 @@ function RootLayoutNav() {
         try {
           await batchImportMutation.mutateAsync(contacts);
         } catch (err) {
-          console.warn('Delayed contact sync failed:', err);
+          logError({ event: 'contact_auto_sync_failed', outcome: 'failure' }, err);
         }
       });
     }, 2000);

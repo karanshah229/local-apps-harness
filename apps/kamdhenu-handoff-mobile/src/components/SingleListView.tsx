@@ -70,6 +70,7 @@ import {
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
+import { logError } from '../services/clientLogger';
 import { BulkDueDatePickerModal } from './BulkDueDatePickerModal';
 import { BulkAssigneePickerModal } from './BulkAssigneePickerModal';
 import {
@@ -418,10 +419,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         listsQuery.refetch(),
         usersQuery.refetch(),
       ]);
+    } catch (error) {
+      logError({ event: 'single_list_refresh_failed', outcome: 'failure' }, error);
+      showAlertDialog('Refresh failed', 'Unable to refresh this list right now.');
     } finally {
       setRefreshing(false);
     }
-  }, [tasksQuery, listsQuery, usersQuery]);
+  }, [tasksQuery, listsQuery, usersQuery, showAlertDialog]);
 
   const insets = useSafeAreaInsets();
   const updateTaskMutation = useUpdateTaskMutation();

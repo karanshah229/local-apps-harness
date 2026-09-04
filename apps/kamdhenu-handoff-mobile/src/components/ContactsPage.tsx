@@ -40,6 +40,7 @@ import { getDeviceContacts } from '../services/nativeContacts';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { useUiStore } from '../store/useUiStore';
+import { logError } from '../services/clientLogger';
 
 interface ContactsPageProps {
   onBack: () => void;
@@ -304,7 +305,7 @@ export default function ContactsPage({
         setError('Failed to sync device contacts to database.');
       }
     } catch (err: any) {
-      console.error(err);
+      logError({ event: 'contact_import_failed', outcome: 'failure' }, err);
       setError(err?.message || 'Error importing native contacts.');
     } finally {
       setIsImporting(false);

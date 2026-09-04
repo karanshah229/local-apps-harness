@@ -43,6 +43,7 @@ import { localTodoDb } from '../db/sqlite';
 import { useUiStore } from '../store/useUiStore';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+import { logError } from '../services/clientLogger';
 
 interface WhatsAppShareModalProps {
   isOpen: boolean;
@@ -234,7 +235,7 @@ export default function WhatsAppShareModal({
         setRecipientPhone(targetPhone);
       }
     } catch (err) {
-      console.error('Error generating WhatsApp payload locally:', err);
+      logError({ event: 'whatsapp_payload_generation_failed', outcome: 'failure' }, err);
     } finally {
       setLoading(false);
     }

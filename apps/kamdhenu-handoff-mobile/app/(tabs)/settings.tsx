@@ -19,6 +19,7 @@ import {
   ChevronRight,
   BookmarkCheck,
   MessageSquare,
+  Share2,
 } from 'lucide-react-native';
 import { WhatsAppMessageStyle } from '@shared/todo';
 import { useUiStore } from '../../src/store/useUiStore';
@@ -30,6 +31,7 @@ import {
   useUserPreferencesQuery,
   useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
+import { shareDiagnosticReport } from '../../src/services/clientLogger';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -100,6 +102,14 @@ export default function SettingsScreen() {
 
   const handleToggleRememberLastView = (enabled: boolean) => {
     updatePrefs.mutate({ remember_last_view: enabled ? 1 : 0 });
+  };
+
+  const handleShareDiagnostics = async () => {
+    try {
+      await shareDiagnosticReport();
+    } catch {
+      // The native share sheet may be dismissed or unavailable.
+    }
   };
 
   const insets = useSafeAreaInsets();
@@ -346,6 +356,41 @@ export default function SettingsScreen() {
             </View>
             <ChevronRight size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
           </View>
+        </TouchableOpacity>
+
+        {/* Support Diagnostics Card */}
+        <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4 }}>
+          Support
+        </Text>
+        <TouchableOpacity
+          onPress={handleShareDiagnostics}
+          activeOpacity={0.7}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+            borderRadius: 20,
+            backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+            borderWidth: 1,
+            borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+            marginBottom: 24,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, marginRight: 8 }}>
+            <View style={{ width: 36, height: 36, borderRadius: 12, backgroundColor: 'rgba(0,120,212,0.1)', alignItems: 'center', justifyContent: 'center' }}>
+              <Share2 size={18} color="#0078d4" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                Share diagnostic report
+              </Text>
+              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                Share recent app logs to help investigate an issue
+              </Text>
+            </View>
+          </View>
+          <ChevronRight size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
         </TouchableOpacity>
 
         {/* About Section */}

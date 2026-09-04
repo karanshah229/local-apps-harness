@@ -16,6 +16,7 @@ import {
   Info,
   Smartphone,
   BookmarkCheck,
+  Share2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Constants from 'expo-constants';
@@ -23,6 +24,7 @@ import appConfig from '../../app.json';
 import { useUserPreferencesQuery, useUpdateUserPreferencesMutation } from '../hooks/useTodoQueries';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
+import { shareDiagnosticReport } from '../services/clientLogger';
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -79,6 +81,14 @@ export default function SettingsPage({
 
   const handleToggleRememberLastView = (enabled: boolean) => {
     updatePrefs.mutate({ remember_last_view: enabled ? 1 : 0 });
+  };
+
+  const handleShareDiagnostics = async () => {
+    try {
+      await shareDiagnosticReport();
+    } catch {
+      // The native share sheet can be dismissed or unavailable; no product state changes.
+    }
   };
 
   return (
@@ -212,6 +222,25 @@ export default function SettingsPage({
               />
             </View>
           </View>
+        </View>
+
+        {/* Support Diagnostics Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Share2 size={16} color="#0078d4" />
+            <Text style={styles.sectionTitle}>SUPPORT</Text>
+          </View>
+          <TouchableOpacity
+            onPress={handleShareDiagnostics}
+            style={[styles.card, styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            activeOpacity={0.75}
+          >
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={[styles.settingTitle, { color: colors.text }]}>Share diagnostic report</Text>
+              <Text style={[styles.settingSubtitle, { color: colors.textMuted }]}>Share recent app logs to help investigate an issue</Text>
+            </View>
+            <Share2 size={20} color="#0078d4" />
+          </TouchableOpacity>
         </View>
 
         {/* About Section */}
