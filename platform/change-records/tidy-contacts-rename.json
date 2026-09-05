@@ -1,0 +1,32 @@
+{
+  "appId": "tidy-contacts",
+  "request": "Rename app name to tidy-contacts everywhere across all directories, file names, configurations, code references, and registry surfaces.",
+  "acceptance": [
+    "App directory is renamed to apps/tidy-contacts.",
+    "App identifier is tidy-contacts and display name is Tidy Contacts.",
+    "Web base path and Nginx route are /tidy-contacts/ with legacy redirect from /contacts-cleaner.",
+    "Docker service is tidy-contacts and container is tidy-contacts-app.",
+    "Package name is tidy-contacts with matching pnpm lockfile references.",
+    "All tests, platform check, and builds pass with zero errors."
+  ],
+  "excluded": [
+    "Changing contact processing or parsing logic.",
+    "Server-side storage or database dependencies."
+  ],
+  "surfaces": [
+    "web",
+    "docker",
+    "nginx",
+    "health",
+    "tests",
+    "registry"
+  ],
+  "risk": "automatic",
+  "verification": [
+    "Run unit tests for tidy-contacts.",
+    "Run TypeScript checking and production Vite build below /tidy-contacts/.",
+    "Run platform:check and platform:scan across old and new identifiers.",
+    "Run full platform test suite."
+  ],
+  "rollback": "Revert the rename commit to restore contacts-cleaner naming and configuration."
+}

@@ -11,6 +11,7 @@ services:
     depends_on:
       - stock
       - gold
+      - tidy-contacts
 
   # Shared PostgreSQL database service
   postgres:
@@ -53,6 +54,21 @@ services:
       context: ..
       dockerfile: apps/sip-of-gold/Dockerfile
     container_name: gold-app
+    restart: unless-stopped
+    expose:
+      - "80"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Tidy Contacts (private client-side VCF cleaner)
+  tidy-contacts:
+    build:
+      context: ..
+      dockerfile: apps/tidy-contacts/Dockerfile
+    container_name: tidy-contacts-app
     restart: unless-stopped
     expose:
       - "80"

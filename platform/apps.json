@@ -1,97 +1,160 @@
 {
-	"$schema": "./apps.schema.json",
-	"version": 1,
-	"defaults": {
-		"access": "local-network",
-		"webStack": "react-vite-tailwind-shadcn",
-		"desktopStack": "tauri-react-vite",
-		"mobileStack": "react-native-expo",
-		"nativeAndroidStack": "native-android-kotlin",
-		"nativeIosStack": "native-ios-swift",
-		"apiStack": "fastify-prisma",
-		"dataStack": "recipe-selected"
-	},
-	"apps": [
-		{
-			"id": "kamdhenu-handoff",
-			"displayName": "Kamdhenu Handoff",
-			"recipe": "react-native-expo",
-			"status": "active",
-			"capabilities": ["tasks", "whatsapp-reminders"],
-			"paths": {
-				"web": null,
-				"api": null,
-				"mobile": "apps/kamdhenu-handoff-mobile"
-			},
-			"web": null,
-			"api": null,
-			"data": null,
-			"docker": null,
-			"nginx": null,
-			"backup": null,
-			"mobile": {
-				"androidPackage": "com.kamdhenu.handoff",
-				"iosBundleId": "com.kamdhenu.handoff"
-			}
-		},
-		{
-			"id": "stock-manager",
-			"displayName": "Stock Manager",
-			"recipe": "legacy-react-express-sqlite",
-			"status": "legacy",
-			"capabilities": ["stock-management", "photo-uploads", "reports"],
-			"paths": {
-				"web": "apps/stock-manager-client",
-				"api": "apps/stock-manager-server"
-			},
-			"web": { "basePath": "/stock" },
-			"api": { "internalPort": 5001, "healthPath": "/healthz" },
-			"data": {
-				"engine": "sqlite",
-				"database": "stock.db",
-				"migrationState": "legacy"
-			},
-			"docker": {
-				"service": "stock",
-				"containerName": "stock-app",
-				"dockerfile": "apps/stock-manager-server/Dockerfile",
-				"volumes": ["stock-data"]
-			},
-			"nginx": { "route": "/stock/", "upstream": "stock:5001" },
-			"backup": {
-				"strategy": "filesystem",
-				"container": "stock-app",
-				"containerPath": "/app/data",
-				"legacyContainerPaths": [
-					"/app/server/stock.db",
-					"/app/server/uploads"
-				],
-				"localPaths": [
-					"apps/stock-manager-server/stock.db",
-					"apps/stock-manager-server/uploads"
-				]
-			},
-			"mobile": null
-		},
-		{
-			"id": "sip-of-gold",
-			"displayName": "Sip of Gold",
-			"recipe": "legacy-static-vite",
-			"status": "legacy",
-			"capabilities": ["static-web-experience"],
-			"paths": { "web": "apps/sip-of-gold", "api": null },
-			"web": { "basePath": "/gold", "healthPath": "/" },
-			"api": null,
-			"data": null,
-			"docker": {
-				"service": "gold",
-				"containerName": "gold-app",
-				"dockerfile": "apps/sip-of-gold/Dockerfile",
-				"volumes": []
-			},
-			"nginx": { "route": "/gold/", "upstream": "gold:80" },
-			"backup": null,
-			"mobile": null
-		}
-	]
+  "$schema": "./apps.schema.json",
+  "version": 1,
+  "defaults": {
+    "access": "local-network",
+    "webStack": "react-vite-tailwind-shadcn",
+    "desktopStack": "tauri-react-vite",
+    "mobileStack": "react-native-expo",
+    "nativeAndroidStack": "native-android-kotlin",
+    "nativeIosStack": "native-ios-swift",
+    "apiStack": "fastify-prisma",
+    "dataStack": "recipe-selected"
+  },
+  "apps": [
+    {
+      "id": "kamdhenu-handoff",
+      "displayName": "Kamdhenu Handoff",
+      "recipe": "react-native-expo",
+      "status": "active",
+      "capabilities": [
+        "tasks",
+        "whatsapp-reminders"
+      ],
+      "paths": {
+        "web": null,
+        "api": null,
+        "mobile": "apps/kamdhenu-handoff-mobile"
+      },
+      "web": null,
+      "api": null,
+      "data": null,
+      "docker": null,
+      "nginx": null,
+      "backup": null,
+      "mobile": {
+        "androidPackage": "com.kamdhenu.handoff",
+        "iosBundleId": "com.kamdhenu.handoff"
+      }
+    },
+    {
+      "id": "stock-manager",
+      "displayName": "Stock Manager",
+      "recipe": "legacy-react-express-sqlite",
+      "status": "legacy",
+      "capabilities": [
+        "stock-management",
+        "photo-uploads",
+        "reports"
+      ],
+      "paths": {
+        "web": "apps/stock-manager-client",
+        "api": "apps/stock-manager-server"
+      },
+      "web": {
+        "basePath": "/stock"
+      },
+      "api": {
+        "internalPort": 5001,
+        "healthPath": "/healthz"
+      },
+      "data": {
+        "engine": "sqlite",
+        "database": "stock.db",
+        "migrationState": "legacy"
+      },
+      "docker": {
+        "service": "stock",
+        "containerName": "stock-app",
+        "dockerfile": "apps/stock-manager-server/Dockerfile",
+        "volumes": [
+          "stock-data"
+        ]
+      },
+      "nginx": {
+        "route": "/stock/",
+        "upstream": "stock:5001"
+      },
+      "backup": {
+        "strategy": "filesystem",
+        "container": "stock-app",
+        "containerPath": "/app/data",
+        "legacyContainerPaths": [
+          "/app/server/stock.db",
+          "/app/server/uploads"
+        ],
+        "localPaths": [
+          "apps/stock-manager-server/stock.db",
+          "apps/stock-manager-server/uploads"
+        ]
+      },
+      "mobile": null
+    },
+    {
+      "id": "sip-of-gold",
+      "displayName": "Sip of Gold",
+      "recipe": "legacy-static-vite",
+      "status": "legacy",
+      "capabilities": [
+        "static-web-experience"
+      ],
+      "paths": {
+        "web": "apps/sip-of-gold",
+        "api": null
+      },
+      "web": {
+        "basePath": "/gold",
+        "healthPath": "/"
+      },
+      "api": null,
+      "data": null,
+      "docker": {
+        "service": "gold",
+        "containerName": "gold-app",
+        "dockerfile": "apps/sip-of-gold/Dockerfile",
+        "volumes": []
+      },
+      "nginx": {
+        "route": "/gold/",
+        "upstream": "gold:80"
+      },
+      "backup": null,
+      "mobile": null
+    },
+    {
+      "id": "tidy-contacts",
+      "displayName": "Tidy Contacts",
+      "recipe": "react-web",
+      "status": "active",
+      "capabilities": [
+        "vcf-import",
+        "contact-analysis",
+        "contact-deduplication",
+        "local-file-processing",
+        "vcf-export"
+      ],
+      "paths": {
+        "web": "apps/tidy-contacts",
+        "api": null
+      },
+      "web": {
+        "basePath": "/tidy-contacts",
+        "healthPath": "/"
+      },
+      "api": null,
+      "data": null,
+      "docker": {
+        "service": "tidy-contacts",
+        "containerName": "tidy-contacts-app",
+        "dockerfile": "apps/tidy-contacts/Dockerfile",
+        "volumes": []
+      },
+      "nginx": {
+        "route": "/tidy-contacts/",
+        "upstream": "tidy-contacts:80"
+      },
+      "backup": null,
+      "mobile": null
+    }
+  ]
 }

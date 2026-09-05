@@ -8,3 +8,4 @@ node_modules
 .gemini
 **/*.db
 **/*.db-journal
+apps/tidy-contacts/*.vcf

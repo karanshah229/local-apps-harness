@@ -41,6 +41,9 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 # Runtime uploads
 uploads/
 
+# Private contact exports
+apps/tidy-contacts/*.vcf
+
 # Testing / coverage
 coverage/
 .nyc_output/
