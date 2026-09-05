@@ -31,6 +31,7 @@ import {
   Sparkles,
   Sun,
   Trash2,
+  Undo2,
   UploadCloud,
   UserCheck,
   Users,
@@ -40,12 +41,14 @@ import {
 } from "lucide-react";
 import { Badge } from "./components/ui/badge";
 import { Button } from "./components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "./components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./components/ui/card";
 import { Progress } from "./components/ui/progress";
 import { MergeEditDialog } from "./components/MergeEditDialog";
 import { SelectKeepDialog } from "./components/SelectKeepDialog";
 import { ResumeSessionDialog } from "./components/ResumeSessionDialog";
 import { EditableQualityCard } from "./components/EditableQualityCard";
+import { ContactDetailModal } from "./components/ContactDetailModal";
+import { ExportConfirmationModal } from "./components/ExportConfirmationModal";
 import { MatchReasonBadge, QualityIssueBadge, QUALITY_LABELS } from "./components/Badges";
 import { RecentSessionsList } from "./components/RecentSessionsList";
 import { logEvent } from "./lib/logger";
@@ -81,6 +84,49 @@ type ReviewMode = "duplicates" | "quality";
 
 const ORDINAL_NAMES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
 
+function CircularProgress({
+  percent,
+  size = 38,
+  strokeWidth = 3.5,
+}: {
+  percent: number;
+  size?: number;
+  strokeWidth?: number;
+}) {
+  const radius = (size - strokeWidth) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
+
+  return (
+    <div className="relative flex items-center justify-center shrink-0" style={{ width: size, height: size }}>
+      <svg className="h-full w-full -rotate-90 transform" viewBox={`0 0 ${size} ${size}`}>
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          className="stroke-stone-200 dark:stroke-stone-800"
+          strokeWidth={strokeWidth}
+          fill="transparent"
+        />
+        <circle
+          cx={size / 2}
+          cy={size / 2}
+          r={radius}
+          className="stroke-emerald-400 transition-all duration-300"
+          strokeWidth={strokeWidth}
+          strokeDasharray={circumference}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+          fill="transparent"
+        />
+      </svg>
+      <span className="absolute text-[10px] font-extrabold tabular-nums text-foreground">
+        {Math.round(percent)}%
+      </span>
+    </div>
+  );
+}
+
 function StatCard({ label, value, tone = "default" }: { label: string; value: number; tone?: "default" | "success" | "warning" }) {
   return (
     <div className={cn(
@@ -105,46 +151,131 @@ function Initials({ name }: { name: string }) {
   return <span aria-hidden="true">{initials}</span>;
 }
 
-function ContactPanel({ card, side, qualityCodes = [] }: { card: ContactCard; side?: "left" | "right"; qualityCodes?: QualityCode[] }) {
-  const contact = summarizeContact(card);
+function MobileDuplicateCard({
+  card,
+  isSelected,
+  isDeleted,
+  onSelect,
+  onOpenDetail,
+}: {
+  card: ContactCard;
+  isSelected: boolean;
+  isDeleted: boolean;
+  onSelect: () => void;
+  onOpenDetail: () => void;
+}) {
+  const summary = summarizeContact(card);
+  const initials =
+    summary.name
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "?";
+
+  const primaryPhone = summary.phones[0];
+  const emailCount = summary.emails.length;
+  const emailLabel =
+    emailCount === 0
+      ? "No email address"
+      : emailCount === 1
+      ? summary.emails[0].value
+      : `${emailCount} email addresses`;
+
   return (
-    <Card className="min-w-0 overflow-hidden border-stone-200 dark:border-stone-800 shadow-none bg-card">
-      <div className={cn("h-1.5", side === "right" ? "bg-amber-500" : "bg-primary")} />
-      <CardHeader className="p-4 pb-3 sm:p-6 sm:pb-4">
-        <div className="flex items-start gap-3.5 sm:gap-4">
-          <div className="flex h-12 w-12 sm:h-14 sm:w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl sm:rounded-2xl bg-secondary text-base sm:text-lg font-bold text-secondary-foreground">
-            {contact.photoDataUrl ? (
-              <img src={contact.photoDataUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <Initials name={contact.name} />
-            )}
+    <div
+      className={cn(
+        "rounded-2xl border transition-all bg-card text-card-foreground shadow-xs overflow-hidden",
+        isSelected
+          ? "border-primary ring-2 ring-primary/40 bg-primary/5"
+          : isDeleted
+          ? "border-red-900/30 opacity-75 bg-stone-950/20"
+          : "border-stone-200 dark:border-stone-800/90 bg-card dark:bg-stone-900/60"
+      )}
+    >
+      <div className="p-4 sm:p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0 flex-1">
+            {/* Avatar Initials box */}
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-stone-100 dark:bg-stone-800/90 border border-stone-200 dark:border-stone-700/60 text-stone-800 dark:text-stone-200 font-bold text-sm sm:text-base">
+              {summary.photoDataUrl ? (
+                <img src={summary.photoDataUrl} alt="" className="h-full w-full rounded-xl object-cover" />
+              ) : (
+                <span>{initials}</span>
+              )}
+            </div>
+            {/* Contact details */}
+            <div className="min-w-0 flex-1">
+              <h3 className="font-bold text-base sm:text-lg text-foreground truncate leading-snug">
+                {summary.name || "Unnamed contact"}
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground truncate mt-0.5">
+                {primaryPhone ? (
+                  <span>
+                    <span className="font-medium text-foreground tabular-nums">{primaryPhone.value}</span>
+                    {primaryPhone.label && ` · ${primaryPhone.label}`}
+                  </span>
+                ) : (
+                  <span>No phone number</span>
+                )}
+              </p>
+              <p className="text-xs text-muted-foreground truncate mt-0.5">
+                {emailLabel}
+              </p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            {side && (
-              <p className="mb-0.5 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
-                <span className="sm:hidden">{side === "left" ? "1st contact (top)" : "2nd contact (bottom)"}</span>
-                <span className="hidden sm:inline">{side} contact</span>
-              </p>
-            )}
-            <CardTitle className="break-words text-xl sm:text-2xl">{contact.name || "Unnamed contact"}</CardTitle>
-            {(contact.organization || contact.title) && (
-              <p className="mt-0.5 break-words text-xs sm:text-sm text-muted-foreground">
-                {[contact.title, contact.organization].filter(Boolean).join(" · ")}
-              </p>
+
+          {/* Select / Deleted Button */}
+          <div className="shrink-0">
+            {isSelected ? (
+              <Button
+                size="sm"
+                onClick={onSelect}
+                className="h-8 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground shadow-xs gap-1"
+                aria-label="Selected contact"
+              >
+                <Check className="h-3.5 w-3.5" /> Selected
+              </Button>
+            ) : isDeleted ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSelect}
+                className="h-8 px-2.5 rounded-lg text-xs font-semibold border-red-800/40 bg-red-950/30 text-red-400 hover:bg-red-900/30 gap-1"
+                aria-label="Deleted contact. Click to select instead."
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Deleted
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onSelect}
+                className="h-8 px-3 rounded-lg text-xs font-semibold border-stone-300 dark:border-stone-700 bg-background dark:bg-stone-800/80 hover:bg-stone-100 dark:hover:bg-stone-700 text-foreground"
+                aria-label="Select contact"
+              >
+                Select
+              </Button>
             )}
           </div>
         </div>
-        {qualityCodes.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 pt-2 sm:pt-3">
-            {qualityCodes.map((code) => <QualityIssueBadge key={code} code={code} className="text-xs" />)}
-          </div>
-        )}
-      </CardHeader>
-      <CardContent className="space-y-3 p-4 pt-0 sm:p-6 sm:pt-0">
-        <ContactSection icon={Phone} label="Phone numbers" empty="No phone number" items={contact.phones} />
-        <ContactSection icon={Mail} label="Email addresses" empty="No email address" items={contact.emails} />
-      </CardContent>
-    </Card>
+      </div>
+
+      {/* Divider */}
+      <div className="border-t border-stone-200 dark:border-stone-800/80" />
+
+      {/* View all contact details expandable trigger */}
+      <button
+        type="button"
+        onClick={onOpenDetail}
+        className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground py-2.5 transition-colors bg-stone-50/50 dark:bg-stone-900/30 hover:bg-stone-100/60 dark:hover:bg-stone-800/50"
+      >
+        <span>View all contact details</span>
+        <ChevronDown className="h-3.5 w-3.5 opacity-70" />
+      </button>
+    </div>
   );
 }
 
@@ -519,9 +650,40 @@ export default function App() {
   const [notice, setNotice] = useState("");
   const [isMergeEditOpen, setIsMergeEditOpen] = useState(false);
   const [isSelectKeepOpen, setIsSelectKeepOpen] = useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = useState(false);
+  const [detailModalCard, setDetailModalCard] = useState<ContactCard | null>(null);
+  const [isGroupExpanded, setIsGroupExpanded] = useState(false);
+  const [isModeDropdownOpen, setIsModeDropdownOpen] = useState(false);
   const [activeLeftIndex, setActiveLeftIndex] = useState(0);
   const [activeRightIndex, setActiveRightIndex] = useState(1);
-  const [isGroupExpanded, setIsGroupExpanded] = useState(false);
+
+  useEffect(() => {
+    (window as unknown as {
+      __resetTestState: () => void;
+      __closeAllModals: () => void;
+    }).__resetTestState = () => {
+      setDuplicateDecisions({});
+      setQualityDecisions({});
+      setDuplicateIndex(0);
+      setQualityIndex(0);
+      setMode("duplicates");
+      setIsMergeEditOpen(false);
+      setIsSelectKeepOpen(false);
+      setIsExportModalOpen(false);
+      setDetailModalCard(null);
+      setIsModeDropdownOpen(false);
+      setIsGroupExpanded(false);
+    };
+
+    (window as unknown as { __closeAllModals: () => void }).__closeAllModals = () => {
+      setIsMergeEditOpen(false);
+      setIsSelectKeepOpen(false);
+      setIsExportModalOpen(false);
+      setDetailModalCard(null);
+      setIsModeDropdownOpen(false);
+      setIsGroupExpanded(false);
+    };
+  }, []);
 
   const refreshSessionsList = async () => {
     try {
@@ -851,6 +1013,11 @@ export default function App() {
     setNotice("Cleared selection for this pair (kept unresolved).");
   };
 
+  const handleSaveContactDetail = (updated: ContactCard) => {
+    setBaseCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+    setNotice("Contact details updated.");
+  };
+
   const decideQuality = (choice: "keep" | "fix" | "remove") => {
     if (!currentQuality || !qualityCard) return;
 
@@ -1005,42 +1172,50 @@ export default function App() {
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background text-foreground flex flex-col justify-between">
       <header className="sticky top-0 z-30 w-full max-w-full border-b border-stone-200/80 dark:border-stone-800/80 bg-background/95 backdrop-blur-md">
-        <div className="container flex h-14 sm:h-[74px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-8">
-            <button
-              type="button"
-              onClick={baseCards.length ? reset : undefined}
-              className={cn(
-                "flex items-center gap-2.5 sm:gap-3 text-left transition-opacity",
-                baseCards.length ? "cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg" : "cursor-default"
-              )}
-              title={baseCards.length ? "Return to upload & sessions list" : undefined}
-              aria-label="Tidy Contacts home"
-            >
-              <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-400 text-stone-950">
-                <UsersRound className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
-              </div>
-              <div>
-                <p className="font-display text-base sm:text-lg font-extrabold leading-tight tracking-tight">Tidy Contacts</p>
-                <p className="hidden xs:block text-[11px] sm:text-xs text-muted-foreground">Private contact cleaner</p>
-              </div>
-            </button>
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <Badge variant="outline" className="hidden gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 md:flex rounded-full px-3 py-1 text-xs font-semibold">
-                <LockKeyhole className="h-3.5 w-3.5" /> On-device only
-              </Badge>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggleTheme}
-                className="h-8 w-8 px-0 sm:h-9 sm:w-9 rounded-xl border-stone-300 dark:border-stone-800 text-muted-foreground hover:text-foreground"
-                aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-              >
-                {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-stone-700 dark:text-stone-300" />}
-              </Button>
+        <div className="container flex h-14 sm:h-[70px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-8">
+          <button
+            type="button"
+            onClick={baseCards.length ? reset : undefined}
+            className={cn(
+              "flex items-center gap-2.5 sm:gap-3 text-left transition-opacity",
+              baseCards.length ? "cursor-pointer hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-lg" : "cursor-default"
+            )}
+            title={baseCards.length ? "Return to upload & sessions list" : undefined}
+            aria-label="Tidy Contacts home"
+          >
+            <div className="flex h-8 w-8 sm:h-10 sm:w-10 items-center justify-center rounded-lg sm:rounded-xl bg-emerald-400 text-stone-950">
+              <UsersRound className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
             </div>
+            <div>
+              <p className="font-display text-base sm:text-lg font-extrabold leading-tight tracking-tight">Tidy Contacts</p>
+              <p className="hidden xs:block text-[11px] sm:text-xs text-muted-foreground">Private contact cleaner</p>
+            </div>
+          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {baseCards.length > 0 && (
+              <div className="flex items-center gap-2 mr-1">
+                <CircularProgress percent={progress} size={34} strokeWidth={3.5} />
+                <span className="text-xs sm:text-sm font-bold tabular-nums text-muted-foreground">
+                  <strong className="text-foreground font-bold">{totalResolved}</strong> / {totalIssues}
+                </span>
+              </div>
+            )}
+            <Badge variant="outline" className="hidden gap-1.5 border-emerald-500/40 bg-emerald-500/10 text-emerald-400 md:flex rounded-full px-3 py-1 text-xs font-semibold">
+              <LockKeyhole className="h-3.5 w-3.5" /> On-device only
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleTheme}
+              className="h-8 w-8 px-0 sm:h-9 sm:w-9 rounded-xl border-stone-300 dark:border-stone-800 text-muted-foreground hover:text-foreground"
+              aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+              title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+            >
+              {theme === "dark" ? <Sun className="h-4 w-4 text-amber-400" /> : <Moon className="h-4 w-4 text-stone-700 dark:text-stone-300" />}
+            </Button>
           </div>
-        </header>
+        </div>
+      </header>
 
       {!baseCards.length ? (
         <ImportView
@@ -1051,9 +1226,9 @@ export default function App() {
           onDeleteSession={handleDeleteSession}
         />
       ) : (
-        <main className="container max-w-7xl px-4 sm:px-8 py-4 sm:py-8 pb-44 sm:pb-8 min-w-0 overflow-x-clip">
+        <main className="container max-w-7xl px-4 sm:px-8 py-4 sm:py-8 pb-36 md:pb-12 min-w-0 overflow-x-clip">
           {/* Mobile compact summary strip */}
-          <section aria-label="Cleanup summary" className="sm:hidden rounded-xl border border-stone-200 dark:border-stone-800 bg-card p-3 space-y-2.5">
+          <section aria-label="Cleanup summary" className="md:hidden mb-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-card p-3 space-y-2.5">
             <div className="grid grid-cols-4 gap-1.5 text-center">
               <div className="rounded-lg bg-stone-50 dark:bg-stone-900/60 py-1.5 px-1">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total</p>
@@ -1092,18 +1267,18 @@ export default function App() {
             </div>
           </section>
 
-          {/* Tablet/Desktop Stat Cards */}
-          <section aria-label="Cleanup summary" className="hidden sm:grid grid-cols-2 gap-3 lg:grid-cols-4">
+          {/* Desktop/Landscape Stat Cards */}
+          <section aria-label="Cleanup summary" className="hidden md:grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
             <StatCard label="All contacts" value={baseCards.length} />
             <StatCard label="Decisions made" value={totalResolved} tone="success" />
             <StatCard label="Pending review" value={pending} tone={pending ? "warning" : "success"} />
             <StatCard label="Contacts in export" value={effectiveCards.length} />
           </section>
 
-          {/* Tablet/Desktop Progress */}
-          <section className="hidden sm:block mt-5 rounded-xl border border-stone-200 dark:border-stone-800 bg-card px-4 py-4 sm:px-5" aria-label="Review progress">
+          {/* Desktop/Landscape Progress */}
+          <section className="hidden md:block mb-6 rounded-xl border border-stone-200 dark:border-stone-800 bg-card px-4 py-3.5 sm:px-5" aria-label="Review progress">
             <div className="mb-2 flex items-center justify-between gap-4 text-sm">
-              <span className="font-semibold">Cleanup progress</span>
+              <span className="font-semibold text-foreground">Cleanup progress</span>
               <span className="font-bold tabular-nums text-primary">
                 {Math.round(progress)}% ({totalResolved.toLocaleString()}/{totalIssues.toLocaleString()})
               </span>
@@ -1111,730 +1286,721 @@ export default function App() {
             <Progress value={progress} />
           </section>
 
-          <div className="mt-4 sm:mt-6 grid items-start gap-5 sm:gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
-            <section className="min-w-0">
-              <div className="mb-3.5 sm:mb-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-end">
-                <div>
-                  <h1 className="font-display text-xl sm:text-2xl font-extrabold tracking-tight">
-                    {pending ? "Review issues" : "All issues reviewed"}
+          {/* Header Row: Mobile Dropdown vs Desktop Tabs */}
+          <div className="mb-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+            {/* Mobile Mode Dropdown */}
+            <div className="md:hidden">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400 mb-1">
+                Contact Cleanup
+              </p>
+              <div className="relative inline-block">
+                <button
+                  type="button"
+                  data-testid="mode-dropdown-trigger"
+                  onClick={() => setIsModeDropdownOpen((prev) => !prev)}
+                  className="group flex items-center gap-2.5 text-left focus-visible:outline-none"
+                  aria-haspopup="menu"
+                  aria-expanded={isModeDropdownOpen}
+                >
+                  <h1 className="font-display text-2xl font-black tracking-tight text-foreground">
+                    {mode === "duplicates" ? "Review duplicates" : "Other issues"}
                   </h1>
-                </div>
-                <div className="flex rounded-lg border border-stone-200 dark:border-stone-800 bg-card p-1 self-stretch sm:self-auto" role="tablist" aria-label="Issue type">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 transition-transform group-hover:bg-stone-300 dark:group-hover:bg-stone-700">
+                    <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isModeDropdownOpen && "rotate-180")} />
+                  </div>
+                </button>
+
+                {isModeDropdownOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsModeDropdownOpen(false)} />
+                    <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card p-2 shadow-2xl animate-in fade-in-50 zoom-in-95">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("duplicates");
+                          setIsModeDropdownOpen(false);
+                        }}
+                        disabled={!duplicateGroups.length}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors",
+                          mode === "duplicates"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                          !duplicateGroups.length && "opacity-40 cursor-not-allowed"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Users className="h-4 w-4" />
+                          <span>Review duplicates</span>
+                        </div>
+                        <span className="text-xs tabular-nums opacity-80 font-mono">
+                          {resolvedDuplicateCount}/{totalDuplicateIssues}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("quality");
+                          setIsModeDropdownOpen(false);
+                        }}
+                        disabled={!qualityIssues.length}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors mt-1",
+                          mode === "quality"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                          !qualityIssues.length && "opacity-40 cursor-not-allowed"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <Sparkles className="h-4 w-4" />
+                          <span>Other issues</span>
+                        </div>
+                        <span className="text-xs tabular-nums opacity-80 font-mono">
+                          {resolvedQualityCount}/{totalQualityIssues}
+                        </span>
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* Desktop Mode Tabs & Title */}
+            <div className="hidden md:flex md:items-center md:justify-between w-full">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-emerald-500 dark:text-emerald-400 mb-0.5">
+                  Contact Cleanup
+                </p>
+                <h1 className="font-display text-2xl lg:text-3xl font-black tracking-tight text-foreground">
+                  {mode === "duplicates" ? "Review duplicates" : "Other issues"}
+                </h1>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex rounded-xl border border-stone-200 dark:border-stone-800 bg-card p-1 shadow-xs" role="tablist" aria-label="Issue type">
                   <button
                     role="tab"
                     aria-selected={mode === "duplicates"}
                     className={cn(
-                      "flex-1 sm:flex-initial rounded-md px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors text-center",
-                      mode === "duplicates" ? "bg-secondary text-secondary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                      "flex items-center gap-2 rounded-lg px-4 py-2 text-xs lg:text-sm font-bold transition-all text-center",
+                      mode === "duplicates"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                     onClick={() => setMode("duplicates")}
                     disabled={!duplicateGroups.length}
                   >
-                    Duplicates <span className="ml-1 tabular-nums font-mono text-[11px] sm:text-xs">{resolvedDuplicateCount}/{totalDuplicateIssues}</span>
+                    <Users className="h-4 w-4" />
+                    <span>Duplicates</span>
+                    <span className="ml-1 tabular-nums font-mono text-xs opacity-90">
+                      {resolvedDuplicateCount}/{totalDuplicateIssues}
+                    </span>
                   </button>
                   <button
                     role="tab"
                     aria-selected={mode === "quality"}
                     className={cn(
-                      "flex-1 sm:flex-initial rounded-md px-3 py-1.5 sm:py-2 text-xs sm:text-sm font-semibold transition-colors text-center",
-                      mode === "quality" ? "bg-secondary text-secondary-foreground shadow-xs" : "text-muted-foreground hover:text-foreground"
+                      "flex items-center gap-2 rounded-lg px-4 py-2 text-xs lg:text-sm font-bold transition-all text-center",
+                      mode === "quality"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground"
                     )}
                     onClick={() => setMode("quality")}
                     disabled={!qualityIssues.length}
                   >
-                    Other issues <span className="ml-1 tabular-nums font-mono text-[11px] sm:text-xs">{resolvedQualityCount}/{totalQualityIssues}</span>
+                    <Sparkles className="h-4 w-4" />
+                    <span>Other issues</span>
+                    <span className="ml-1 tabular-nums font-mono text-xs opacity-90">
+                      {resolvedQualityCount}/{totalQualityIssues}
+                    </span>
                   </button>
                 </div>
-              </div>
 
-              {pending === 0 && (
-                <div className="mb-4 rounded-xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50/90 dark:bg-emerald-950/60 p-3.5 sm:p-4 text-emerald-950 dark:text-emerald-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                      <FileCheck2 className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="text-sm font-bold leading-tight">All issues reviewed!</p>
-                      <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80 mt-0.5">{effectiveCards.length} clean contacts ready for Google Contacts</p>
-                    </div>
-                  </div>
-                  <Button size="sm" className="w-full sm:w-auto font-bold bg-emerald-700 hover:bg-emerald-800 text-white shadow-sm" onClick={exportFile}>
-                    <Download className="h-4 w-4 mr-1.5" /> Download cleaned VCF
+                {/* Desktop Prev / Next Navigation */}
+                <div className="flex items-center gap-1.5">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 rounded-xl text-xs font-semibold"
+                    onClick={() => {
+                      if (mode === "duplicates") {
+                        setDuplicateIndex((prev) => Math.max(0, prev - 1));
+                      } else {
+                        setQualityIndex((prev) => Math.max(0, prev - 1));
+                      }
+                    }}
+                    disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
+                    aria-label="Previous item"
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-0.5" /> Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-9 px-3 rounded-xl text-xs font-semibold"
+                    onClick={() => {
+                      if (mode === "duplicates") {
+                        setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
+                      } else {
+                        setQualityIndex((prev) => Math.min(qualityIssues.length - 1, prev + 1));
+                      }
+                    }}
+                    disabled={
+                      mode === "duplicates"
+                        ? duplicateIndex >= duplicateGroups.length - 1
+                        : qualityIndex >= qualityIssues.length - 1
+                    }
+                    aria-label="Next item"
+                  >
+                    Next <ChevronRight className="h-4 w-4 ml-0.5" />
                   </Button>
                 </div>
-              )}
+              </div>
+            </div>
+          </div>
 
+          {/* Main Layout Grid: Main Content + Desktop Sidebar */}
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
+            {/* Main Center Column */}
+            <div className="min-w-0">
+              {/* Match Reasons and Status Pills (No 6 in group tag!) */}
+              {mode === "duplicates" && currentDuplicate ? (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  {currentDuplicate.reasons.map((reason) => (
+                    <MatchReasonBadge key={reason} reason={reason} className="text-xs" />
+                  ))}
+                  {currentDuplicateDecision ? (
+                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2.5 py-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5" />
+                      {currentDuplicateDecision.choice === "left" && `Kept ${leftCard?.properties.find(p => p.key === "FN")?.value || "1st contact"}`}
+                      {currentDuplicateDecision.choice === "right" && `Kept ${rightCard?.properties.find(p => p.key === "FN")?.value || "2nd contact"}`}
+                      {currentDuplicateDecision.choice === "merge" && (currentDuplicateDecision.customCard ? "Customized merge" : `Merged ${groupCards.length}`)}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-stone-300/80 dark:border-stone-800 bg-stone-100/90 dark:bg-stone-900/60 text-stone-600 dark:text-stone-400 text-xs font-medium px-2.5 py-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-stone-400 mr-1.5" />
+                      Unresolved
+                    </Badge>
+                  )}
+                </div>
+              ) : mode === "quality" && currentQuality ? (
+                <div className="flex flex-wrap items-center gap-2 mb-4">
+                  {currentQuality.codes.map((code) => (
+                    <QualityIssueBadge key={code} code={code} className="text-xs" />
+                  ))}
+                  {currentQualityDecision ? (
+                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2.5 py-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5" />
+                      {currentQualityChoice === "keep" && "Kept as-is"}
+                      {currentQualityChoice === "fix" && "Safe fix applied"}
+                      {currentQualityChoice === "edit" && "Edited"}
+                      {currentQualityChoice === "remove" && "Removed from export"}
+                    </Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-stone-300/80 dark:border-stone-800 bg-stone-100/90 dark:bg-stone-900/60 text-stone-600 dark:text-stone-400 text-xs font-medium px-2.5 py-1">
+                      <span className="inline-block h-1.5 w-1.5 rounded-full bg-stone-400 mr-1.5" />
+                      Unresolved
+                    </Badge>
+                  )}
+                </div>
+              ) : null}
+
+              {/* Duplicate Mode Flow */}
               {mode === "duplicates" && duplicateGroups.length > 0 && currentDuplicate && leftCard && rightCard ? (
                 <div>
-                  {/* Top Navigation & Status Bar */}
-                  <div className="mb-3 sm:mb-4 flex items-center justify-between gap-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/80 dark:bg-stone-900/80 p-2.5 sm:p-3">
-                    <div className="flex flex-1 flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-                      {currentDuplicate.reasons.map((reason) => (
-                        <MatchReasonBadge key={reason} reason={reason} className="text-[11px] sm:text-xs" />
-                      ))}
-                      {currentDuplicate.cardIds.length > 2 && (
-                        <Badge variant="outline" className="border-indigo-300/80 bg-indigo-50/90 text-indigo-900 dark:border-indigo-800/80 dark:bg-indigo-950/60 dark:text-indigo-200 text-[11px] sm:text-xs font-semibold">
-                          <UsersRound className="mr-1 h-3 w-3 text-indigo-600 dark:text-indigo-400 shrink-0" />
-                          {currentDuplicate.cardIds.length} in group
-                        </Badge>
-                      )}
-                      {currentDuplicateDecision ? (
-                        <Badge className="border-emerald-300/80 bg-emerald-100/90 text-emerald-900 dark:border-emerald-700/80 dark:bg-emerald-950/80 dark:text-emerald-200 text-[11px] sm:text-xs font-semibold">
-                          <Check className="mr-1 h-3 w-3 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          <span className="sm:hidden">
-                            {currentDuplicateDecision.choice === "left" && (groupCards.length > 2 ? "Chosen: Kept 1" : "Chosen: 1st (Top)")}
-                            {currentDuplicateDecision.choice === "merge" && (
-                              currentDuplicateDecision.customCard
-                                ? "Chosen: Merge & Edit"
-                                : "Chosen: Merged"
-                            )}
-                            {currentDuplicateDecision.choice === "right" && "Chosen: 2nd (Bottom)"}
-                          </span>
-                          <span className="hidden sm:inline">
-                            {currentDuplicateDecision.choice === "left" && (groupCards.length > 2 ? "Selected: Kept 1 contact" : "Selected: Keep left")}
-                            {currentDuplicateDecision.choice === "merge" && (
-                              currentDuplicateDecision.customCard
-                                ? "Selected: Merge & Edit"
-                                : groupCards.length > 2
-                                ? `Selected: Merged ${groupCards.length}`
-                                : "Selected: Merged"
-                            )}
-                            {currentDuplicateDecision.choice === "right" && "Selected: Keep right"}
-                          </span>
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-stone-300/80 dark:border-stone-700 bg-stone-100/90 dark:bg-stone-800/60 text-stone-600 dark:text-stone-300 text-[11px] sm:text-xs font-medium">
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-stone-400 dark:bg-stone-500 mr-1.5" />
-                          Unresolved
-                        </Badge>
-                      )}
-                    </div>
+                  {(() => {
+                    const selectedKeptId =
+                      currentDuplicateDecision?.choice === "left" || currentDuplicateDecision?.choice === "right"
+                        ? currentDuplicateDecision.preferredCardId ?? (currentDuplicateDecision.choice === "left" ? leftCard.id : rightCard.id)
+                        : null;
 
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-                        onClick={() => setDuplicateIndex((prev) => Math.max(0, prev - 1))}
-                        disabled={duplicateIndex === 0}
-                        aria-label="Previous duplicate pair"
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5 sm:mr-0.5" /> <span className="hidden sm:inline">Previous</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-                        onClick={() => setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1))}
-                        disabled={duplicateIndex >= duplicateGroups.length - 1}
-                        aria-label="Next duplicate pair"
-                      >
-                        <span className="hidden sm:inline">Next</span> <ChevronRight className="h-3.5 w-3.5 sm:ml-0.5" />
-                      </Button>
-                    </div>
-                  </div>
+                    return (
+                      <>
+                        {/* Mobile Single Column Flow (< md) */}
+                        <div className="md:hidden space-y-0">
+                          {/* Card 1 */}
+                          <MobileDuplicateCard
+                            card={leftCard}
+                            isSelected={selectedKeptId === leftCard.id}
+                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== leftCard.id)}
+                            onSelect={() => {
+                              if (selectedKeptId === leftCard.id) {
+                                clearDuplicateSelection();
+                              } else {
+                                decideDuplicate("left", leftCard);
+                              }
+                            }}
+                            onOpenDetail={() => setDetailModalCard(leftCard)}
+                          />
 
-                  {/* Contact Cards (side-by-side on desktop, stacked on mobile) */}
-                  <div className="grid gap-3 sm:gap-4 md:grid-cols-2">
-                    <ContactPanel card={leftCard} side="left" />
-                    <ContactPanel card={rightCard} side="right" />
-                  </div>
+                          {/* Dotted Connector */}
+                          <div className="w-0 border-l border-dotted border-stone-400 dark:border-stone-700 h-5 mx-auto my-1.5" />
 
-                  {/* Other contacts in multi-contact group (N > 2) */}
-                  {otherGroupCards.length > 0 && (
-                    <div className="mt-3 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/70 dark:bg-stone-900/50 p-3">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <Users className="h-4 w-4 text-stone-500" />
-                          <span className="text-xs font-bold text-stone-900 dark:text-stone-100">
-                            Other contacts in this matching group ({otherGroupCards.length} more)
-                          </span>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-xs px-2"
-                          onClick={() => setIsGroupExpanded((prev) => !prev)}
-                        >
-                          {isGroupExpanded ? "Hide" : "Show & compare"}
-                          {isGroupExpanded ? (
-                            <ChevronUp className="h-3.5 w-3.5 ml-1" />
-                          ) : (
-                            <ChevronDown className="h-3.5 w-3.5 ml-1" />
-                          )}
-                        </Button>
-                      </div>
-
-                      {isGroupExpanded && (
-                        <div className="mt-3 space-y-2 pt-2 border-t border-stone-200 dark:border-stone-800">
-                          {otherGroupCards.map(({ card, idx }) => {
-                            const summary = summarizeContact(card);
-                            return (
-                              <div
-                                key={card.id}
-                                className="flex items-center justify-between gap-2.5 rounded-lg border border-stone-200/80 dark:border-stone-800 bg-card p-2.5 shadow-xs"
-                              >
-                                <div className="flex items-center gap-2.5 min-w-0">
-                                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-stone-100 dark:bg-stone-800 text-xs font-bold text-stone-700 dark:text-stone-300">
-                                    {idx + 1}
-                                  </div>
-                                  <div className="min-w-0">
-                                    <p className="text-xs font-bold truncate text-stone-900 dark:text-stone-100">
-                                      {summary.name || "Unnamed contact"}
-                                    </p>
-                                    <div className="flex flex-wrap gap-x-2 text-[11px] text-muted-foreground">
-                                      {summary.phones[0] && <span>📞 {summary.phones[0].value}</span>}
-                                      {summary.emails[0] && <span>✉️ {summary.emails[0].value}</span>}
-                                    </div>
-                                  </div>
-                                </div>
+                          {/* Middle Action Bar */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <Button
+                              variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
+                              className={cn(
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                              onClick={() => decideDuplicate("merge", leftCard)}
+                              aria-label={`Merge ${groupCards.length} contacts`}
+                            >
+                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
+                                <Merge className="h-3.5 w-3.5 shrink-0" />
+                                <span>Merge {groupCards.length}</span>
                               </div>
-                            );
-                          })}
+                            </Button>
+
+                            <Button
+                              variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
+                              className={cn(
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                              onClick={() => setIsMergeEditOpen(true)}
+                              aria-label="Merge & Edit"
+                            >
+                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
+                                <Edit3 className="h-3.5 w-3.5 shrink-0" />
+                                <span>Merge & Edit</span>
+                              </div>
+                            </Button>
+
+                            <Button
+                              variant={selectedKeptId ? "default" : "outline"}
+                              className={cn(
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                selectedKeptId && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                              onClick={() => setIsSelectKeepOpen(true)}
+                              aria-label="Select & keep"
+                            >
+                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
+                                <UserCheck className="h-3.5 w-3.5 shrink-0" />
+                                <span>Select & keep</span>
+                              </div>
+                            </Button>
+                          </div>
+
+                          {/* Dotted Connector */}
+                          <div className="w-0 border-l border-dotted border-stone-400 dark:border-stone-700 h-5 mx-auto my-1.5" />
+
+                          {/* Card 2 */}
+                          <MobileDuplicateCard
+                            card={rightCard}
+                            isSelected={selectedKeptId === rightCard.id}
+                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== rightCard.id)}
+                            onSelect={() => {
+                              if (selectedKeptId === rightCard.id) {
+                                clearDuplicateSelection();
+                              } else {
+                                decideDuplicate("right", rightCard);
+                              }
+                            }}
+                            onOpenDetail={() => setDetailModalCard(rightCard)}
+                          />
                         </div>
-                      )}
-                    </div>
-                  )}
 
-                  {/* Desktop Inline Actions (hidden on mobile, rendered in sticky dock instead) */}
-                  {groupCards.length > 2 ? (
-                    <div className="hidden sm:grid mt-4 grid-cols-3 gap-2 sm:gap-3">
-                      <Button
-                        variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-3 py-2 sm:flex-row gap-2 transition-all",
-                          currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => decideDuplicate("merge", leftCard)}
-                        aria-label={`Merge all ${groupCards.length} contacts`}
-                      >
-                        <Merge className="h-4 w-4 shrink-0" />
-                        <span className="font-bold">Merge {groupCards.length}</span>
-                        {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
-                          <Check className="h-4 w-4 ml-1 text-emerald-200 shrink-0" />
-                        )}
-                      </Button>
+                        {/* Desktop / Landscape Side-by-Side View (>= md) */}
+                        <div className="hidden md:block space-y-4">
+                          {/* 2-Column Side-by-Side Comparison Cards */}
+                          <div className="grid grid-cols-2 gap-4">
+                            <MobileDuplicateCard
+                              card={leftCard}
+                              isSelected={selectedKeptId === leftCard.id}
+                              isDeleted={Boolean(selectedKeptId && selectedKeptId !== leftCard.id)}
+                              onSelect={() => {
+                                if (selectedKeptId === leftCard.id) {
+                                clearDuplicateSelection();
+                              } else {
+                                decideDuplicate("left", leftCard);
+                              }
+                            }}
+                            onOpenDetail={() => setDetailModalCard(leftCard)}
+                          />
 
-                      <Button
-                        variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-3 py-2 sm:flex-row gap-2 transition-all",
-                          currentDuplicateDecision?.customCard && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => setIsMergeEditOpen(true)}
-                        aria-label={`Merge ${groupCards.length} and edit`}
-                      >
-                        <Edit3 className="h-4 w-4 shrink-0" />
-                        <span className="font-bold">Merge {groupCards.length} & Edit</span>
-                        {currentDuplicateDecision?.customCard && (
-                          <Check className="h-4 w-4 ml-1 text-emerald-200 shrink-0" />
-                        )}
-                      </Button>
+                          <MobileDuplicateCard
+                            card={rightCard}
+                            isSelected={selectedKeptId === rightCard.id}
+                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== rightCard.id)}
+                            onSelect={() => {
+                              if (selectedKeptId === rightCard.id) {
+                                clearDuplicateSelection();
+                              } else {
+                                decideDuplicate("right", rightCard);
+                              }
+                            }}
+                            onOpenDetail={() => setDetailModalCard(rightCard)}
+                          />
+                        </div>
 
-                      <Button
-                        variant={currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") ? "default" : "outline"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-3 py-2 sm:flex-row gap-2 transition-all",
-                          currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => setIsSelectKeepOpen(true)}
-                        aria-label="Select and keep one contact"
-                      >
-                        <UserCheck className="h-4 w-4 shrink-0" />
-                        <span className="font-bold">Select & Keep</span>
-                        {currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") && (
-                          <Check className="h-4 w-4 ml-1 text-emerald-200 shrink-0" />
-                        )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="hidden sm:grid mt-4 grid-cols-3 gap-2 sm:gap-3">
-                      <Button
-                        variant={currentDuplicateDecision?.choice === "left" ? "default" : "outline"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-2 py-2 sm:flex-row transition-all",
-                          currentDuplicateDecision?.choice === "left" && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => decideDuplicate("left", leftCard)}
-                        aria-label="Keep left contact"
-                      >
-                        <ArrowLeft className="h-4 w-4" />
-                        <span>{currentDuplicateDecision?.choice === "left" ? "Kept left" : "Keep left"}</span>
-                        {currentDuplicateDecision?.choice === "left" && <Check className="h-4 w-4 ml-1 text-emerald-200" />}
-                      </Button>
-
-                      {/* Button Group for Merge & Merge & Edit (for pair) */}
-                      <div className="flex rounded-md overflow-hidden border border-border bg-card shadow-xs">
-                        <Button
-                          variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "ghost"}
-                          className={cn(
-                            "h-auto min-h-14 flex-1 flex-col px-2 py-2 sm:flex-row gap-1.5 transition-all rounded-none border-r border-border",
-                            currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                          )}
-                          onClick={() => decideDuplicate("merge", leftCard)}
-                          aria-label="Merge contacts preserving left identity"
-                        >
-                          <Merge className="h-4 w-4 shrink-0" />
-                          <span className="truncate font-bold">
-                            {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "Merged" : "Merge"}
-                          </span>
-                          {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
-                            <Check className="h-4 w-4 ml-1 text-emerald-200 shrink-0" />
-                          )}
-                        </Button>
-
-                        <Button
-                          variant={currentDuplicateDecision?.customCard ? "default" : "ghost"}
-                          className={cn(
-                            "h-auto min-h-14 flex-[1.15] flex-col px-2 py-2 sm:flex-row gap-1.5 transition-all rounded-none",
-                            currentDuplicateDecision?.customCard && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                          )}
-                          onClick={() => setIsMergeEditOpen(true)}
-                          aria-label="Merge and edit contact"
-                        >
-                          <Edit3 className="h-4 w-4 shrink-0" />
-                          <span className="truncate font-bold">
-                            {currentDuplicateDecision?.customCard ? "Customized" : "Merge & Edit"}
-                          </span>
-                          {currentDuplicateDecision?.customCard && (
-                            <Check className="h-4 w-4 ml-1 text-emerald-200 shrink-0" />
-                          )}
-                        </Button>
-                      </div>
-
-                      <Button
-                        variant={currentDuplicateDecision?.choice === "right" ? "default" : "outline"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-2 py-2 sm:flex-row transition-all",
-                          currentDuplicateDecision?.choice === "right" && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => decideDuplicate("right", rightCard)}
-                        aria-label="Keep right contact"
-                      >
-                        <span>{currentDuplicateDecision?.choice === "right" ? "Kept right" : "Keep right"}</span>
-                        <ArrowRight className="h-4 w-4" />
-                        {currentDuplicateDecision?.choice === "right" && <Check className="h-4 w-4 ml-1 text-emerald-200" />}
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Desktop Sub-action bar */}
-                  {currentDuplicateDecision && (
-                    <div className="hidden sm:flex mt-3 items-center justify-center text-xs text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={clearDuplicateSelection}
-                        className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline underline-offset-2"
-                      >
-                        Clear selection
-                      </button>
-                    </div>
-                  )}
-
-                  {/* Mobile Sticky Bottom Action Dock */}
-                  <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 w-full max-w-full bg-card/95 dark:bg-stone-900/95 backdrop-blur-md border-t border-stone-200 dark:border-stone-800 p-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl box-border">
-                    {groupCards.length > 2 ? (
-                      <div className="grid grid-cols-3 gap-1.5 w-full max-w-full">
-                        <Button
-                          variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary ring-offset-1 font-bold",
-                          )}
-                          onClick={() => decideDuplicate("merge", leftCard)}
-                          aria-label={`Merge ${groupCards.length}`}
-                        >
-                          <span className="font-bold flex items-center gap-1 text-xs truncate max-w-full">
-                            <Merge className="h-3.5 w-3.5 shrink-0" /> Merge {groupCards.length}
-                          </span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                            {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "Merged" : "Combine all"}
-                          </span>
-                        </Button>
-
-                        <Button
-                          variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentDuplicateDecision?.customCard && "ring-2 ring-primary ring-offset-1 font-bold",
-                          )}
-                          onClick={() => setIsMergeEditOpen(true)}
-                          aria-label={`Merge ${groupCards.length} & Edit`}
-                        >
-                          <span className="font-bold flex items-center gap-1 text-xs truncate max-w-full">
-                            <Edit3 className="h-3.5 w-3.5 shrink-0" /> {groupCards.length} & Edit
-                          </span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                            {currentDuplicateDecision?.customCard ? "Custom" : "Customize"}
-                          </span>
-                        </Button>
-
-                        <Button
-                          variant={currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") ? "default" : "outline"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") && "ring-2 ring-primary ring-offset-1 font-bold",
-                          )}
-                          onClick={() => setIsSelectKeepOpen(true)}
-                          aria-label="Select & Keep"
-                        >
-                          <span className="font-bold flex items-center gap-1 text-xs truncate max-w-full">
-                            <UserCheck className="h-3.5 w-3.5 shrink-0" /> Select & Keep
-                          </span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                            {currentDuplicateDecision && (currentDuplicateDecision.choice === "left" || currentDuplicateDecision.choice === "right") ? "Kept 1" : "Keep 1 only"}
-                          </span>
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-1.5 w-full max-w-full">
-                        <Button
-                          variant={currentDuplicateDecision?.choice === "left" ? "default" : "outline"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentDuplicateDecision?.choice === "left" && "ring-2 ring-primary ring-offset-1 font-bold",
-                          )}
-                          onClick={() => decideDuplicate("left", leftCard)}
-                          aria-label="Keep top contact"
-                        >
-                          <span className="truncate max-w-full font-bold">Keep Top</span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                            {leftCard.properties.find((p) => p.key === "FN")?.value || "1st contact"}
-                          </span>
-                        </Button>
-
-                        {/* Mobile Button Group for Merge & Merge & Edit */}
-                        <div className="flex w-full min-w-0 rounded-md overflow-hidden border border-border bg-card">
+                        {/* Desktop Action Buttons Row */}
+                        <div className="grid grid-cols-3 gap-3">
                           <Button
-                            variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "ghost"}
-                            size="sm"
+                            variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
                             className={cn(
-                              "h-12 flex-1 min-w-0 flex-col px-0.5 py-1 text-xs transition-all rounded-none border-r border-border overflow-hidden",
-                              currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary ring-offset-1 font-bold",
+                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                              currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                             )}
                             onClick={() => decideDuplicate("merge", leftCard)}
-                            aria-label="Merge contacts"
+                            aria-label={`Merge ${groupCards.length} contacts`}
                           >
-                            <span className="font-bold flex items-center gap-0.5 text-[11px] truncate max-w-full">
-                              <Merge className="h-3 w-3 shrink-0" /> Merge
-                            </span>
-                            <span className="text-[9px] text-muted-foreground truncate max-w-full">
-                              {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "Merged" : "Default"}
-                            </span>
+                            <Merge className="h-4 w-4 shrink-0" />
+                            <span className="font-bold">Merge {groupCards.length}</span>
+                            {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
+                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                            )}
                           </Button>
+
                           <Button
-                            variant={currentDuplicateDecision?.customCard ? "default" : "ghost"}
-                            size="sm"
+                            variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
                             className={cn(
-                              "h-12 w-9 shrink-0 px-0 flex-col justify-center text-xs transition-all rounded-none",
-                              currentDuplicateDecision?.customCard && "ring-2 ring-primary ring-offset-1 font-bold",
+                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                              currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                             )}
                             onClick={() => setIsMergeEditOpen(true)}
                             aria-label="Merge & Edit"
-                            title="Merge & Edit"
                           >
-                            <Edit3 className="h-3.5 w-3.5 text-primary shrink-0" />
-                            <span className="text-[9px] font-semibold text-muted-foreground mt-0.5 truncate">
-                              {currentDuplicateDecision?.customCard ? "Custom" : "Edit"}
-                            </span>
+                            <Edit3 className="h-4 w-4 shrink-0" />
+                            <span className="font-bold">Merge & Edit</span>
+                            {currentDuplicateDecision?.customCard && (
+                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                            )}
+                          </Button>
+
+                          <Button
+                            variant={selectedKeptId ? "default" : "outline"}
+                            className={cn(
+                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                              selectedKeptId && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                            )}
+                            onClick={() => setIsSelectKeepOpen(true)}
+                            aria-label="Select & keep"
+                          >
+                            <UserCheck className="h-4 w-4 shrink-0" />
+                            <span className="font-bold">Select & keep</span>
+                            {selectedKeptId && (
+                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                            )}
                           </Button>
                         </div>
+                      </div>
 
-                        <Button
-                          variant={currentDuplicateDecision?.choice === "right" ? "default" : "outline"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentDuplicateDecision?.choice === "right" && "ring-2 ring-primary ring-offset-1 font-bold",
+                      {/* Accordion for N > 2 contacts in group (works on both mobile & desktop) */}
+                      {otherGroupCards.length > 0 && (
+                        <div className="mt-3.5 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 overflow-hidden shadow-xs">
+                          <button
+                            type="button"
+                            onClick={() => setIsGroupExpanded((prev) => !prev)}
+                            className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/40"
+                            aria-expanded={isGroupExpanded}
+                          >
+                            <span className="font-bold text-sm text-foreground">
+                              Contacts in this group
+                            </span>
+                            <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                              {otherGroupCards.length} more
+                              {isGroupExpanded ? (
+                                <ChevronUp className="h-4 w-4" />
+                              ) : (
+                                <ChevronDown className="h-4 w-4" />
+                              )}
+                            </span>
+                          </button>
+
+                          {isGroupExpanded && (
+                            <div className="divide-y divide-stone-200 dark:divide-stone-800 border-t border-stone-200 dark:border-stone-800">
+                              {otherGroupCards.map(({ card, idx }) => {
+                                const summary = summarizeContact(card);
+                                const isCardSelected = selectedKeptId === card.id;
+                                const isCardDeleted = Boolean(selectedKeptId && !isCardSelected);
+
+                                return (
+                                  <div
+                                    key={card.id}
+                                    onClick={() => setDetailModalCard(card)}
+                                    className="flex items-center justify-between gap-3 p-3.5 hover:bg-stone-50/80 dark:hover:bg-stone-800/40 cursor-pointer transition-colors"
+                                  >
+                                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 dark:bg-stone-800 text-xs font-bold text-stone-700 dark:text-stone-300">
+                                        {idx + 1}
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <p className="text-sm font-bold truncate text-foreground">
+                                          {summary.name || "Unnamed Contact"}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground truncate">
+                                          {summary.emails[0]?.value || summary.phones[0]?.value || "No contact info"}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {isCardSelected && (
+                                        <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
+                                          Selected
+                                        </Badge>
+                                      )}
+                                      {isCardDeleted && (
+                                        <span className="text-xs text-red-400 font-medium flex items-center gap-1">
+                                          <Trash2 className="h-3 w-3" /> Deleted
+                                        </span>
+                                      )}
+                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
                           )}
-                          onClick={() => decideDuplicate("right", rightCard)}
-                          aria-label="Keep bottom contact"
-                        >
-                          <span className="truncate max-w-full font-bold">Keep Bottom</span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">
-                            {rightCard.properties.find((p) => p.key === "FN")?.value || "2nd contact"}
-                          </span>
-                        </Button>
-                      </div>
-                    )}
-
-                    {currentDuplicateDecision && (
-                      <div className="mt-2 flex items-center justify-center text-[11px] text-muted-foreground">
-                        <button
-                          type="button"
-                          onClick={clearDuplicateSelection}
-                          className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline underline-offset-2"
-                        >
-                          Clear selection
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              ) : mode === "quality" && qualityIssues.length > 0 && currentQuality && qualityCard ? (
-                <div>
-                  {/* Top Navigation & Status Bar for Quality */}
-                  <div className="mx-auto mb-3 sm:mb-4 flex max-w-2xl items-center justify-between gap-2.5 rounded-xl border border-stone-200 dark:border-stone-800 bg-stone-50/80 dark:bg-stone-900/80 p-2.5 sm:p-3">
-                    <div className="flex flex-1 flex-wrap items-center gap-1.5 sm:gap-2 min-w-0">
-                      {currentQuality.codes.map((code) => (
-                        <QualityIssueBadge key={code} code={code} className="text-[11px] sm:text-xs" />
-                      ))}
-                      {currentQualityDecision ? (
-                        <Badge className="border-emerald-300/80 bg-emerald-100/90 text-emerald-900 dark:border-emerald-700/80 dark:bg-emerald-950/80 dark:text-emerald-200 text-[11px] sm:text-xs font-semibold">
-                          <Check className="mr-1 h-3 w-3 text-emerald-700 dark:text-emerald-400 shrink-0" />
-                          {currentQualityChoice === "keep" && "Selected: Keep as-is"}
-                          {currentQualityChoice === "fix" && "Selected: Safe fix"}
-                          {currentQualityChoice === "edit" && "Selected: Edited"}
-                          {currentQualityChoice === "remove" && "Selected: Remove"}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="border-stone-300/80 dark:border-stone-700 bg-stone-100/90 dark:bg-stone-800/60 text-stone-600 dark:text-stone-300 text-[11px] sm:text-xs font-medium">
-                          <span className="inline-block h-1.5 w-1.5 rounded-full bg-stone-400 dark:bg-stone-500 mr-1.5" />
-                          Unresolved
-                        </Badge>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-                        onClick={() => setQualityIndex((prev) => Math.max(0, prev - 1))}
-                        disabled={qualityIndex === 0}
-                        aria-label="Previous issue"
-                      >
-                        <ChevronLeft className="h-3.5 w-3.5 sm:mr-0.5" /> <span className="hidden sm:inline">Previous</span>
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="h-7 sm:h-8 px-2 sm:px-3 text-xs"
-                        onClick={() => setQualityIndex((prev) => Math.min(qualityIssues.length - 1, prev + 1))}
-                        disabled={qualityIndex >= qualityIssues.length - 1}
-                        aria-label="Next issue"
-                      >
-                        <span className="hidden sm:inline">Next</span> <ChevronRight className="h-3.5 w-3.5 sm:ml-0.5" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="mx-auto max-w-2xl">
-                    <EditableQualityCard
-                      card={qualityCard}
-                      qualityCodes={currentQuality.codes}
-                      currentDecision={currentQualityDecision}
-                      onChange={handleQualityCardEdit}
-                    />
-                  </div>
-
-                  {/* Desktop Inline Actions */}
-                  <div className={cn(
-                    "hidden sm:grid mx-auto mt-4 max-w-2xl gap-2 sm:gap-3",
-                    safeFixLabel ? "grid-cols-3" : "grid-cols-2"
-                  )}>
-                    <Button
-                      variant={currentQualityChoice === "keep" ? "default" : "outline"}
-                      className={cn(
-                        "h-auto min-h-14 flex-col px-2 py-2 sm:flex-row transition-all",
-                        currentQualityChoice === "keep" && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                      )}
-                      onClick={() => decideQuality("keep")}
-                    >
-                      <Check className="h-4 w-4" />
-                      <span>{currentQualityChoice === "keep" ? "Kept as-is" : "Keep as-is"}</span>
-                    </Button>
-
-                    {safeFixLabel && (
-                      <Button
-                        variant={currentQualityChoice === "fix" ? "default" : "secondary"}
-                        className={cn(
-                          "h-auto min-h-14 flex-col px-2 py-2 sm:flex-row transition-all",
-                          currentQualityChoice === "fix" && "ring-2 ring-primary ring-offset-2 font-bold shadow-sm",
-                        )}
-                        onClick={() => decideQuality("fix")}
-                      >
-                        <WandSparkles className="h-4 w-4" />
-                        <div className="text-center sm:text-left">
-                          <div>{currentQualityChoice === "fix" ? "Fix applied" : "Safe fix"}</div>
-                          <div className="text-[10px] text-muted-foreground font-normal">{safeFixLabel}</div>
                         </div>
-                      </Button>
-                    )}
-
-                    <Button
-                      variant={currentQualityChoice === "remove" ? "default" : "destructive"}
-                      className={cn(
-                        "h-auto min-h-14 flex-col px-2 py-2 sm:flex-row transition-all",
-                        currentQualityChoice === "remove" && "ring-2 ring-destructive ring-offset-2 font-bold shadow-sm bg-red-800 text-white",
                       )}
-                      onClick={() => decideQuality("remove")}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                      <span>{currentQualityChoice === "remove" ? "Removed" : "Remove"}</span>
-                    </Button>
-                  </div>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : mode === "quality" && qualityIssues.length > 0 && currentQuality && qualityCard ? (
+              <div className="space-y-4">
+                <EditableQualityCard
+                  card={qualityCard}
+                  qualityCodes={currentQuality.codes}
+                  currentDecision={currentQualityDecision}
+                  onChange={handleQualityCardEdit}
+                />
 
-                  {/* Desktop Sub-action bar */}
-                  {currentQualityDecision && (
-                    <div className="hidden sm:flex mx-auto mt-3 max-w-2xl items-center justify-center text-xs text-muted-foreground">
-                      <button
-                        type="button"
-                        onClick={clearQualitySelection}
-                        className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline underline-offset-2"
-                      >
-                        Clear selection
-                      </button>
-                    </div>
+                <div className={cn(
+                  "grid gap-2 sm:gap-3",
+                  safeFixLabel ? "grid-cols-3" : "grid-cols-2"
+                )}>
+                  <Button
+                    variant={currentQualityChoice === "keep" ? "default" : "outline"}
+                    className={cn(
+                      "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                      currentQualityChoice === "keep" && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground"
+                    )}
+                    onClick={() => decideQuality("keep")}
+                  >
+                    <Check className="h-4 w-4" />
+                    <span>{currentQualityChoice === "keep" ? "Kept as-is" : "Keep as-is"}</span>
+                  </Button>
+
+                  {safeFixLabel && (
+                    <Button
+                      variant={currentQualityChoice === "fix" ? "default" : "secondary"}
+                      className={cn(
+                        "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                        currentQualityChoice === "fix" && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground"
+                      )}
+                      onClick={() => decideQuality("fix")}
+                    >
+                      <WandSparkles className="h-4 w-4" />
+                      <div className="text-center sm:text-left leading-tight">
+                        <div className="text-xs font-bold">{currentQualityChoice === "fix" ? "Fix applied" : "Safe fix"}</div>
+                        <div className="text-[10px] text-muted-foreground font-normal">{safeFixLabel}</div>
+                      </div>
+                    </Button>
                   )}
 
-                  {/* Mobile Sticky Bottom Action Dock for Quality */}
-                  <div className="sm:hidden fixed bottom-0 inset-x-0 z-40 w-full max-w-full bg-card/95 dark:bg-stone-900/95 backdrop-blur-md border-t border-stone-200 dark:border-stone-800 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl box-border">
-                    <div className={cn(
-                      "grid gap-2 w-full max-w-full",
-                      safeFixLabel ? "grid-cols-3" : "grid-cols-2"
-                    )}>
-                      <Button
-                        variant={currentQualityChoice === "keep" ? "default" : "outline"}
-                        size="sm"
-                        className={cn(
-                          "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                          currentQualityChoice === "keep" && "ring-2 ring-primary ring-offset-1 font-bold",
-                        )}
-                        onClick={() => decideQuality("keep")}
-                      >
-                        <span className="font-bold flex items-center gap-1 truncate max-w-full"><Check className="h-3 w-3 shrink-0" /> Keep</span>
-                        <span className="text-[10px] text-muted-foreground truncate max-w-full">As-is</span>
-                      </Button>
-
-                      {safeFixLabel && (
-                        <Button
-                          variant={currentQualityChoice === "fix" ? "default" : "secondary"}
-                          size="sm"
-                          className={cn(
-                            "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                            currentQualityChoice === "fix" && "ring-2 ring-primary ring-offset-1 font-bold",
-                          )}
-                          onClick={() => decideQuality("fix")}
-                        >
-                          <span className="font-bold flex items-center gap-1 truncate max-w-full"><WandSparkles className="h-3 w-3 shrink-0" /> Safe fix</span>
-                          <span className="text-[10px] text-muted-foreground truncate max-w-full">{safeFixLabel}</span>
-                        </Button>
-                      )}
-
-                      <Button
-                        variant={currentQualityChoice === "remove" ? "default" : "destructive"}
-                        size="sm"
-                        className={cn(
-                          "h-12 w-full min-w-0 flex-col px-1 py-1 text-xs transition-all overflow-hidden",
-                          currentQualityChoice === "remove" && "ring-2 ring-destructive ring-offset-1 font-bold bg-red-800 text-white",
-                        )}
-                        onClick={() => decideQuality("remove")}
-                      >
-                        <span className="font-bold flex items-center gap-1 truncate max-w-full"><Trash2 className="h-3 w-3 shrink-0" /> Remove</span>
-                        <span className="text-[10px] opacity-80 truncate max-w-full">Exclude</span>
-                      </Button>
-                    </div>
-
-                    {currentQualityDecision && (
-                      <div className="mt-2 flex items-center justify-center text-[11px] text-muted-foreground">
-                        <button
-                          type="button"
-                          onClick={clearQualitySelection}
-                          className="text-stone-600 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-100 underline underline-offset-2"
-                        >
-                          Clear selection
-                        </button>
-                      </div>
+                  <Button
+                    variant={currentQualityChoice === "remove" ? "default" : "destructive"}
+                    className={cn(
+                      "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                      currentQualityChoice === "remove" && "ring-2 ring-destructive font-bold shadow-xs bg-red-800 text-white"
                     )}
-                  </div>
+                    onClick={() => decideQuality("remove")}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    <span>{currentQualityChoice === "remove" ? "Removed" : "Remove"}</span>
+                  </Button>
                 </div>
-              ) : (
-                <Card className="border-emerald-200 dark:border-emerald-850 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
-                  <CardContent className="flex flex-col items-center px-4 py-10 sm:px-6 sm:py-14">
-                    <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white">
-                      <FileCheck2 className="h-7 w-7 sm:h-8 sm:w-8" />
-                    </div>
-                    <h2 className="mt-4 font-display text-xl sm:text-2xl font-extrabold">All items reviewed</h2>
-                    <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-emerald-900/70 dark:text-emerald-300/70">
-                      Download your cleaned VCF and import it into Google Contacts when you’re ready.
-                    </p>
-                    <Button size="lg" className="mt-5 w-full sm:w-auto font-bold shadow-md" onClick={exportFile}>
-                      <Download className="h-4 w-4 mr-1.5" /> Download cleaned VCF
-                    </Button>
-                  </CardContent>
-                </Card>
-              )}
-            </section>
-
-            <aside className="space-y-3 sm:space-y-4 xl:sticky xl:top-5">
-              <Card className="border-stone-200 dark:border-stone-800 shadow-none bg-card">
-                <CardHeader className="p-4 pb-2 sm:p-6 sm:pb-3">
-                  <CardTitle className="text-sm sm:text-base">Current file</CardTitle>
-                </CardHeader>
-                <CardContent className="p-4 pt-0 sm:p-6 sm:pt-0">
-                  <div className="flex items-center gap-2.5 rounded-lg bg-stone-50 dark:bg-stone-900/60 p-2.5 sm:p-3">
-                    <FileCheck2 className="h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-primary" />
-                    <span className="min-w-0 truncate text-xs sm:text-sm font-semibold" title={sourceName}>{sourceName}</span>
+              </div>
+            ) : (
+              <Card className="border-emerald-200 dark:border-emerald-850 bg-emerald-50/60 dark:bg-emerald-950/40 text-center">
+                <CardContent className="flex flex-col items-center px-4 py-10 sm:px-6 sm:py-14">
+                  <div className="flex h-14 w-14 sm:h-16 sm:w-16 items-center justify-center rounded-2xl bg-emerald-600 text-white">
+                    <FileCheck2 className="h-7 w-7 sm:h-8 sm:w-8" />
                   </div>
-                  <Button variant="outline" className="mt-3 w-full text-xs sm:text-sm" onClick={exportFile}>
+                  <h2 className="mt-4 font-display text-xl sm:text-2xl font-extrabold">All items reviewed</h2>
+                  <p className="mt-2 max-w-md text-xs sm:text-sm leading-relaxed text-emerald-900/70 dark:text-emerald-300/70">
+                    Download your cleaned VCF and import it into Google Contacts when you’re ready.
+                  </p>
+                  <Button size="lg" className="mt-5 w-full sm:w-auto font-bold shadow-md" onClick={() => setIsExportModalOpen(true)}>
                     <Download className="h-4 w-4 mr-1.5" /> Download cleaned VCF
                   </Button>
                 </CardContent>
               </Card>
-
-              <Card className="border-amber-200 dark:border-amber-900/70 bg-amber-50/70 dark:bg-amber-950/40 shadow-none">
-                <CardContent className="p-3.5 sm:p-4">
-                  <div className="flex gap-2.5 sm:gap-3">
-                    <CircleAlert className="mt-0.5 h-4 w-4 sm:h-5 sm:w-5 shrink-0 text-amber-700 dark:text-amber-400" />
-                    <div>
-                      <p className="text-xs sm:text-sm font-bold text-amber-950 dark:text-amber-200">About read-only contacts</p>
-                      <p className="mt-0.5 text-[11px] sm:text-xs leading-normal text-amber-900/75 dark:text-amber-300/80">
-                        Google does not include read-only status in a VCF export, so this app will not guess it.
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </aside>
+            )}
           </div>
-        </main>
+
+          {/* Desktop Right Sidebar (hidden on mobile, visible on lg) */}
+          <aside className="hidden lg:block space-y-4">
+            <Card className="rounded-2xl border border-stone-200 dark:border-stone-800 bg-card shadow-xs">
+              <CardHeader className="p-5 pb-3">
+                <CardTitle className="text-base font-bold">Review summary</CardTitle>
+                <CardDescription className="text-xs">
+                  {sourceName ? `Working on ${sourceName}` : "Session in progress"}
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 p-5 pt-0">
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Original contacts</span>
+                    <span className="font-bold tabular-nums text-foreground">{baseCards.length}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Decisions made</span>
+                    <span className="font-bold tabular-nums text-emerald-400">{totalResolved}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Pending review</span>
+                    <span className={cn("font-bold tabular-nums", pending ? "text-amber-400" : "text-emerald-400")}>
+                      {pending}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-stone-200 dark:border-stone-800 pt-2 font-semibold">
+                    <span className="text-foreground">Contacts in export</span>
+                    <span className="font-bold tabular-nums text-foreground">{effectiveCards.length}</span>
+                  </div>
+                </div>
+
+                <Button
+                  className="w-full font-bold shadow-xs"
+                  onClick={() => setIsExportModalOpen(true)}
+                  aria-label="Export contacts"
+                >
+                  <Download className="h-4 w-4 mr-1.5" /> Export contacts
+                </Button>
+
+                <div className="flex items-center justify-between pt-1 border-t border-stone-200 dark:border-stone-800">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                    onClick={undo}
+                    disabled={!history.length}
+                  >
+                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo last
+                  </Button>
+
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 px-2 text-xs text-stone-500 hover:text-stone-300"
+                    onClick={() => {
+                      if (mode === "duplicates") {
+                        clearDuplicateSelection();
+                      } else {
+                        clearQualitySelection();
+                      }
+                    }}
+                  >
+                    Reset choice
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Quick Tips */}
+            <div className="rounded-2xl border border-stone-200 dark:border-stone-800/80 bg-stone-50/50 dark:bg-stone-900/40 p-4 text-xs text-muted-foreground space-y-2">
+              <p className="font-bold text-foreground">💡 Helpful tips</p>
+              <ul className="space-y-1.5 list-disc list-inside text-[11px] leading-relaxed">
+                <li>Click <strong>View all contact details</strong> to inspect or edit any contact field before merging.</li>
+                <li><strong>Merge & Edit</strong> lets you pick and customize merged fields.</li>
+                <li><strong>Select & keep</strong> keeps one single contact and discards the other matches.</li>
+                <li>All processing remains 100% private in your browser.</li>
+              </ul>
+            </div>
+          </aside>
+        </div>
+
+        {/* Fixed Bottom Navigation Dock (Mobile Only) */}
+        <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-card/95 dark:bg-stone-950/95 backdrop-blur-md border-t border-stone-200 dark:border-stone-800/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl">
+          <div className="mx-auto max-w-2xl flex items-center justify-between gap-2.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
+              onClick={() => {
+                if (mode === "duplicates") {
+                  setDuplicateIndex((prev) => Math.max(0, prev - 1));
+                } else {
+                  setQualityIndex((prev) => Math.max(0, prev - 1));
+                }
+              }}
+              disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
+              aria-label="Previous item"
+            >
+              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+            </Button>
+
+            <Button
+              size="sm"
+              className="h-10 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-foreground shadow-xs"
+              onClick={() => setIsExportModalOpen(true)}
+              aria-label="Export contacts"
+            >
+              <Download className="h-4 w-4 mr-1.5" /> Export
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
+              onClick={() => {
+                if (mode === "duplicates") {
+                  setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
+                } else {
+                  setQualityIndex((prev) => Math.min(qualityIssues.length - 1, prev + 1));
+                }
+              }}
+              disabled={
+                mode === "duplicates"
+                  ? duplicateIndex >= duplicateGroups.length - 1
+                  : qualityIndex >= qualityIssues.length - 1
+              }
+              aria-label="Next item"
+            >
+              Next <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
+        </div>
+      </main>
       )}
 
-        {/* Application Footer */}
-        <footer className="w-full border-t border-stone-200/80 dark:border-stone-800/80 py-6 mt-auto text-xs text-muted-foreground">
-          <div className="container max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-8">
-            <div className="flex items-center gap-2 text-center sm:text-left">
-              <span className="font-bold text-foreground">Tidy Contacts</span>
-              <span>·</span>
-              <span>A simpler, cleaner address book.</span>
-            </div>
-            <div className="flex items-center gap-4">
-              <span>Local First</span>
-              <span>·</span>
-              <a
-                href="https://github.com/karanshah229/local-apps-harness"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="hover:text-foreground hover:underline transition-colors"
-              >
-                Open Source
-              </a>
-              <span>·</span>
-              <a
-                href="mailto:karanshah229@gmail.com"
-                className="hover:text-foreground hover:underline transition-colors"
-              >
-                Feedback
-              </a>
-              <span className="text-red-500">❤️</span>
-            </div>
+      {/* Application Footer (Hidden on Mobile) */}
+      <footer className="hidden md:block w-full border-t border-stone-200/80 dark:border-stone-800/80 py-6 mt-auto text-xs text-muted-foreground">
+        <div className="container max-w-6xl flex flex-col sm:flex-row items-center justify-between gap-4 px-4 sm:px-8">
+          <div className="flex items-center gap-2 text-center sm:text-left">
+            <span className="font-bold text-foreground">Tidy Contacts</span>
+            <span>·</span>
+            <span>A simpler, cleaner address book.</span>
           </div>
-        </footer>
+          <div className="flex items-center gap-4">
+            <span>Local First</span>
+            <span>·</span>
+            <a
+              href="https://github.com/karanshah229/local-apps-harness"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground hover:underline transition-colors"
+            >
+              Open Source
+            </a>
+            <span>·</span>
+            <a
+              href="mailto:karanshah229@gmail.com"
+              className="hover:text-foreground hover:underline transition-colors"
+            >
+              Feedback
+            </a>
+            <span className="text-red-500">❤️</span>
+          </div>
+        </div>
+      </footer>
 
       {leftCard && rightCard && (
         <MergeEditDialog
@@ -1861,6 +2027,22 @@ export default function App() {
           }}
         />
       )}
+
+      <ContactDetailModal
+        isOpen={Boolean(detailModalCard)}
+        onClose={() => setDetailModalCard(null)}
+        card={detailModalCard}
+        onSave={handleSaveContactDetail}
+      />
+
+      <ExportConfirmationModal
+        isOpen={isExportModalOpen}
+        onClose={() => setIsExportModalOpen(false)}
+        totalIssues={totalIssues}
+        resolvedIssues={totalResolved}
+        effectiveContactsCount={effectiveCards.length}
+        onConfirmExport={exportFile}
+      />
     </div>
   );
 }

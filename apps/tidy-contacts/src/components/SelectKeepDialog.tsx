@@ -63,6 +63,7 @@ export function SelectKeepDialog({
           <Button
             variant="ghost"
             size="sm"
+            data-testid="select-keep-close"
             className="h-8 w-8 p-0 rounded-full text-muted-foreground hover:text-foreground"
             onClick={onClose}
             aria-label="Close dialog"
@@ -159,11 +160,11 @@ export function SelectKeepDialog({
 
         {/* Footer */}
         <div className="flex items-center justify-end gap-2.5 border-t border-stone-200 dark:border-stone-800 p-3.5 sm:p-4 bg-stone-50/50 dark:bg-stone-900/50 shrink-0">
-          <Button variant="outline" size="sm" onClick={onClose}>
+          <Button variant="outline" size="sm" data-testid="select-keep-cancel" onClick={onClose}>
             Cancel
           </Button>
           <Button size="sm" onClick={handleConfirm} className="font-bold">
-            <Check className="h-4 w-4 mr-1.5" /> Keep this contact
+            <Check className="h-4 w-4 mr-1.5" /> Keep only this contact
           </Button>
         </div>
       </div>
