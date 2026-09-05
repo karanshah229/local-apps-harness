@@ -1026,28 +1026,6 @@ export default function App() {
     // NOTE: Do not advance index on card selection
   };
 
-  const clearDuplicateSelection = () => {
-    if (!currentDuplicate) return;
-    const previousDecision = duplicateDecisions[currentDuplicate.id];
-    setHistory((curr) => [
-      ...curr,
-      {
-        type: "duplicate",
-        id: currentDuplicate.id,
-        previousDuplicate: previousDecision,
-        targetIndex: duplicateIndex,
-        mode,
-        notice,
-      },
-    ]);
-    setDuplicateDecisions((curr) => {
-      const next = { ...curr };
-      delete next[currentDuplicate.id];
-      return next;
-    });
-    setNotice("Cleared selection for this pair (kept unresolved).");
-  };
-
   const handleSaveContactDetail = (updated: ContactCard) => {
     setBaseCards((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
     setNotice("Contact details updated.");
@@ -2023,9 +2001,7 @@ export default function App() {
           cards={groupCards}
           initialSelectedIds={currentKeptIds}
           onConfirm={(selectedIds) => {
-            if (selectedIds.length === 0) {
-              clearDuplicateSelection();
-            } else {
+            if (selectedIds.length > 0) {
               setDuplicateSubsetDecision(selectedIds);
             }
           }}

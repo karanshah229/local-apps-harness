@@ -56,6 +56,7 @@ export function SelectKeepDialog({
   };
 
   const handleConfirm = () => {
+    if (selectedIds.size === 0) return;
     onConfirm(Array.from(selectedIds));
     onClose();
   };
@@ -231,10 +232,15 @@ export function SelectKeepDialog({
             Cancel
           </Button>
 
-          <Button size="sm" onClick={handleConfirm} className="font-bold">
+          <Button
+            size="sm"
+            onClick={handleConfirm}
+            disabled={noneSelected}
+            className="font-bold disabled:opacity-40 disabled:cursor-not-allowed"
+          >
             <Check className="h-4 w-4 mr-1.5" />
             {noneSelected
-              ? "Reset to pending (0 kept)"
+              ? "Select at least 1 contact"
               : allSelected
               ? `Keep all ${cards.length} contacts as-is`
               : `Keep ${selectedIds.size} selected contact${selectedIds.size === 1 ? "" : "s"}`}
