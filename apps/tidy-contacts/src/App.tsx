@@ -1604,6 +1604,10 @@ export default function App() {
                     const isRightSelected = Boolean(currentKeptIds?.includes(rightCard.id));
                     const isRightDeleted = Boolean(currentKeptIds && !isRightSelected);
 
+                    const isMergeActive = currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard;
+                    const isMergeEditActive = Boolean(currentDuplicateDecision?.customCard);
+                    const isSelectKeepActive = Boolean(currentKeptIds);
+
                     return (
                       <>
                         {/* Mobile Single Column Flow (< md) */}
@@ -1623,10 +1627,12 @@ export default function App() {
                           {/* Middle Action Bar */}
                           <div className="grid grid-cols-3 gap-2">
                             <Button
-                              variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                isMergeActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => decideDuplicate("merge", leftCard)}
                               aria-label={`Merge ${groupCards.length} contacts`}
@@ -1638,10 +1644,12 @@ export default function App() {
                             </Button>
 
                             <Button
-                              variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                isMergeEditActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => setIsMergeEditOpen(true)}
                               aria-label="Merge & Edit"
@@ -1653,10 +1661,12 @@ export default function App() {
                             </Button>
 
                             <Button
-                              variant={Boolean(currentKeptIds) ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                Boolean(currentKeptIds) && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                isSelectKeepActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => setIsSelectKeepOpen(true)}
                               aria-label="Select & keep"
@@ -1705,50 +1715,56 @@ export default function App() {
                           {/* Desktop Action Buttons Row */}
                           <div className="grid grid-cols-3 gap-3">
                             <Button
-                              variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl",
+                                isMergeActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => decideDuplicate("merge", leftCard)}
                               aria-label={`Merge ${groupCards.length} contacts`}
                             >
                               <Merge className="h-4 w-4 shrink-0" />
                               <span className="font-bold">Merge {groupCards.length}</span>
-                              {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
-                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              {isMergeActive && (
+                                <Check className="h-4 w-4 ml-1 stroke-[3] shrink-0" />
                               )}
                             </Button>
 
                             <Button
-                              variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl",
+                                isMergeEditActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => setIsMergeEditOpen(true)}
                               aria-label="Merge & Edit"
                             >
                               <Edit3 className="h-4 w-4 shrink-0" />
                               <span className="font-bold">Merge & Edit</span>
-                              {currentDuplicateDecision?.customCard && (
-                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              {isMergeEditActive && (
+                                <Check className="h-4 w-4 ml-1 stroke-[3] shrink-0" />
                               )}
                             </Button>
 
                             <Button
-                              variant={Boolean(currentKeptIds) ? "default" : "outline"}
+                              variant="ghost"
                               className={cn(
-                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                Boolean(currentKeptIds) && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl",
+                                isSelectKeepActive
+                                  ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                                  : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                               )}
                               onClick={() => setIsSelectKeepOpen(true)}
                               aria-label="Select & keep"
                             >
                               <UserCheck className="h-4 w-4 shrink-0" />
                               <span className="font-bold">Select & keep{currentKeptIds ? ` (${currentKeptIds.length})` : ""}</span>
-                              {Boolean(currentKeptIds) && (
-                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              {isSelectKeepActive && (
+                                <Check className="h-4 w-4 ml-1 stroke-[3] shrink-0" />
                               )}
                             </Button>
                           </div>
@@ -1862,7 +1878,9 @@ export default function App() {
                     variant={currentQualityChoice === "keep" ? "default" : "outline"}
                     className={cn(
                       "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
-                      currentQualityChoice === "keep" && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground"
+                      currentQualityChoice === "keep"
+                        ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                        : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                     )}
                     onClick={() => decideQuality("keep")}
                   >
@@ -1875,14 +1893,16 @@ export default function App() {
                       variant={currentQualityChoice === "fix" ? "default" : "secondary"}
                       className={cn(
                         "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
-                        currentQualityChoice === "fix" && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground"
+                        currentQualityChoice === "fix"
+                          ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
+                          : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                       )}
                       onClick={() => decideQuality("fix")}
                     >
                       <WandSparkles className="h-4 w-4" />
                       <div className="text-center sm:text-left leading-tight">
                         <div className="text-xs font-bold">{currentQualityChoice === "fix" ? "Fix applied" : "Safe fix"}</div>
-                        <div className="text-[10px] text-muted-foreground font-normal">{safeFixLabel}</div>
+                        <div className={cn("text-[10px] font-normal", currentQualityChoice === "fix" ? "text-primary-foreground/80 dark:text-primary-foreground/80" : "text-muted-foreground")}>{safeFixLabel}</div>
                       </div>
                     </Button>
                   )}
@@ -1891,7 +1911,7 @@ export default function App() {
                     variant={currentQualityChoice === "remove" ? "default" : "destructive"}
                     className={cn(
                       "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
-                      currentQualityChoice === "remove" && "ring-2 ring-destructive font-bold shadow-xs bg-red-800 text-white"
+                      currentQualityChoice === "remove" && "ring-2 ring-destructive font-bold shadow-xs bg-red-800 text-white dark:bg-red-700 dark:text-white"
                     )}
                     onClick={() => decideQuality("remove")}
                   >
