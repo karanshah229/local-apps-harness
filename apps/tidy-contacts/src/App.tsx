@@ -31,7 +31,6 @@ import {
   Sparkles,
   Sun,
   Trash2,
-  Undo2,
   UploadCloud,
   UserCheck,
   Users,
@@ -1874,33 +1873,6 @@ export default function App() {
                 >
                   <Download className="h-4 w-4 mr-1.5" /> Export contacts
                 </Button>
-
-                <div className="flex items-center justify-between pt-1 border-t border-stone-200 dark:border-stone-800">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
-                    onClick={undo}
-                    disabled={!history.length}
-                  >
-                    <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo last
-                  </Button>
-
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 px-2 text-xs text-stone-500 hover:text-stone-300"
-                    onClick={() => {
-                      if (mode === "duplicates") {
-                        clearDuplicateSelection();
-                      } else {
-                        clearQualitySelection();
-                      }
-                    }}
-                  >
-                    Reset choice
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
