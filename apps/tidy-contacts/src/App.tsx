@@ -154,13 +154,11 @@ function MobileDuplicateCard({
   card,
   isSelected,
   isDeleted,
-  onSelect,
   onOpenDetail,
 }: {
   card: ContactCard;
   isSelected: boolean;
   isDeleted: boolean;
-  onSelect: () => void;
   onOpenDetail: () => void;
 }) {
   const summary = summarizeContact(card);
@@ -188,9 +186,9 @@ function MobileDuplicateCard({
       className={cn(
         "rounded-2xl border transition-all bg-card text-card-foreground shadow-xs overflow-hidden",
         isSelected
-          ? "border-primary ring-2 ring-primary/40 bg-primary/5"
+          ? "border-emerald-500/50 dark:border-emerald-500/40 ring-1 ring-emerald-500/30 bg-emerald-500/5 dark:bg-emerald-500/5"
           : isDeleted
-          ? "border-red-900/30 opacity-75 bg-stone-950/20"
+          ? "border-red-900/30 opacity-70 bg-stone-950/20"
           : "border-stone-200 dark:border-stone-800/90 bg-card dark:bg-stone-900/60"
       )}
     >
@@ -226,38 +224,17 @@ function MobileDuplicateCard({
             </div>
           </div>
 
-          {/* Select / Deleted Button */}
+          {/* Status Badge (reflects active choice if made) */}
           <div className="shrink-0">
             {isSelected ? (
-              <Button
-                size="sm"
-                onClick={onSelect}
-                className="h-8 px-3 rounded-lg text-xs font-bold bg-primary text-primary-foreground shadow-xs gap-1"
-                aria-label="Selected contact"
-              >
-                <Check className="h-3.5 w-3.5" /> Selected
-              </Button>
+              <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold px-2.5 py-1 gap-1">
+                <Check className="h-3.5 w-3.5 stroke-[2.5]" /> Kept
+              </Badge>
             ) : isDeleted ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSelect}
-                className="h-8 px-2.5 rounded-lg text-xs font-semibold border-red-800/40 bg-red-950/30 text-red-400 hover:bg-red-900/30 gap-1"
-                aria-label="Deleted contact. Click to select instead."
-              >
-                <Trash2 className="h-3.5 w-3.5" /> Deleted
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={onSelect}
-                className="h-8 px-3 rounded-lg text-xs font-semibold border-stone-300 dark:border-stone-700 bg-background dark:bg-stone-800/80 hover:bg-stone-100 dark:hover:bg-stone-700 text-foreground"
-                aria-label="Select contact"
-              >
-                Select
-              </Button>
-            )}
+              <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400 text-xs font-semibold px-2.5 py-1 gap-1">
+                <Trash2 className="h-3.5 w-3.5 stroke-[2.2]" /> Will be removed
+              </Badge>
+            ) : null}
           </div>
         </div>
       </div>
@@ -269,7 +246,7 @@ function MobileDuplicateCard({
       <button
         type="button"
         onClick={onOpenDetail}
-        className="w-full flex items-center justify-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground py-2.5 transition-colors bg-stone-50/50 dark:bg-stone-900/30 hover:bg-stone-100/60 dark:hover:bg-stone-800/50"
+        className="w-full flex items-center justify-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground py-2.5 transition-colors bg-stone-50/50 dark:bg-stone-900/30 hover:bg-stone-100/60 dark:hover:bg-stone-800/50 cursor-pointer"
       >
         <span>View all contact details</span>
         <ChevronDown className="h-3.5 w-3.5 opacity-70" />
@@ -1049,29 +1026,6 @@ export default function App() {
     // NOTE: Do not advance index on card selection
   };
 
-  const toggleCardSelection = (cardId: string) => {
-    if (!currentDuplicate) return;
-
-    let nextKeptIds: string[];
-    if (!currentKeptIds) {
-      // Currently unresolved: clicking cardId selects only that card
-      nextKeptIds = [cardId];
-    } else if (currentKeptIds.includes(cardId)) {
-      // Deselect this card
-      nextKeptIds = currentKeptIds.filter((id) => id !== cardId);
-    } else {
-      // Add this card to kept cards
-      nextKeptIds = [...currentKeptIds, cardId];
-    }
-
-    if (nextKeptIds.length === 0) {
-      // 0 selected -> treat as pending issue / no decision made yet
-      clearDuplicateSelection();
-    } else {
-      setDuplicateSubsetDecision(nextKeptIds);
-    }
-  };
-
   const clearDuplicateSelection = () => {
     if (!currentDuplicate) return;
     const previousDecision = duplicateDecisions[currentDuplicate.id];
@@ -1617,7 +1571,6 @@ export default function App() {
                             card={leftCard}
                             isSelected={isLeftSelected}
                             isDeleted={isLeftDeleted}
-                            onSelect={() => toggleCardSelection(leftCard.id)}
                             onOpenDetail={() => setDetailModalCard(leftCard)}
                           />
 
@@ -1680,7 +1633,6 @@ export default function App() {
                             card={rightCard}
                             isSelected={isRightSelected}
                             isDeleted={isRightDeleted}
-                            onSelect={() => toggleCardSelection(rightCard.id)}
                             onOpenDetail={() => setDetailModalCard(rightCard)}
                           />
                         </div>
@@ -1693,7 +1645,6 @@ export default function App() {
                               card={leftCard}
                               isSelected={isLeftSelected}
                               isDeleted={isLeftDeleted}
-                              onSelect={() => toggleCardSelection(leftCard.id)}
                               onOpenDetail={() => setDetailModalCard(leftCard)}
                             />
 
@@ -1701,7 +1652,6 @@ export default function App() {
                               card={rightCard}
                               isSelected={isRightSelected}
                               isDeleted={isRightDeleted}
-                              onSelect={() => toggleCardSelection(rightCard.id)}
                               onOpenDetail={() => setDetailModalCard(rightCard)}
                             />
                           </div>
@@ -1770,7 +1720,7 @@ export default function App() {
                             <button
                               type="button"
                               onClick={() => setIsGroupExpanded((prev) => !prev)}
-                              className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/40"
+                              className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/40 cursor-pointer"
                               aria-expanded={isGroupExpanded}
                             >
                               <span className="font-bold text-sm text-foreground">
@@ -1814,34 +1764,15 @@ export default function App() {
                                       </div>
 
                                       <div className="flex items-center gap-2 shrink-0">
-                                        <Button
-                                          variant="ghost"
-                                          size="sm"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            toggleCardSelection(card.id);
-                                          }}
-                                          className={cn(
-                                            "h-7 px-2.5 text-xs rounded-lg font-semibold gap-1",
-                                            isCardSelected
-                                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                                              : isCardDeleted
-                                              ? "border border-red-800/40 bg-red-950/30 text-red-400 hover:bg-red-900/30"
-                                              : "border border-stone-300 dark:border-stone-700 bg-background hover:bg-stone-100 dark:hover:bg-stone-800"
-                                          )}
-                                        >
-                                          {isCardSelected ? (
-                                            <>
-                                              <Check className="h-3 w-3" /> Selected
-                                            </>
-                                          ) : isCardDeleted ? (
-                                            <>
-                                              <Trash2 className="h-3 w-3" /> Deleted
-                                            </>
-                                          ) : (
-                                            "Select"
-                                          )}
-                                        </Button>
+                                        {isCardSelected ? (
+                                          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold px-2 py-0.5 gap-1">
+                                            <Check className="h-3 w-3 stroke-[2.5]" /> Kept
+                                          </Badge>
+                                        ) : isCardDeleted ? (
+                                          <Badge variant="outline" className="border-red-500/30 bg-red-500/10 text-red-500 dark:text-red-400 text-xs font-semibold px-2 py-0.5 gap-1">
+                                            <Trash2 className="h-3 w-3 stroke-[2.2]" /> Will be removed
+                                          </Badge>
+                                        ) : null}
                                         <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                       </div>
                                     </div>
