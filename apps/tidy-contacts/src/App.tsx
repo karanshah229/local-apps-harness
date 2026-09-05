@@ -1629,7 +1629,7 @@ export default function App() {
                             <Button
                               variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                "h-13 flex-col items-center justify-center p-1.5 text-xs transition-all rounded-xl gap-1",
                                 isMergeActive
                                   ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
                                   : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
@@ -1637,16 +1637,14 @@ export default function App() {
                               onClick={() => decideDuplicate("merge", leftCard)}
                               aria-label={`Merge ${groupCards.length} contacts`}
                             >
-                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
-                                <Merge className="h-3.5 w-3.5 shrink-0" />
-                                <span>Merge {groupCards.length}</span>
-                              </div>
+                              <Merge className="h-4.5 w-4.5 shrink-0 stroke-[2.2]" />
+                              <span className="font-bold truncate max-w-full">Merge {groupCards.length}</span>
                             </Button>
 
                             <Button
                               variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                "h-13 flex-col items-center justify-center p-1.5 text-xs transition-all rounded-xl gap-1",
                                 isMergeEditActive
                                   ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
                                   : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
@@ -1654,16 +1652,14 @@ export default function App() {
                               onClick={() => setIsMergeEditOpen(true)}
                               aria-label="Merge & Edit"
                             >
-                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
-                                <Edit3 className="h-3.5 w-3.5 shrink-0" />
-                                <span>Merge & Edit</span>
-                              </div>
+                              <Edit3 className="h-4.5 w-4.5 shrink-0 stroke-[2.2]" />
+                              <span className="font-bold truncate max-w-full">Merge & Edit</span>
                             </Button>
 
                             <Button
                               variant="ghost"
                               className={cn(
-                                "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl",
+                                "h-13 flex-col items-center justify-center p-1.5 text-xs transition-all rounded-xl gap-1",
                                 isSelectKeepActive
                                   ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
                                   : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
@@ -1671,10 +1667,8 @@ export default function App() {
                               onClick={() => setIsSelectKeepOpen(true)}
                               aria-label="Select & keep"
                             >
-                              <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
-                                <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                                <span>Select & keep{currentKeptIds ? ` (${currentKeptIds.length})` : ""}</span>
-                              </div>
+                              <UserCheck className="h-4.5 w-4.5 shrink-0 stroke-[2.2]" />
+                              <span className="font-bold truncate max-w-full">Select & keep{currentKeptIds ? ` (${currentKeptIds.length})` : ""}</span>
                             </Button>
                           </div>
 
@@ -1877,32 +1871,32 @@ export default function App() {
                   <Button
                     variant={currentQualityChoice === "keep" ? "default" : "outline"}
                     className={cn(
-                      "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                      "h-14 sm:h-12 flex-col sm:flex-row items-center justify-center p-1.5 sm:px-3 sm:py-2 gap-1 sm:gap-2 transition-all rounded-xl",
                       currentQualityChoice === "keep"
                         ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
                         : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                     )}
                     onClick={() => decideQuality("keep")}
                   >
-                    <Check className="h-4 w-4" />
-                    <span>{currentQualityChoice === "keep" ? "Kept as-is" : "Keep as-is"}</span>
+                    <Check className="h-5 w-5 shrink-0 stroke-[2.5]" />
+                    <span className="font-bold text-xs sm:text-sm truncate">{currentQualityChoice === "keep" ? "Kept as-is" : "Keep as-is"}</span>
                   </Button>
 
                   {safeFixLabel && (
                     <Button
                       variant={currentQualityChoice === "fix" ? "default" : "secondary"}
                       className={cn(
-                        "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                        "h-14 sm:h-12 flex-col sm:flex-row items-center justify-center p-1.5 sm:px-3 sm:py-2 gap-1 sm:gap-2 transition-all rounded-xl min-w-0",
                         currentQualityChoice === "fix"
                           ? "border-transparent bg-primary text-primary-foreground hover:bg-primary/90 dark:bg-primary dark:text-primary-foreground dark:hover:bg-primary/90 ring-2 ring-primary/40 font-bold shadow-xs"
                           : "border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
                       )}
                       onClick={() => decideQuality("fix")}
                     >
-                      <WandSparkles className="h-4 w-4" />
-                      <div className="text-center sm:text-left leading-tight">
-                        <div className="text-xs font-bold">{currentQualityChoice === "fix" ? "Fix applied" : "Safe fix"}</div>
-                        <div className={cn("text-[10px] font-normal", currentQualityChoice === "fix" ? "text-primary-foreground/80 dark:text-primary-foreground/80" : "text-muted-foreground")}>{safeFixLabel}</div>
+                      <WandSparkles className="h-5 w-5 shrink-0 stroke-[2.2]" />
+                      <div className="text-center sm:text-left leading-tight min-w-0">
+                        <div className="text-xs font-bold truncate">{currentQualityChoice === "fix" ? "Fix applied" : "Safe fix"}</div>
+                        <div className={cn("text-[10px] font-normal truncate", currentQualityChoice === "fix" ? "text-primary-foreground/85 dark:text-primary-foreground/85" : "text-muted-foreground")}>{safeFixLabel}</div>
                       </div>
                     </Button>
                   )}
@@ -1910,13 +1904,13 @@ export default function App() {
                   <Button
                     variant={currentQualityChoice === "remove" ? "default" : "destructive"}
                     className={cn(
-                      "h-12 flex-col sm:flex-row gap-1.5 transition-all rounded-xl",
+                      "h-14 sm:h-12 flex-col sm:flex-row items-center justify-center p-1.5 sm:px-3 sm:py-2 gap-1 sm:gap-2 transition-all rounded-xl",
                       currentQualityChoice === "remove" && "ring-2 ring-destructive font-bold shadow-xs bg-red-800 text-white dark:bg-red-700 dark:text-white"
                     )}
                     onClick={() => decideQuality("remove")}
                   >
-                    <Trash2 className="h-4 w-4" />
-                    <span>{currentQualityChoice === "remove" ? "Removed" : "Remove"}</span>
+                    <Trash2 className="h-5 w-5 shrink-0 stroke-[2.2]" />
+                    <span className="font-bold text-xs sm:text-sm truncate">{currentQualityChoice === "remove" ? "Removed" : "Remove"}</span>
                   </Button>
                 </div>
               </div>
@@ -1958,12 +1952,12 @@ export default function App() {
                     <span className="font-bold tabular-nums text-emerald-400">{totalResolved}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Pending review</span>
-                    <span className={cn("font-bold tabular-nums", pending ? "text-amber-400" : "text-emerald-400")}>
-                      {pending}
+                    <span className="text-muted-foreground">Remaining issues</span>
+                    <span className="font-bold tabular-nums text-foreground">
+                      {Math.max(0, totalIssues - totalResolved)}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between border-t border-stone-200 dark:border-stone-800 pt-2 font-semibold">
+                  <div className="flex items-center justify-between pt-2 border-t border-stone-200 dark:border-stone-800 font-semibold">
                     <span className="text-foreground">Contacts in export</span>
                     <span className="font-bold tabular-nums text-foreground">{effectiveCards.length}</span>
                   </div>
@@ -1998,7 +1992,7 @@ export default function App() {
             <Button
               variant="outline"
               size="sm"
-              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
+              className="h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-1.5"
               onClick={() => {
                 if (mode === "duplicates") {
                   setDuplicateIndex((prev) => Math.max(0, prev - 1));
@@ -2009,22 +2003,22 @@ export default function App() {
               disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
               aria-label="Previous item"
             >
-              <ChevronLeft className="h-4 w-4 mr-1" /> Previous
+              <ChevronLeft className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" /> Previous
             </Button>
 
             <Button
               size="sm"
-              className="h-10 px-4 sm:px-6 rounded-xl text-xs sm:text-sm font-bold border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-foreground shadow-xs"
+              className="h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-bold border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-foreground shadow-xs gap-1.5"
               onClick={() => setIsExportModalOpen(true)}
               aria-label="Export contacts"
             >
-              <Download className="h-4 w-4 mr-1.5" /> Export
+              <Download className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" /> Export
             </Button>
 
             <Button
               variant="outline"
               size="sm"
-              className="h-10 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground"
+              className="h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-1.5"
               onClick={() => {
                 if (mode === "duplicates") {
                   setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
@@ -2039,7 +2033,7 @@ export default function App() {
               }
               aria-label="Next item"
             >
-              Next <ChevronRight className="h-4 w-4 ml-1" />
+              Next <ChevronRight className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" />
             </Button>
           </div>
         </div>
