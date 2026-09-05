@@ -1897,11 +1897,11 @@ export default function App() {
 
         {/* Fixed Bottom Navigation Dock (Mobile Only) */}
         <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-card/95 dark:bg-stone-950/95 backdrop-blur-md border-t border-stone-200 dark:border-stone-800/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl">
-          <div className="mx-auto max-w-2xl flex items-center justify-between gap-2.5">
+          <div className="mx-auto max-w-2xl flex items-center justify-between gap-2.5 w-full">
             <Button
               variant="outline"
               size="sm"
-              className="h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-1.5"
+              className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
               onClick={() => {
                 if (mode === "duplicates") {
                   setDuplicateIndex((prev) => Math.max(0, prev - 1));
@@ -1912,22 +1912,25 @@ export default function App() {
               disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
               aria-label="Previous item"
             >
-              <ChevronLeft className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" /> Previous
-            </Button>
-
-            <Button
-              size="sm"
-              className="h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-bold border border-stone-300 dark:border-stone-700 bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 dark:hover:bg-stone-700 text-foreground shadow-xs gap-1.5"
-              onClick={() => setIsExportModalOpen(true)}
-              aria-label="Export contacts"
-            >
-              <Download className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" /> Export
+              <ChevronLeft className="h-4 w-4 shrink-0" />
+              <span>Previous</span>
             </Button>
 
             <Button
               variant="outline"
               size="sm"
-              className="h-11 px-3.5 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-1.5"
+              className="shrink-0 h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
+              onClick={() => setIsExportModalOpen(true)}
+              aria-label="Export contacts"
+            >
+              <Download className="h-4 w-4 shrink-0" />
+              <span>Export</span>
+            </Button>
+
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
               onClick={() => {
                 if (mode === "duplicates") {
                   setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
@@ -1942,7 +1945,8 @@ export default function App() {
               }
               aria-label="Next item"
             >
-              Next <ChevronRight className="h-4.5 w-4.5 shrink-0 stroke-[2.5]" />
+              <span>Next</span>
+              <ChevronRight className="h-4 w-4 shrink-0" />
             </Button>
           </div>
         </div>
