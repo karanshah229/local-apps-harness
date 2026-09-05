@@ -278,6 +278,53 @@ test("handles duplicate groups with >2 contacts, merging all unique details into
   );
 });
 
+test("supports multi-select keeping a subset of contacts in duplicate group", () => {
+  const source = [
+    "BEGIN:VCARD", "VERSION:2.1", "FN:Person A", "TEL:1111111", "EMAIL:same@example.com", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:2.1", "FN:Person B", "TEL:2222222", "EMAIL:same@example.com", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:2.1", "FN:Person C", "TEL:3333333", "EMAIL:same@example.com", "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(source);
+  const analysis = analyzeContacts(cards);
+  const group = analysis.duplicateGroups[0];
+
+  // Keep Person A and Person C, exclude Person B
+  const finalCards = applyDecisions(
+    cards,
+    analysis.duplicateGroups,
+    { [group.id]: { choice: "keep-subset", keptCardIds: [cards[0].id, cards[2].id] } },
+    {}
+  );
+
+  assert.equal(finalCards.length, 2);
+  assert.equal(summarizeContact(finalCards[0]).name, "Person A");
+  assert.equal(summarizeContact(finalCards[1]).name, "Person C");
+});
+
+test("supports keeping all contacts in duplicate group as-is without merging", () => {
+  const source = [
+    "BEGIN:VCARD", "VERSION:2.1", "FN:Person A", "TEL:1111111", "EMAIL:same@example.com", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:2.1", "FN:Person B", "TEL:2222222", "EMAIL:same@example.com", "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(source);
+  const analysis = analyzeContacts(cards);
+  const group = analysis.duplicateGroups[0];
+
+  // Keep both Person A and Person B
+  const finalCards = applyDecisions(
+    cards,
+    analysis.duplicateGroups,
+    { [group.id]: { choice: "keep-subset", keptCardIds: [cards[0].id, cards[1].id] } },
+    {}
+  );
+
+  assert.equal(finalCards.length, 2);
+  assert.equal(summarizeContact(finalCards[0]).name, "Person A");
+  assert.equal(summarizeContact(finalCards[1]).name, "Person B");
+});
+
 test("creates custom merged contact across N > 2 cards", () => {
   const source = [
     "BEGIN:VCARD", "VERSION:2.1", "FN:Contact Alpha", "TEL:1111111", "EMAIL:shared@test.com", "END:VCARD",

@@ -795,6 +795,23 @@ export default function App() {
 
   const leftCard = groupCards[activeLeftIndex] ?? groupCards[0];
   const rightCard = groupCards[activeRightIndex] ?? groupCards[1] ?? groupCards[0];
+
+  const currentKeptIds: string[] | undefined = useMemo(() => {
+    if (!currentDuplicateDecision || !currentDuplicate) return undefined;
+    if (currentDuplicateDecision.choice === "merge") {
+      return undefined;
+    }
+    if (currentDuplicateDecision.keptCardIds) {
+      return currentDuplicateDecision.keptCardIds;
+    }
+    if (currentDuplicateDecision.choice === "left") {
+      return [currentDuplicateDecision.preferredCardId ?? leftCard?.id ?? currentDuplicate.cardIds[0]];
+    }
+    if (currentDuplicateDecision.choice === "right") {
+      return [currentDuplicateDecision.preferredCardId ?? rightCard?.id ?? currentDuplicate.cardIds[1] ?? currentDuplicate.cardIds[0]];
+    }
+    return undefined;
+  }, [currentDuplicateDecision, currentDuplicate, leftCard?.id, rightCard?.id]);
   const qualityCard = currentQuality ? baseCardMap.get(currentQuality.cardId) : undefined;
   const safeFixLabel = qualityCard ? getSafeFixLabel(qualityCard) : undefined;
 
@@ -984,9 +1001,74 @@ export default function App() {
       index: duplicateIndex,
     });
 
-    // Automatically advance to the next duplicate issue if available
-    if (duplicateIndex < duplicateGroups.length - 1) {
+    // Automatically advance to the next duplicate issue if available on merge
+    if (choice === "merge" && duplicateIndex < duplicateGroups.length - 1) {
       setDuplicateIndex((prev) => prev + 1);
+    }
+  };
+
+  const setDuplicateSubsetDecision = (keptIds: string[]) => {
+    if (!currentDuplicate) return;
+
+    const previousDecision = duplicateDecisions[currentDuplicate.id];
+    const newDecision: DuplicateDecision = {
+      choice: "keep-subset",
+      keptCardIds: keptIds,
+      preferredCardId: keptIds[0],
+    };
+
+    setHistory((curr) => [
+      ...curr,
+      {
+        type: "duplicate",
+        id: currentDuplicate.id,
+        previousDuplicate: previousDecision,
+        targetIndex: duplicateIndex,
+        mode,
+        notice,
+      },
+    ]);
+
+    setDuplicateDecisions((curr) => ({
+      ...curr,
+      [currentDuplicate.id]: newDecision,
+    }));
+
+    if (keptIds.length === currentDuplicate.cardIds.length) {
+      setNotice("Keeping all contacts in this group as-is.");
+    } else {
+      setNotice(`Keeping ${keptIds.length} contact${keptIds.length === 1 ? "" : "s"} (removing unselected).`);
+    }
+
+    logEvent("review.decision", "succeeded", {
+      decision: "keep-subset",
+      keptCount: keptIds.length,
+      totalCount: currentDuplicate.cardIds.length,
+      index: duplicateIndex,
+    });
+    // NOTE: Do not advance index on card selection
+  };
+
+  const toggleCardSelection = (cardId: string) => {
+    if (!currentDuplicate) return;
+
+    let nextKeptIds: string[];
+    if (!currentKeptIds) {
+      // Currently unresolved: clicking cardId selects only that card
+      nextKeptIds = [cardId];
+    } else if (currentKeptIds.includes(cardId)) {
+      // Deselect this card
+      nextKeptIds = currentKeptIds.filter((id) => id !== cardId);
+    } else {
+      // Add this card to kept cards
+      nextKeptIds = [...currentKeptIds, cardId];
+    }
+
+    if (nextKeptIds.length === 0) {
+      // 0 selected -> treat as pending issue / no decision made yet
+      clearDuplicateSelection();
+    } else {
+      setDuplicateSubsetDecision(nextKeptIds);
     }
   };
 
@@ -1473,9 +1555,15 @@ export default function App() {
                   {currentDuplicateDecision ? (
                     <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-xs font-semibold px-2.5 py-1">
                       <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5" />
-                      {currentDuplicateDecision.choice === "left" && `Kept ${leftCard?.properties.find(p => p.key === "FN")?.value || "1st contact"}`}
-                      {currentDuplicateDecision.choice === "right" && `Kept ${rightCard?.properties.find(p => p.key === "FN")?.value || "2nd contact"}`}
-                      {currentDuplicateDecision.choice === "merge" && (currentDuplicateDecision.customCard ? "Customized merge" : `Merged ${groupCards.length}`)}
+                      {currentDuplicateDecision.choice === "merge"
+                        ? currentDuplicateDecision.customCard
+                          ? "Customized merge"
+                          : `Merged ${groupCards.length}`
+                        : currentKeptIds?.length === groupCards.length
+                        ? `Kept all ${groupCards.length} as-is`
+                        : currentKeptIds?.length === 1
+                        ? `Kept ${baseCardMap.get(currentKeptIds[0])?.properties.find((p) => p.key === "FN")?.value || "1 contact"}`
+                        : `Kept ${currentKeptIds?.length || 0} of ${groupCards.length}`}
                     </Badge>
                   ) : (
                     <Badge variant="outline" className="border-stone-300/80 dark:border-stone-800 bg-stone-100/90 dark:bg-stone-900/60 text-stone-600 dark:text-stone-400 text-xs font-medium px-2.5 py-1">
@@ -1510,10 +1598,11 @@ export default function App() {
               {mode === "duplicates" && duplicateGroups.length > 0 && currentDuplicate && leftCard && rightCard ? (
                 <div>
                   {(() => {
-                    const selectedKeptId =
-                      currentDuplicateDecision?.choice === "left" || currentDuplicateDecision?.choice === "right"
-                        ? currentDuplicateDecision.preferredCardId ?? (currentDuplicateDecision.choice === "left" ? leftCard.id : rightCard.id)
-                        : null;
+                    const isLeftSelected = Boolean(currentKeptIds?.includes(leftCard.id));
+                    const isLeftDeleted = Boolean(currentKeptIds && !isLeftSelected);
+
+                    const isRightSelected = Boolean(currentKeptIds?.includes(rightCard.id));
+                    const isRightDeleted = Boolean(currentKeptIds && !isRightSelected);
 
                     return (
                       <>
@@ -1522,15 +1611,9 @@ export default function App() {
                           {/* Card 1 */}
                           <MobileDuplicateCard
                             card={leftCard}
-                            isSelected={selectedKeptId === leftCard.id}
-                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== leftCard.id)}
-                            onSelect={() => {
-                              if (selectedKeptId === leftCard.id) {
-                                clearDuplicateSelection();
-                              } else {
-                                decideDuplicate("left", leftCard);
-                              }
-                            }}
+                            isSelected={isLeftSelected}
+                            isDeleted={isLeftDeleted}
+                            onSelect={() => toggleCardSelection(leftCard.id)}
                             onOpenDetail={() => setDetailModalCard(leftCard)}
                           />
 
@@ -1570,17 +1653,17 @@ export default function App() {
                             </Button>
 
                             <Button
-                              variant={selectedKeptId ? "default" : "outline"}
+                              variant={Boolean(currentKeptIds) ? "default" : "outline"}
                               className={cn(
                                 "h-12 flex-col px-1.5 py-1 text-xs transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                                selectedKeptId && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                                Boolean(currentKeptIds) && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                               )}
                               onClick={() => setIsSelectKeepOpen(true)}
                               aria-label="Select & keep"
                             >
                               <div className="flex items-center justify-center gap-1.5 font-bold truncate max-w-full">
                                 <UserCheck className="h-3.5 w-3.5 shrink-0" />
-                                <span>Select & keep</span>
+                                <span>Select & keep{currentKeptIds ? ` (${currentKeptIds.length})` : ""}</span>
                               </div>
                             </Button>
                           </div>
@@ -1591,15 +1674,9 @@ export default function App() {
                           {/* Card 2 */}
                           <MobileDuplicateCard
                             card={rightCard}
-                            isSelected={selectedKeptId === rightCard.id}
-                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== rightCard.id)}
-                            onSelect={() => {
-                              if (selectedKeptId === rightCard.id) {
-                                clearDuplicateSelection();
-                              } else {
-                                decideDuplicate("right", rightCard);
-                              }
-                            }}
+                            isSelected={isRightSelected}
+                            isDeleted={isRightDeleted}
+                            onSelect={() => toggleCardSelection(rightCard.id)}
                             onOpenDetail={() => setDetailModalCard(rightCard)}
                           />
                         </div>
@@ -1610,157 +1687,163 @@ export default function App() {
                           <div className="grid grid-cols-2 gap-4">
                             <MobileDuplicateCard
                               card={leftCard}
-                              isSelected={selectedKeptId === leftCard.id}
-                              isDeleted={Boolean(selectedKeptId && selectedKeptId !== leftCard.id)}
-                              onSelect={() => {
-                                if (selectedKeptId === leftCard.id) {
-                                clearDuplicateSelection();
-                              } else {
-                                decideDuplicate("left", leftCard);
-                              }
-                            }}
-                            onOpenDetail={() => setDetailModalCard(leftCard)}
-                          />
+                              isSelected={isLeftSelected}
+                              isDeleted={isLeftDeleted}
+                              onSelect={() => toggleCardSelection(leftCard.id)}
+                              onOpenDetail={() => setDetailModalCard(leftCard)}
+                            />
 
-                          <MobileDuplicateCard
-                            card={rightCard}
-                            isSelected={selectedKeptId === rightCard.id}
-                            isDeleted={Boolean(selectedKeptId && selectedKeptId !== rightCard.id)}
-                            onSelect={() => {
-                              if (selectedKeptId === rightCard.id) {
-                                clearDuplicateSelection();
-                              } else {
-                                decideDuplicate("right", rightCard);
-                              }
-                            }}
-                            onOpenDetail={() => setDetailModalCard(rightCard)}
-                          />
-                        </div>
+                            <MobileDuplicateCard
+                              card={rightCard}
+                              isSelected={isRightSelected}
+                              isDeleted={isRightDeleted}
+                              onSelect={() => toggleCardSelection(rightCard.id)}
+                              onOpenDetail={() => setDetailModalCard(rightCard)}
+                            />
+                          </div>
 
-                        {/* Desktop Action Buttons Row */}
-                        <div className="grid grid-cols-3 gap-3">
-                          <Button
-                            variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
-                            className={cn(
-                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                              currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                            )}
-                            onClick={() => decideDuplicate("merge", leftCard)}
-                            aria-label={`Merge ${groupCards.length} contacts`}
-                          >
-                            <Merge className="h-4 w-4 shrink-0" />
-                            <span className="font-bold">Merge {groupCards.length}</span>
-                            {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
-                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
-                            )}
-                          </Button>
-
-                          <Button
-                            variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
-                            className={cn(
-                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                              currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                            )}
-                            onClick={() => setIsMergeEditOpen(true)}
-                            aria-label="Merge & Edit"
-                          >
-                            <Edit3 className="h-4 w-4 shrink-0" />
-                            <span className="font-bold">Merge & Edit</span>
-                            {currentDuplicateDecision?.customCard && (
-                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
-                            )}
-                          </Button>
-
-                          <Button
-                            variant={selectedKeptId ? "default" : "outline"}
-                            className={cn(
-                              "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                              selectedKeptId && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
-                            )}
-                            onClick={() => setIsSelectKeepOpen(true)}
-                            aria-label="Select & keep"
-                          >
-                            <UserCheck className="h-4 w-4 shrink-0" />
-                            <span className="font-bold">Select & keep</span>
-                            {selectedKeptId && (
-                              <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-
-                      {/* Accordion for N > 2 contacts in group (works on both mobile & desktop) */}
-                      {otherGroupCards.length > 0 && (
-                        <div className="mt-3.5 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 overflow-hidden shadow-xs">
-                          <button
-                            type="button"
-                            onClick={() => setIsGroupExpanded((prev) => !prev)}
-                            className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/40"
-                            aria-expanded={isGroupExpanded}
-                          >
-                            <span className="font-bold text-sm text-foreground">
-                              Contacts in this group
-                            </span>
-                            <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
-                              {otherGroupCards.length} more
-                              {isGroupExpanded ? (
-                                <ChevronUp className="h-4 w-4" />
-                              ) : (
-                                <ChevronDown className="h-4 w-4" />
+                          {/* Desktop Action Buttons Row */}
+                          <div className="grid grid-cols-3 gap-3">
+                            <Button
+                              variant={currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard ? "default" : "outline"}
+                              className={cn(
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
                               )}
-                            </span>
-                          </button>
+                              onClick={() => decideDuplicate("merge", leftCard)}
+                              aria-label={`Merge ${groupCards.length} contacts`}
+                            >
+                              <Merge className="h-4 w-4 shrink-0" />
+                              <span className="font-bold">Merge {groupCards.length}</span>
+                              {currentDuplicateDecision?.choice === "merge" && !currentDuplicateDecision.customCard && (
+                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              )}
+                            </Button>
 
-                          {isGroupExpanded && (
-                            <div className="divide-y divide-stone-200 dark:divide-stone-800 border-t border-stone-200 dark:border-stone-800">
-                              {otherGroupCards.map(({ card, idx }) => {
-                                const summary = summarizeContact(card);
-                                const isCardSelected = selectedKeptId === card.id;
-                                const isCardDeleted = Boolean(selectedKeptId && !isCardSelected);
+                            <Button
+                              variant={currentDuplicateDecision?.customCard ? "default" : "outline"}
+                              className={cn(
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                currentDuplicateDecision?.customCard && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                              onClick={() => setIsMergeEditOpen(true)}
+                              aria-label="Merge & Edit"
+                            >
+                              <Edit3 className="h-4 w-4 shrink-0" />
+                              <span className="font-bold">Merge & Edit</span>
+                              {currentDuplicateDecision?.customCard && (
+                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              )}
+                            </Button>
 
-                                return (
-                                  <div
-                                    key={card.id}
-                                    onClick={() => setDetailModalCard(card)}
-                                    className="flex items-center justify-between gap-3 p-3.5 hover:bg-stone-50/80 dark:hover:bg-stone-800/40 cursor-pointer transition-colors"
-                                  >
-                                    <div className="flex items-center gap-3 min-w-0 flex-1">
-                                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 dark:bg-stone-800 text-xs font-bold text-stone-700 dark:text-stone-300">
-                                        {idx + 1}
-                                      </div>
-                                      <div className="min-w-0 flex-1">
-                                        <p className="text-sm font-bold truncate text-foreground">
-                                          {summary.name || "Unnamed Contact"}
-                                        </p>
-                                        <p className="text-xs text-muted-foreground truncate">
-                                          {summary.emails[0]?.value || summary.phones[0]?.value || "No contact info"}
-                                        </p>
-                                      </div>
-                                    </div>
-
-                                    <div className="flex items-center gap-2 shrink-0">
-                                      {isCardSelected && (
-                                        <Badge className="bg-primary text-primary-foreground text-[10px] font-bold">
-                                          Selected
-                                        </Badge>
-                                      )}
-                                      {isCardDeleted && (
-                                        <span className="text-xs text-red-400 font-medium flex items-center gap-1">
-                                          <Trash2 className="h-3 w-3" /> Deleted
-                                        </span>
-                                      )}
-                                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                                    </div>
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
+                            <Button
+                              variant={Boolean(currentKeptIds) ? "default" : "outline"}
+                              className={cn(
+                                "h-13 flex-row gap-2 px-4 py-2 text-sm transition-all rounded-xl border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                                Boolean(currentKeptIds) && "ring-2 ring-primary font-bold shadow-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                              )}
+                              onClick={() => setIsSelectKeepOpen(true)}
+                              aria-label="Select & keep"
+                            >
+                              <UserCheck className="h-4 w-4 shrink-0" />
+                              <span className="font-bold">Select & keep{currentKeptIds ? ` (${currentKeptIds.length})` : ""}</span>
+                              {Boolean(currentKeptIds) && (
+                                <Check className="h-4 w-4 ml-1 text-emerald-300 shrink-0" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
-                      )}
-                    </>
-                  );
-                })()}
+
+                        {/* Accordion for N > 2 contacts in group (works on both mobile & desktop) */}
+                        {otherGroupCards.length > 0 && (
+                          <div className="mt-3.5 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card dark:bg-stone-900/70 overflow-hidden shadow-xs">
+                            <button
+                              type="button"
+                              onClick={() => setIsGroupExpanded((prev) => !prev)}
+                              className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-stone-50 dark:hover:bg-stone-800/40"
+                              aria-expanded={isGroupExpanded}
+                            >
+                              <span className="font-bold text-sm text-foreground">
+                                Contacts in this group
+                              </span>
+                              <span className="flex items-center gap-1 text-xs text-muted-foreground font-medium">
+                                {otherGroupCards.length} more
+                                {isGroupExpanded ? (
+                                  <ChevronUp className="h-4 w-4" />
+                                ) : (
+                                  <ChevronDown className="h-4 w-4" />
+                                )}
+                              </span>
+                            </button>
+
+                            {isGroupExpanded && (
+                              <div className="divide-y divide-stone-200 dark:divide-stone-800 border-t border-stone-200 dark:border-stone-800">
+                                {otherGroupCards.map(({ card, idx }) => {
+                                  const summary = summarizeContact(card);
+                                  const isCardSelected = Boolean(currentKeptIds?.includes(card.id));
+                                  const isCardDeleted = Boolean(currentKeptIds && !isCardSelected);
+
+                                  return (
+                                    <div
+                                      key={card.id}
+                                      onClick={() => setDetailModalCard(card)}
+                                      className="flex items-center justify-between gap-3 p-3.5 hover:bg-stone-50/80 dark:hover:bg-stone-800/40 cursor-pointer transition-colors"
+                                    >
+                                      <div className="flex items-center gap-3 min-w-0 flex-1">
+                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-stone-100 dark:bg-stone-800 text-xs font-bold text-stone-700 dark:text-stone-300">
+                                          {idx + 1}
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                          <p className="text-sm font-bold truncate text-foreground">
+                                            {summary.name || "Unnamed Contact"}
+                                          </p>
+                                          <p className="text-xs text-muted-foreground truncate">
+                                            {summary.emails[0]?.value || summary.phones[0]?.value || "No contact info"}
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      <div className="flex items-center gap-2 shrink-0">
+                                        <Button
+                                          variant="ghost"
+                                          size="sm"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            toggleCardSelection(card.id);
+                                          }}
+                                          className={cn(
+                                            "h-7 px-2.5 text-xs rounded-lg font-semibold gap-1",
+                                            isCardSelected
+                                              ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                                              : isCardDeleted
+                                              ? "border border-red-800/40 bg-red-950/30 text-red-400 hover:bg-red-900/30"
+                                              : "border border-stone-300 dark:border-stone-700 bg-background hover:bg-stone-100 dark:hover:bg-stone-800"
+                                          )}
+                                        >
+                                          {isCardSelected ? (
+                                            <>
+                                              <Check className="h-3 w-3" /> Selected
+                                            </>
+                                          ) : isCardDeleted ? (
+                                            <>
+                                              <Trash2 className="h-3 w-3" /> Deleted
+                                            </>
+                                          ) : (
+                                            "Select"
+                                          )}
+                                        </Button>
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
               </div>
             ) : mode === "quality" && qualityIssues.length > 0 && currentQuality && qualityCard ? (
               <div className="space-y-4">
@@ -1993,9 +2076,13 @@ export default function App() {
           isOpen={isSelectKeepOpen}
           onClose={() => setIsSelectKeepOpen(false)}
           cards={groupCards}
-          initialSelectedId={currentDuplicateDecision?.preferredCardId || leftCard?.id}
-          onSelect={(chosen) => {
-            decideDuplicate("left", chosen);
+          initialSelectedIds={currentKeptIds}
+          onConfirm={(selectedIds) => {
+            if (selectedIds.length === 0) {
+              clearDuplicateSelection();
+            } else {
+              setDuplicateSubsetDecision(selectedIds);
+            }
           }}
         />
       )}

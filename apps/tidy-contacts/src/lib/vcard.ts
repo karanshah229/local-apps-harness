@@ -47,9 +47,10 @@ export type DuplicateGroup = {
 };
 
 export type DuplicateDecision = {
-  choice: "left" | "merge" | "right";
+  choice: "left" | "merge" | "right" | "keep-subset";
   preferredCardId?: string;
   customCard?: ContactCard;
+  keptCardIds?: string[];
 };
 
 export type QualityDecision =
@@ -1214,23 +1215,28 @@ export function applyDecisions(
     const groupCards = group.cardIds.map((id) => cardMap.get(id)).filter(Boolean) as ContactCard[];
     if (groupCards.length === 0) continue;
 
-    if (decision.choice === "left") {
-      const keptId = decision.preferredCardId ?? group.cardIds[0];
-      for (const id of group.cardIds) {
-        if (id !== keptId) excludedIds.add(id);
-      }
-    } else if (decision.choice === "right") {
-      const keptId = decision.preferredCardId ?? group.cardIds[1] ?? group.cardIds[0];
-      for (const id of group.cardIds) {
-        if (id !== keptId) excludedIds.add(id);
-      }
-    } else if (decision.choice === "merge") {
+    if (decision.choice === "merge") {
       const primaryId = decision.preferredCardId ?? group.cardIds[0];
       const merged = decision.customCard ?? mergeContactGroup(groupCards, primaryId);
       cardMap.set(primaryId, merged);
       for (const otherId of group.cardIds) {
         if (otherId !== primaryId) {
           excludedIds.add(otherId);
+        }
+      }
+    } else {
+      const keptSet = new Set(
+        decision.keptCardIds ??
+          (decision.choice === "left"
+            ? [decision.preferredCardId ?? group.cardIds[0]]
+            : decision.choice === "right"
+            ? [decision.preferredCardId ?? group.cardIds[1] ?? group.cardIds[0]]
+            : group.cardIds)
+      );
+
+      for (const id of group.cardIds) {
+        if (!keptSet.has(id)) {
+          excludedIds.add(id);
         }
       }
     }
