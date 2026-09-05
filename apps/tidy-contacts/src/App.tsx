@@ -62,12 +62,15 @@ import {
   type CleanupSessionSummary,
   type HistoryEntry,
 } from "./lib/storage";
+import { AutoFixList } from "./components/AutoFixList";
 import {
   analyzeContacts,
   applyDecisions,
   canSafelyRepair,
+  getInitialQualityDecisions,
   getQualityChoice,
   getSafeFixLabel,
+  isQualityIssueAutoFixable,
   parseVcf,
   safelyRepairContact,
   serializeVcf,
@@ -79,19 +82,20 @@ import {
 } from "./lib/vcard";
 import { cn } from "./lib/utils";
 
-type ReviewMode = "duplicates" | "quality";
+type ReviewMode = "duplicates" | "manual" | "autofix" | "quality";
 
 const ORDINAL_NAMES = ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th"];
 
 function CircularProgress({
   percent,
-  size = 38,
-  strokeWidth = 3.5,
+  size = 36,
+  strokeWidth = 3,
 }: {
   percent: number;
   size?: number;
   strokeWidth?: number;
 }) {
+  const roundedPercent = Math.round(percent);
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (Math.min(100, Math.max(0, percent)) / 100) * circumference;
@@ -119,8 +123,13 @@ function CircularProgress({
           fill="transparent"
         />
       </svg>
-      <span className="absolute text-[10px] font-extrabold tabular-nums text-foreground">
-        {Math.round(percent)}%
+      <span
+        className={cn(
+          "absolute font-extrabold tabular-nums text-foreground flex items-center justify-center text-center select-none",
+          roundedPercent >= 100 ? "text-[8px] tracking-tight" : "text-[9.5px]"
+        )}
+      >
+        {roundedPercent}%
       </span>
     </div>
   );
@@ -346,7 +355,7 @@ function ImportView({
   };
 
   return (
-    <main className="container max-w-6xl py-6 sm:py-10 space-y-10 min-w-0">
+    <main className="flex-1 container max-w-6xl py-6 sm:py-10 space-y-10 min-w-0">
       {/* Centered Hero Header */}
       <section className="text-center max-w-3xl mx-auto space-y-4 pt-2">
         <h1 className="font-display text-3xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-foreground leading-[1.15]">
@@ -690,10 +699,24 @@ export default function App() {
     setIsGroupExpanded(false);
   }, [duplicateIndex]);
 
-  const analysis = useMemo(() => baseCards.length ? analyzeContacts(baseCards) : null, [baseCards]);
+  const analysis = useMemo(() => (baseCards.length ? analyzeContacts(baseCards) : null), [baseCards]);
   const baseCardMap = useMemo(() => new Map(baseCards.map((card) => [card.id, card])), [baseCards]);
   const duplicateGroups = useMemo(() => analysis?.duplicateGroups ?? [], [analysis]);
   const qualityIssues = useMemo(() => analysis?.qualityIssues ?? [], [analysis]);
+
+  const autoFixIssues = useMemo(() => {
+    return qualityIssues.filter((q) => {
+      const card = baseCardMap.get(q.cardId);
+      return card ? isQualityIssueAutoFixable(card) : false;
+    });
+  }, [qualityIssues, baseCardMap]);
+
+  const manualQualityIssues = useMemo(() => {
+    return qualityIssues.filter((q) => {
+      const card = baseCardMap.get(q.cardId);
+      return card ? !isQualityIssueAutoFixable(card) : true;
+    });
+  }, [qualityIssues, baseCardMap]);
 
   const effectiveCards = useMemo(
     () => (baseCards.length ? applyDecisions(baseCards, duplicateGroups, duplicateDecisions, qualityDecisions) : []),
@@ -701,14 +724,18 @@ export default function App() {
   );
 
   const totalDuplicateIssues = duplicateGroups.length;
-  const totalQualityIssues = qualityIssues.length;
-  const totalIssues = totalDuplicateIssues + totalQualityIssues;
+  const totalManualIssues = manualQualityIssues.length;
+  const totalAutoFixIssues = autoFixIssues.length;
+  const totalIssues = totalDuplicateIssues + totalManualIssues + totalAutoFixIssues;
 
   const resolvedDuplicateCount = duplicateGroups.filter((g) => duplicateDecisions[g.id] !== undefined).length;
-  const resolvedQualityCount = qualityIssues.filter((q) => qualityDecisions[q.cardId] !== undefined).length;
-  const totalResolved = resolvedDuplicateCount + resolvedQualityCount;
-  const pending = totalIssues - totalResolved;
-  const progress = totalIssues ? (totalResolved / totalIssues) * 100 : 100;
+  const resolvedManualCount = manualQualityIssues.filter((q) => qualityDecisions[q.cardId] !== undefined).length;
+  const activeAutoFixCount = autoFixIssues.filter((q) => (qualityDecisions[q.cardId] ?? "fix") === "fix").length;
+  const resolvedAutoFixCount = totalAutoFixIssues;
+
+  const totalResolved = resolvedDuplicateCount + resolvedManualCount + resolvedAutoFixCount;
+  const pending = Math.max(0, (totalDuplicateIssues - resolvedDuplicateCount) + (totalManualIssues - resolvedManualCount));
+  const progress = totalIssues ? Math.min(100, Math.round((totalResolved / totalIssues) * 100)) : 100;
 
   // Auto-save active session state
   useEffect(() => {
@@ -759,7 +786,7 @@ export default function App() {
   ]);
 
   const currentDuplicate = duplicateGroups[duplicateIndex];
-  const currentQuality = qualityIssues[qualityIndex];
+  const currentQuality = manualQualityIssues[qualityIndex];
 
   const currentDuplicateDecision = currentDuplicate ? duplicateDecisions[currentDuplicate.id] : undefined;
   const currentQualityDecision = currentQuality ? qualityDecisions[currentQuality.cardId] : undefined;
@@ -800,10 +827,14 @@ export default function App() {
 
   useEffect(() => {
     if (!baseCards.length) return;
-    if (mode === "duplicates" && !duplicateGroups.length && qualityIssues.length) {
-      setMode("quality");
+    if (mode === "duplicates" && !duplicateGroups.length) {
+      if (manualQualityIssues.length) setMode("manual");
+      else if (autoFixIssues.length) setMode("autofix");
+    } else if ((mode === "manual" || mode === "quality") && !manualQualityIssues.length) {
+      if (duplicateGroups.length) setMode("duplicates");
+      else if (autoFixIssues.length) setMode("autofix");
     }
-  }, [baseCards.length, duplicateGroups.length, mode, qualityIssues.length]);
+  }, [baseCards.length, duplicateGroups.length, mode, manualQualityIssues.length, autoFixIssues.length]);
 
   const importFile = async (file: File) => {
     const started = performance.now();
@@ -813,9 +844,26 @@ export default function App() {
       await new Promise((resolve) => window.setTimeout(resolve, 0));
       const parsed = parseVcf(source);
       const found = analyzeContacts(parsed);
+      const cardMap = new Map(parsed.map((c) => [c.id, c]));
+      const initialQuality = getInitialQualityDecisions(found.qualityIssues, cardMap);
+      const initialAutoFixes = found.qualityIssues.filter((q) => {
+        const c = cardMap.get(q.cardId);
+        return c ? isQualityIssueAutoFixable(c) : false;
+      });
+      const initialManual = found.qualityIssues.filter((q) => {
+        const c = cardMap.get(q.cardId);
+        return c ? !isQualityIssueAutoFixable(c) : true;
+      });
+
       const issueCount = found.duplicateGroups.length + found.qualityIssues.length;
       const newSessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       const now = Date.now();
+
+      const initialMode: ReviewMode = found.duplicateGroups.length
+        ? "duplicates"
+        : initialManual.length
+        ? "manual"
+        : "autofix";
 
       setBaseCards(parsed);
       setSourceName(file.name);
@@ -823,12 +871,16 @@ export default function App() {
       setSessionCreatedAt(now);
       setCurrentSessionId(newSessionId);
       setDuplicateDecisions({});
-      setQualityDecisions({});
+      setQualityDecisions(initialQuality);
       setDuplicateIndex(0);
       setQualityIndex(0);
       setHistory([]);
-      setMode(found.duplicateGroups.length ? "duplicates" : "quality");
-      setNotice("");
+      setMode(initialMode);
+      setNotice(
+        initialAutoFixes.length > 0
+          ? `Auto-applied ${initialAutoFixes.length} safe fix${initialAutoFixes.length === 1 ? "" : "es"}.`
+          : ""
+      );
 
       setActiveSessionId(newSessionId);
 
@@ -840,14 +892,14 @@ export default function App() {
         updatedAt: now,
         baseCards: parsed,
         duplicateDecisions: {},
-        qualityDecisions: {},
+        qualityDecisions: initialQuality,
         duplicateIndex: 0,
         qualityIndex: 0,
         history: [],
-        mode: found.duplicateGroups.length ? "duplicates" : "quality",
+        mode: initialMode,
         totalContacts: parsed.length,
         totalIssues: issueCount,
-        resolvedIssues: 0,
+        resolvedIssues: initialAutoFixes.length,
         effectiveCount: parsed.length,
       };
       await saveSession(initialSession);
@@ -877,12 +929,20 @@ export default function App() {
     const session = await getSession(sessionId);
     if (!session || !session.baseCards.length) return;
 
+    const sessionAnalysis = analyzeContacts(session.baseCards);
+    const cardMap = new Map(session.baseCards.map((c) => [c.id, c]));
+    const initialQuality = getInitialQualityDecisions(sessionAnalysis.qualityIssues, cardMap);
+    const mergedQualityDecisions = {
+      ...initialQuality,
+      ...(session.qualityDecisions || {}),
+    };
+
     setBaseCards(session.baseCards);
     setSourceName(session.sourceName);
     setFileSize(session.fileSize || 0);
     setSessionCreatedAt(session.createdAt || Date.now());
     setDuplicateDecisions(session.duplicateDecisions || {});
-    setQualityDecisions(session.qualityDecisions || {});
+    setQualityDecisions(mergedQualityDecisions);
     setDuplicateIndex(session.duplicateIndex || 0);
     setQualityIndex(session.qualityIndex || 0);
     setHistory(session.history || []);
@@ -979,8 +1039,17 @@ export default function App() {
     });
 
     // Automatically advance to the next duplicate issue if available on merge
-    if (choice === "merge" && duplicateIndex < duplicateGroups.length - 1) {
-      setDuplicateIndex((prev) => prev + 1);
+    if (choice === "merge") {
+      if (duplicateIndex < duplicateGroups.length - 1) {
+        setDuplicateIndex((prev) => prev + 1);
+      } else {
+        if (manualQualityIssues.length > 0) {
+          setMode("manual");
+          setQualityIndex(0);
+        } else if (autoFixIssues.length > 0) {
+          setMode("autofix");
+        }
+      }
     }
   };
 
@@ -1064,10 +1133,56 @@ export default function App() {
     setNotice(`${labels[choice]}.`);
     logEvent("review.decision", "succeeded", { decision: choice, index: qualityIndex });
 
-    // Automatically advance to the next quality issue if available
-    if (qualityIndex < qualityIssues.length - 1) {
+    // Automatically advance to the next manual quality issue if available
+    if (qualityIndex < manualQualityIssues.length - 1) {
       setQualityIndex((prev) => prev + 1);
+    } else {
+      if (autoFixIssues.length > 0) {
+        setMode("autofix");
+      }
     }
+  };
+
+  const decideSpecificQuality = (cardId: string, choice: QualityDecision) => {
+    const prev = qualityDecisions[cardId];
+    setHistory((curr) => [
+      ...curr,
+      {
+        type: "quality",
+        id: cardId,
+        previousQuality: prev,
+        targetIndex: qualityIndex,
+        mode,
+        notice,
+      },
+    ]);
+    setQualityDecisions((curr) => ({
+      ...curr,
+      [cardId]: choice,
+    }));
+    if (choice === "keep") setNotice("Reverted contact to original.");
+    else if (choice === "fix") setNotice("Applied safe fix to contact.");
+    else if (choice === "remove") setNotice("Removed contact from clean export.");
+    logEvent("review.decision", "succeeded", { decision: getQualityChoice(choice), cardId });
+  };
+
+  const handleBatchQualityDecide = (batch: Record<string, QualityDecision>) => {
+    setHistory((curr) => [
+      ...curr,
+      {
+        type: "quality",
+        id: "batch-autofix",
+        targetIndex: qualityIndex,
+        mode,
+        notice,
+      },
+    ]);
+    setQualityDecisions((curr) => ({
+      ...curr,
+      ...batch,
+    }));
+    setNotice("Updated auto-fix decisions.");
+    logEvent("review.decision", "succeeded", { decision: "batch-autofix", count: Object.keys(batch).length });
   };
 
   const handleQualityCardEdit = (updatedCard: ContactCard) => {
@@ -1183,7 +1298,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background text-foreground flex flex-col justify-between">
+    <div className="min-h-screen w-full max-w-full overflow-x-clip bg-background text-foreground flex flex-col">
       <header className="sticky top-0 z-30 w-full max-w-full border-b border-stone-200/80 dark:border-stone-800/80 bg-background/95 backdrop-blur-md">
         <div className="container flex h-14 sm:h-[70px] max-w-7xl items-center justify-between gap-3 px-4 sm:px-8">
           <button
@@ -1207,7 +1322,7 @@ export default function App() {
           <div className="flex items-center gap-2 sm:gap-3">
             {baseCards.length > 0 && (
               <div className="flex items-center gap-2 mr-1">
-                <CircularProgress percent={progress} size={34} strokeWidth={3.5} />
+                <CircularProgress percent={progress} size={36} strokeWidth={3} />
                 <span className="text-xs sm:text-sm font-bold tabular-nums text-muted-foreground">
                   <strong className="text-foreground font-bold">{totalResolved}</strong> / {totalIssues}
                 </span>
@@ -1239,7 +1354,7 @@ export default function App() {
           onDeleteSession={handleDeleteSession}
         />
       ) : (
-        <main className="container max-w-7xl px-4 sm:px-8 py-4 sm:py-8 pb-36 md:pb-12 min-w-0 overflow-x-clip">
+        <main className="flex-1 container max-w-7xl px-4 sm:px-8 py-4 sm:py-8 pb-36 md:pb-12 min-w-0 overflow-x-clip">
           {/* Mobile compact summary strip */}
           <section aria-label="Cleanup summary" className="md:hidden mb-4 rounded-xl border border-stone-200 dark:border-stone-800 bg-card p-3 space-y-2.5">
             <div className="grid grid-cols-4 gap-1.5 text-center">
@@ -1316,7 +1431,11 @@ export default function App() {
                   aria-expanded={isModeDropdownOpen}
                 >
                   <h1 className="font-display text-2xl font-black tracking-tight text-foreground">
-                    {mode === "duplicates" ? "Review duplicates" : "Other issues"}
+                    {mode === "duplicates"
+                      ? "Review duplicates"
+                      : mode === "manual" || mode === "quality"
+                      ? "Needs Review"
+                      : "Auto-fixes"}
                   </h1>
                   <div className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-200 dark:bg-stone-800 text-stone-700 dark:text-stone-300 transition-transform group-hover:bg-stone-300 dark:group-hover:bg-stone-700">
                     <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", isModeDropdownOpen && "rotate-180")} />
@@ -1326,7 +1445,7 @@ export default function App() {
                 {isModeDropdownOpen && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setIsModeDropdownOpen(false)} />
-                    <div className="absolute left-0 top-full mt-2 z-50 w-64 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card p-2 shadow-2xl animate-in fade-in-50 zoom-in-95">
+                    <div className="absolute left-0 top-full mt-2 z-50 w-72 rounded-2xl border border-stone-200 dark:border-stone-800 bg-card p-2 shadow-2xl animate-in fade-in-50 zoom-in-95">
                       <button
                         type="button"
                         onClick={() => {
@@ -1346,7 +1465,14 @@ export default function App() {
                           <Users className="h-4 w-4" />
                           <span>Review duplicates</span>
                         </div>
-                        <span className="text-xs tabular-nums opacity-80 font-mono">
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                            mode === "duplicates"
+                              ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                              : "bg-stone-100 dark:bg-stone-850 text-muted-foreground border-stone-200/80 dark:border-stone-800"
+                          )}
+                        >
                           {resolvedDuplicateCount}/{totalDuplicateIssues}
                         </span>
                       </button>
@@ -1354,24 +1480,62 @@ export default function App() {
                       <button
                         type="button"
                         onClick={() => {
-                          setMode("quality");
+                          setMode("manual");
                           setIsModeDropdownOpen(false);
                         }}
-                        disabled={!qualityIssues.length}
+                        disabled={!manualQualityIssues.length}
                         className={cn(
                           "w-full flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors mt-1",
-                          mode === "quality"
+                          mode === "manual" || mode === "quality"
                             ? "bg-primary text-primary-foreground font-bold shadow-xs"
                             : "hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
-                          !qualityIssues.length && "opacity-40 cursor-not-allowed"
+                          !manualQualityIssues.length && "opacity-40 cursor-not-allowed"
                         )}
                       >
                         <div className="flex items-center gap-2.5">
                           <Sparkles className="h-4 w-4" />
-                          <span>Other issues</span>
+                          <span>Needs Review</span>
                         </div>
-                        <span className="text-xs tabular-nums opacity-80 font-mono">
-                          {resolvedQualityCount}/{totalQualityIssues}
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                            mode === "manual" || mode === "quality"
+                              ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                              : "bg-stone-100 dark:bg-stone-850 text-muted-foreground border-stone-200/80 dark:border-stone-800"
+                          )}
+                        >
+                          {resolvedManualCount}/{totalManualIssues}
+                        </span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMode("autofix");
+                          setIsModeDropdownOpen(false);
+                        }}
+                        disabled={!autoFixIssues.length}
+                        className={cn(
+                          "w-full flex items-center justify-between gap-3 rounded-xl px-3.5 py-2.5 text-left text-sm font-semibold transition-colors mt-1",
+                          mode === "autofix"
+                            ? "bg-primary text-primary-foreground font-bold shadow-xs"
+                            : "hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground",
+                          !autoFixIssues.length && "opacity-40 cursor-not-allowed"
+                        )}
+                      >
+                        <div className="flex items-center gap-2.5">
+                          <WandSparkles className="h-4 w-4" />
+                          <span>Auto-fixes</span>
+                        </div>
+                        <span
+                          className={cn(
+                            "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                            mode === "autofix"
+                              ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                              : "bg-stone-100 dark:bg-stone-850 text-muted-foreground border-stone-200/80 dark:border-stone-800"
+                          )}
+                        >
+                          {activeAutoFixCount} fixed
                         </span>
                       </button>
                     </div>
@@ -1387,7 +1551,11 @@ export default function App() {
                   Contact Cleanup
                 </p>
                 <h1 className="font-display text-2xl lg:text-3xl font-black tracking-tight text-foreground">
-                  {mode === "duplicates" ? "Review duplicates" : "Other issues"}
+                  {mode === "duplicates"
+                    ? "Review duplicates"
+                    : mode === "manual" || mode === "quality"
+                    ? "Needs Review"
+                    : "Auto-fixes"}
                 </h1>
               </div>
 
@@ -1397,78 +1565,164 @@ export default function App() {
                     role="tab"
                     aria-selected={mode === "duplicates"}
                     className={cn(
-                      "flex items-center gap-2 rounded-lg px-4 py-2 text-xs lg:text-sm font-bold transition-all text-center",
+                      "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs lg:text-sm font-bold transition-all text-center",
                       mode === "duplicates"
                         ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-stone-100/60 dark:hover:bg-stone-800/60"
                     )}
                     onClick={() => setMode("duplicates")}
                     disabled={!duplicateGroups.length}
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="h-4 w-4 shrink-0" />
                     <span>Duplicates</span>
-                    <span className="ml-1 tabular-nums font-mono text-xs opacity-90">
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                        mode === "duplicates"
+                          ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                          : "bg-stone-100 dark:bg-stone-800 text-muted-foreground border-stone-200/80 dark:border-stone-700"
+                      )}
+                    >
                       {resolvedDuplicateCount}/{totalDuplicateIssues}
                     </span>
                   </button>
                   <button
                     role="tab"
-                    aria-selected={mode === "quality"}
+                    aria-selected={mode === "manual" || mode === "quality"}
                     className={cn(
-                      "flex items-center gap-2 rounded-lg px-4 py-2 text-xs lg:text-sm font-bold transition-all text-center",
-                      mode === "quality"
+                      "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs lg:text-sm font-bold transition-all text-center",
+                      mode === "manual" || mode === "quality"
                         ? "bg-primary text-primary-foreground shadow-xs"
-                        : "text-muted-foreground hover:text-foreground"
+                        : "text-muted-foreground hover:text-foreground hover:bg-stone-100/60 dark:hover:bg-stone-800/60"
                     )}
-                    onClick={() => setMode("quality")}
-                    disabled={!qualityIssues.length}
+                    onClick={() => setMode("manual")}
+                    disabled={!manualQualityIssues.length}
                   >
-                    <Sparkles className="h-4 w-4" />
-                    <span>Other issues</span>
-                    <span className="ml-1 tabular-nums font-mono text-xs opacity-90">
-                      {resolvedQualityCount}/{totalQualityIssues}
+                    <Sparkles className="h-4 w-4 shrink-0" />
+                    <span>Needs Review</span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                        mode === "manual" || mode === "quality"
+                          ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                          : "bg-stone-100 dark:bg-stone-800 text-muted-foreground border-stone-200/80 dark:border-stone-700"
+                      )}
+                    >
+                      {resolvedManualCount}/{totalManualIssues}
+                    </span>
+                  </button>
+                  <button
+                    role="tab"
+                    aria-selected={mode === "autofix"}
+                    className={cn(
+                      "flex items-center justify-center gap-2 rounded-lg px-3 py-1.5 text-xs lg:text-sm font-bold transition-all text-center",
+                      mode === "autofix"
+                        ? "bg-primary text-primary-foreground shadow-xs"
+                        : "text-muted-foreground hover:text-foreground hover:bg-stone-100/60 dark:hover:bg-stone-800/60"
+                    )}
+                    onClick={() => setMode("autofix")}
+                    disabled={!autoFixIssues.length}
+                  >
+                    <WandSparkles className="h-4 w-4 shrink-0" />
+                    <span>Auto-fixes</span>
+                    <span
+                      className={cn(
+                        "inline-flex items-center justify-center px-1.5 py-0.5 rounded-md text-[11px] font-mono tabular-nums leading-none border transition-colors",
+                        mode === "autofix"
+                          ? "bg-black/15 dark:bg-black/25 text-primary-foreground border-black/10 dark:border-white/15"
+                          : "bg-stone-100 dark:bg-stone-800 text-muted-foreground border-stone-200/80 dark:border-stone-700"
+                      )}
+                    >
+                      {activeAutoFixCount} fixed
                     </span>
                   </button>
                 </div>
 
-                {/* Desktop Prev / Next Navigation */}
-                <div className="flex items-center gap-1.5">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 rounded-xl text-xs font-semibold"
-                    onClick={() => {
-                      if (mode === "duplicates") {
-                        setDuplicateIndex((prev) => Math.max(0, prev - 1));
-                      } else {
-                        setQualityIndex((prev) => Math.max(0, prev - 1));
-                      }
-                    }}
-                    disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
-                    aria-label="Previous item"
-                  >
-                    <ChevronLeft className="h-4 w-4 mr-0.5" /> Previous
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3 rounded-xl text-xs font-semibold"
-                    onClick={() => {
-                      if (mode === "duplicates") {
-                        setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
-                      } else {
-                        setQualityIndex((prev) => Math.min(qualityIssues.length - 1, prev + 1));
-                      }
-                    }}
-                    disabled={
-                      mode === "duplicates"
-                        ? duplicateIndex >= duplicateGroups.length - 1
-                        : qualityIndex >= qualityIssues.length - 1
-                    }
-                    aria-label="Next item"
-                  >
-                    Next <ChevronRight className="h-4 w-4 ml-0.5" />
-                  </Button>
+                {/* Desktop Prev / Next Navigation slot (Reserved space to prevent tab group layout shift) */}
+                <div className="flex items-center justify-end gap-1.5 w-[225px] shrink-0">
+                  {mode !== "autofix" && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 rounded-xl text-xs font-semibold"
+                        onClick={() => {
+                          if (mode === "duplicates") {
+                            setDuplicateIndex((prev) => Math.max(0, prev - 1));
+                          } else {
+                            if (qualityIndex > 0) {
+                              setQualityIndex((prev) => prev - 1);
+                            } else if (duplicateGroups.length > 0) {
+                              setMode("duplicates");
+                              setDuplicateIndex(duplicateGroups.length - 1);
+                            }
+                          }
+                        }}
+                        disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0 && duplicateGroups.length === 0}
+                        aria-label="Previous item"
+                      >
+                        <ChevronLeft className="h-4 w-4 mr-0.5" /> Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-9 px-3 rounded-xl text-xs font-semibold"
+                        onClick={() => {
+                          if (mode === "duplicates") {
+                            if (duplicateIndex < duplicateGroups.length - 1) {
+                              setDuplicateIndex((prev) => prev + 1);
+                            } else if (manualQualityIssues.length > 0) {
+                              setMode("manual");
+                              setQualityIndex(0);
+                            } else if (autoFixIssues.length > 0) {
+                              setMode("autofix");
+                            } else {
+                              setIsExportModalOpen(true);
+                            }
+                          } else {
+                            if (qualityIndex < manualQualityIssues.length - 1) {
+                              setQualityIndex((prev) => prev + 1);
+                            } else if (autoFixIssues.length > 0) {
+                              setMode("autofix");
+                            } else {
+                              setIsExportModalOpen(true);
+                            }
+                          }
+                        }}
+                        aria-label="Next item"
+                      >
+                        {mode === "duplicates" && duplicateIndex >= duplicateGroups.length - 1 ? (
+                          manualQualityIssues.length > 0 ? (
+                            <>
+                              Needs Review <ChevronRight className="h-4 w-4 ml-0.5" />
+                            </>
+                          ) : autoFixIssues.length > 0 ? (
+                            <>
+                              Auto-fixes <ChevronRight className="h-4 w-4 ml-0.5" />
+                            </>
+                          ) : (
+                            <>
+                              Export <ChevronRight className="h-4 w-4 ml-0.5" />
+                            </>
+                          )
+                        ) : mode === "manual" && qualityIndex >= manualQualityIssues.length - 1 ? (
+                          autoFixIssues.length > 0 ? (
+                            <>
+                              Auto-fixes <ChevronRight className="h-4 w-4 ml-0.5" />
+                            </>
+                          ) : (
+                            <>
+                              Export <ChevronRight className="h-4 w-4 ml-0.5" />
+                            </>
+                          )
+                        ) : (
+                          <>
+                            Next <ChevronRight className="h-4 w-4 ml-0.5" />
+                          </>
+                        )}
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1764,7 +2018,16 @@ export default function App() {
                     );
                   })()}
               </div>
-            ) : mode === "quality" && qualityIssues.length > 0 && currentQuality && qualityCard ? (
+            ) : mode === "autofix" ? (
+              <AutoFixList
+                autoFixIssues={autoFixIssues}
+                cardMap={baseCardMap}
+                qualityDecisions={qualityDecisions}
+                onDecide={decideSpecificQuality}
+                onBatchDecide={handleBatchQualityDecide}
+                onOpenDetail={setDetailModalCard}
+              />
+            ) : (mode === "manual" || mode === "quality") && manualQualityIssues.length > 0 && currentQuality && qualityCard ? (
               <div className="space-y-4">
                 <EditableQualityCard
                   card={qualityCard}
@@ -1857,14 +2120,20 @@ export default function App() {
                     <span className="font-bold tabular-nums text-foreground">{baseCards.length}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Decisions made</span>
-                    <span className="font-bold tabular-nums text-emerald-400">{totalResolved}</span>
+                    <span className="text-muted-foreground">Duplicates reviewed</span>
+                    <span className="font-bold tabular-nums text-foreground">{resolvedDuplicateCount}/{totalDuplicateIssues}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <span className="text-muted-foreground">Remaining issues</span>
-                    <span className="font-bold tabular-nums text-foreground">
-                      {Math.max(0, totalIssues - totalResolved)}
-                    </span>
+                    <span className="text-muted-foreground">Manual reviews</span>
+                    <span className="font-bold tabular-nums text-foreground">{resolvedManualCount}/{totalManualIssues}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Safe fixes active</span>
+                    <span className="font-bold tabular-nums text-emerald-500 dark:text-emerald-400">{activeAutoFixCount} of {totalAutoFixIssues}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Remaining to review</span>
+                    <span className="font-bold tabular-nums text-foreground">{pending}</span>
                   </div>
                   <div className="flex items-center justify-between pt-2 border-t border-stone-200 dark:border-stone-800 font-semibold">
                     <span className="text-foreground">Contacts in export</span>
@@ -1873,11 +2142,17 @@ export default function App() {
                 </div>
 
                 <Button
-                  className="w-full font-bold shadow-xs"
+                  className={cn(
+                    "w-full font-bold shadow-xs",
+                    pending > 0
+                      ? "border-amber-300 dark:border-amber-800 bg-amber-500/15 hover:bg-amber-500/25 text-amber-700 dark:text-amber-300 border"
+                      : "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  )}
                   onClick={() => setIsExportModalOpen(true)}
                   aria-label="Export contacts"
                 >
-                  <Download className="h-4 w-4 mr-1.5" /> Export contacts
+                  <Download className="h-4 w-4 mr-1.5" />
+                  {pending > 0 ? `Export (${pending.toLocaleString()} pending)` : "Export contacts"}
                 </Button>
               </CardContent>
             </Card>
@@ -1886,9 +2161,9 @@ export default function App() {
             <div className="rounded-2xl border border-stone-200 dark:border-stone-800/80 bg-stone-50/50 dark:bg-stone-900/40 p-4 text-xs text-muted-foreground space-y-2">
               <p className="font-bold text-foreground">💡 Helpful tips</p>
               <ul className="space-y-1.5 list-disc list-inside text-[11px] leading-relaxed">
-                <li>Click <strong>View all contact details</strong> to inspect or edit any contact field before merging.</li>
+                <li><strong>Auto-fixes</strong> are safely applied by default. You can inspect or revert them anytime.</li>
+                <li>Click <strong>View details</strong> to inspect or edit any contact field.</li>
                 <li><strong>Merge & Edit</strong> lets you pick and customize merged fields.</li>
-                <li><strong>Select & keep</strong> keeps one single contact and discards the other matches.</li>
                 <li>All processing remains 100% private in your browser.</li>
               </ul>
             </div>
@@ -1897,58 +2172,132 @@ export default function App() {
 
         {/* Fixed Bottom Navigation Dock (Mobile Only) */}
         <div className="md:hidden fixed bottom-0 inset-x-0 z-30 bg-card/95 dark:bg-stone-950/95 backdrop-blur-md border-t border-stone-200 dark:border-stone-800/90 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-2xl">
-          <div className="mx-auto max-w-2xl flex items-center justify-between gap-2.5 w-full">
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
-              onClick={() => {
-                if (mode === "duplicates") {
-                  setDuplicateIndex((prev) => Math.max(0, prev - 1));
-                } else {
-                  setQualityIndex((prev) => Math.max(0, prev - 1));
-                }
-              }}
-              disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0}
-              aria-label="Previous item"
-            >
-              <ChevronLeft className="h-4 w-4 shrink-0" />
-              <span>Previous</span>
-            </Button>
+          {mode === "autofix" ? (
+            <div className="mx-auto max-w-2xl flex items-center justify-between gap-3 w-full">
+              <div className="flex flex-col min-w-0">
+                {pending > 0 ? (
+                  <>
+                    <span className="text-[10px] uppercase font-bold text-amber-600 dark:text-amber-400 tracking-wider truncate">
+                      {pending.toLocaleString()} Issues Pending
+                    </span>
+                    <span className="text-xs text-muted-foreground truncate">
+                      {effectiveCards.length.toLocaleString()} contacts in export
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 tracking-wider truncate">
+                      All Reviewed
+                    </span>
+                    <span className="text-xs font-bold text-foreground truncate">
+                      {effectiveCards.length.toLocaleString()} clean contacts
+                    </span>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {pending > 0 && (
+                  <Button
+                    variant="outline"
+                    className="h-11 px-3.5 rounded-xl text-xs font-bold border-amber-300 dark:border-amber-800/80 text-amber-700 dark:text-amber-300 hover:bg-amber-100/50 dark:hover:bg-amber-950/40"
+                    onClick={() => setMode(totalDuplicateIssues > resolvedDuplicateCount ? "duplicates" : "manual")}
+                    aria-label="Review pending issues"
+                  >
+                    Review Pending
+                  </Button>
+                )}
+                <Button
+                  className={cn(
+                    "h-11 rounded-xl text-xs sm:text-sm font-bold gap-1.5 shadow-xs shrink-0",
+                    pending > 0
+                      ? "px-4 bg-stone-900 dark:bg-stone-100 text-stone-100 dark:text-stone-950 hover:bg-stone-800 dark:hover:bg-stone-200"
+                      : "px-6 bg-emerald-600 hover:bg-emerald-700 text-white"
+                  )}
+                  onClick={() => setIsExportModalOpen(true)}
+                  aria-label="Export contacts"
+                >
+                  <Download className="h-4 w-4 shrink-0" />
+                  <span>{pending > 0 ? "Export" : "Export Contacts"}</span>
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="mx-auto max-w-2xl flex items-center justify-between gap-2.5 w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
+                onClick={() => {
+                  if (mode === "duplicates") {
+                    setDuplicateIndex((prev) => Math.max(0, prev - 1));
+                  } else {
+                    if (qualityIndex > 0) {
+                      setQualityIndex((prev) => prev - 1);
+                    } else if (duplicateGroups.length > 0) {
+                      setMode("duplicates");
+                      setDuplicateIndex(duplicateGroups.length - 1);
+                    }
+                  }
+                }}
+                disabled={mode === "duplicates" ? duplicateIndex === 0 : qualityIndex === 0 && duplicateGroups.length === 0}
+                aria-label="Previous item"
+              >
+                <ChevronLeft className="h-4 w-4 shrink-0" />
+                <span>Previous</span>
+              </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
-              onClick={() => setIsExportModalOpen(true)}
-              aria-label="Export contacts"
-            >
-              <Download className="h-4 w-4 shrink-0" />
-              <span>Export</span>
-            </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0 h-11 px-5 sm:px-6 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
+                onClick={() => setIsExportModalOpen(true)}
+                aria-label="Export contacts"
+              >
+                <Download className="h-4 w-4 shrink-0" />
+                <span>Export</span>
+              </Button>
 
-            <Button
-              variant="outline"
-              size="sm"
-              className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
-              onClick={() => {
-                if (mode === "duplicates") {
-                  setDuplicateIndex((prev) => Math.min(duplicateGroups.length - 1, prev + 1));
-                } else {
-                  setQualityIndex((prev) => Math.min(qualityIssues.length - 1, prev + 1));
-                }
-              }}
-              disabled={
-                mode === "duplicates"
-                  ? duplicateIndex >= duplicateGroups.length - 1
-                  : qualityIndex >= qualityIssues.length - 1
-              }
-              aria-label="Next item"
-            >
-              <span>Next</span>
-              <ChevronRight className="h-4 w-4 shrink-0" />
-            </Button>
-          </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1 min-w-0 h-11 px-3 sm:px-4 rounded-xl text-xs sm:text-sm font-semibold border-stone-200 dark:border-stone-800 bg-background dark:bg-stone-900/80 hover:bg-stone-100 dark:hover:bg-stone-800 text-foreground gap-2 justify-center"
+                onClick={() => {
+                  if (mode === "duplicates") {
+                    if (duplicateIndex < duplicateGroups.length - 1) {
+                      setDuplicateIndex((prev) => prev + 1);
+                    } else if (manualQualityIssues.length > 0) {
+                      setMode("manual");
+                      setQualityIndex(0);
+                    } else if (autoFixIssues.length > 0) {
+                      setMode("autofix");
+                    } else {
+                      setIsExportModalOpen(true);
+                    }
+                  } else {
+                    if (qualityIndex < manualQualityIssues.length - 1) {
+                      setQualityIndex((prev) => prev + 1);
+                    } else if (autoFixIssues.length > 0) {
+                      setMode("autofix");
+                    } else {
+                      setIsExportModalOpen(true);
+                    }
+                  }
+                }}
+                aria-label="Next item"
+              >
+                <span>
+                  {mode === "duplicates" && duplicateIndex >= duplicateGroups.length - 1
+                    ? manualQualityIssues.length > 0
+                      ? "Needs Review"
+                      : "Auto-fixes"
+                    : mode === "manual" && qualityIndex >= manualQualityIssues.length - 1
+                    ? "Auto-fixes"
+                    : "Next"}
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0" />
+              </Button>
+            </div>
+          )}
         </div>
       </main>
       )}
@@ -2025,6 +2374,13 @@ export default function App() {
         totalIssues={totalIssues}
         resolvedIssues={totalResolved}
         effectiveContactsCount={effectiveCards.length}
+        autoFixCount={activeAutoFixCount}
+        mergedDuplicatesCount={resolvedDuplicateCount}
+        removedContactsCount={Object.values(qualityDecisions).filter((d) => getQualityChoice(d) === "remove").length}
+        onInspectAutoFixes={() => {
+          setIsExportModalOpen(false);
+          setMode("autofix");
+        }}
         onConfirmExport={exportFile}
       />
     </div>

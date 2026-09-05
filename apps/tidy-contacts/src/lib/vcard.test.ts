@@ -7,7 +7,10 @@ import {
   canSafelyRepair,
   createCustomMergedContact,
   createEditedContact,
+  getInitialQualityDecisions,
+  getSafeFixDiffs,
   getSafeFixLabel,
+  isQualityIssueAutoFixable,
   mergeContactGroup,
   mergeContacts,
   parseVcf,
@@ -635,6 +638,89 @@ test("analyzes 5,000 contacts within milliseconds without blocking", () => {
   // Ensure 5,000 contacts analysis runs in under 500ms
   assert.ok(elapsed < 500, `Expected elapsed < 500ms, got ${elapsed}ms`);
 });
+
+test("identifies auto-fixable vs manual quality issues and extracts before/after diffs", () => {
+  const cards = parseVcf([
+    // Auto-fixable 1: Email typo
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Alice Smith",
+    "EMAIL:alice@gmial.com",
+    "TEL:+91 98765 00001",
+    "END:VCARD",
+    // Auto-fixable 2: Missing name but company exists
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "ORG:Acme Corporation",
+    "TEL:+91 98765 00002",
+    "END:VCARD",
+    // Auto-fixable 3: Internal duplicate TEL
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Bob Builder",
+    "TEL:+91 98765 00003",
+    "TEL:+91 98765 00003",
+    "END:VCARD",
+    // Manual review issue: Short invalid phone (unrepairable)
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Charlie Chaplin",
+    "TEL:123",
+    "END:VCARD",
+    // Manual review issue: Ghost contact (no name, no phone, no email)
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "NOTE:Empty note only",
+    "END:VCARD",
+  ].join("\r\n"));
+
+  const analysis = analyzeContacts(cards);
+  assert.equal(analysis.qualityIssues.length, 5);
+
+  const cardMap = new Map(cards.map((c) => [c.id, c]));
+
+  // Verify auto-fixable classification
+  assert.equal(isQualityIssueAutoFixable(cards[0]), true); // Email typo
+  assert.equal(isQualityIssueAutoFixable(cards[1]), true); // Company name fallback
+  assert.equal(isQualityIssueAutoFixable(cards[2]), true); // Internal duplicate details
+  assert.equal(isQualityIssueAutoFixable(cards[3]), false); // Short phone (manual)
+  assert.equal(isQualityIssueAutoFixable(cards[4]), false); // Ghost contact (manual)
+
+  // Verify diff extraction
+  const diffs0 = getSafeFixDiffs(cards[0]);
+  assert.ok(diffs0.length > 0);
+  assert.equal(diffs0[0].field, "Email");
+  assert.equal(diffs0[0].before, "alice@gmial.com");
+  assert.equal(diffs0[0].after, "alice@gmail.com");
+
+  const diffs1 = getSafeFixDiffs(cards[1]);
+  assert.ok(diffs1.length > 0);
+  assert.equal(diffs1[0].field, "Name");
+  assert.equal(diffs1[0].after, "Acme Corporation");
+
+  const diffs2 = getSafeFixDiffs(cards[2]);
+  assert.ok(diffs2.length > 0);
+  assert.equal(diffs2[0].field, "Phone");
+
+  // Verify pre-populating initial quality decisions
+  const initialDecisions = getInitialQualityDecisions(analysis.qualityIssues, cardMap);
+  assert.equal(initialDecisions[cards[0].id], "fix");
+  assert.equal(initialDecisions[cards[1].id], "fix");
+  assert.equal(initialDecisions[cards[2].id], "fix");
+  assert.equal(initialDecisions[cards[3].id], undefined);
+  assert.equal(initialDecisions[cards[4].id], undefined);
+
+  // Apply decisions and verify export
+  const exported = applyDecisions(cards, [], {}, initialDecisions);
+  const aliceExported = exported.find((c) => c.id === cards[0].id);
+  assert.ok(aliceExported?.properties.some((p) => p.key === "EMAIL" && p.value === "alice@gmail.com"));
+
+  // Apply decisions with empty quality decisions object (backward compatibility)
+  const defaultExported = applyDecisions(cards, [], {}, {});
+  const aliceDefaultExported = defaultExported.find((c) => c.id === cards[0].id);
+  assert.ok(aliceDefaultExported?.properties.some((p) => p.key === "EMAIL" && p.value === "alice@gmail.com"));
+});
+
 
 
 

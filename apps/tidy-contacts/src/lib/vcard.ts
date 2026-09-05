@@ -1102,6 +1102,127 @@ export function getSafeFixLabel(card: ContactCard): string | undefined {
   return undefined;
 }
 
+export type SafeFixDiff = {
+  field: string;
+  before: string;
+  after: string;
+  reason: string;
+};
+
+export function isQualityIssueAutoFixable(card: ContactCard): boolean {
+  if (!canSafelyRepair(card)) return false;
+  const { card: repaired } = safelyRepairContact(card);
+  const remainingIssues = analyzeContacts([repaired]).qualityIssues;
+  return remainingIssues.length === 0;
+}
+
+export function getSafeFixDiffs(card: ContactCard): SafeFixDiff[] {
+  const { card: repairedCard, changes } = safelyRepairContact(card);
+  if (changes.length === 0) return [];
+
+  const diffs: SafeFixDiff[] = [];
+  const beforeSum = summarizeContact(card);
+  const afterSum = summarizeContact(repairedCard);
+
+  if (beforeSum.name !== afterSum.name) {
+    diffs.push({
+      field: "Name",
+      before: beforeSum.name || "(Missing name)",
+      after: afterSum.name,
+      reason: beforeSum.organization ? "Used company name" : "Generated name from email",
+    });
+  }
+
+  // Check email changes
+  const origEmails = card.properties.filter((p) => p.key === "EMAIL").map(displayValue);
+  const repairedEmails = repairedCard.properties.filter((p) => p.key === "EMAIL").map(displayValue);
+
+  if (origEmails.length !== repairedEmails.length || origEmails.some((e, i) => e !== repairedEmails[i])) {
+    if (origEmails.length > repairedEmails.length) {
+      diffs.push({
+        field: "Email",
+        before: `${origEmails.length} email entries`,
+        after: `${repairedEmails.length} unique email entries`,
+        reason: "Removed duplicate email",
+      });
+    }
+    for (let i = 0; i < origEmails.length; i++) {
+      const orig = origEmails[i];
+      const fixed = repairedEmails[i];
+      if (fixed && orig !== fixed) {
+        diffs.push({
+          field: "Email",
+          before: orig,
+          after: fixed,
+          reason: hasEmailDomainTypo(orig) ? "Fixed email domain typo" : "Removed email whitespace",
+        });
+      }
+    }
+  }
+
+  // Check phone changes
+  const origPhones = card.properties.filter((p) => p.key === "TEL").map(displayValue);
+  const repairedPhones = repairedCard.properties.filter((p) => p.key === "TEL").map(displayValue);
+  if (origPhones.length > repairedPhones.length) {
+    diffs.push({
+      field: "Phone",
+      before: `${origPhones.length} phone entries`,
+      after: `${repairedPhones.length} unique phone entries`,
+      reason: "Removed duplicate phone numbers",
+    });
+  }
+
+  // Check empty address
+  if (hasEmptyAddress(card) && !hasEmptyAddress(repairedCard)) {
+    diffs.push({
+      field: "Address",
+      before: "Empty address line (;;;;;;)",
+      after: "Removed line",
+      reason: "Removed blank address",
+    });
+  }
+
+  // Check URLs
+  const origUrls = values(card, "URL");
+  const repUrls = values(repairedCard, "URL");
+  for (let i = 0; i < origUrls.length; i++) {
+    if (repUrls[i] && origUrls[i] !== repUrls[i]) {
+      diffs.push({
+        field: "URL",
+        before: origUrls[i],
+        after: repUrls[i],
+        reason: "Added missing http/https prefix",
+      });
+    }
+  }
+
+  // Fallback if no specific diff caught but changes exist
+  if (diffs.length === 0 && changes.length > 0) {
+    diffs.push({
+      field: "Contact",
+      before: "Original record",
+      after: "Repaired record",
+      reason: changes[0],
+    });
+  }
+
+  return diffs;
+}
+
+export function getInitialQualityDecisions(
+  qualityIssues: QualityIssue[],
+  cardMap: Map<string, ContactCard>
+): Record<string, QualityDecision> {
+  const decisions: Record<string, QualityDecision> = {};
+  for (const issue of qualityIssues) {
+    const card = cardMap.get(issue.cardId);
+    if (card && isQualityIssueAutoFixable(card)) {
+      decisions[issue.cardId] = "fix";
+    }
+  }
+  return decisions;
+}
+
 export function serializeContact(card: ContactCard) {
   const lines = card.properties.flatMap((property) => property.lines);
   return ["BEGIN:VCARD", ...lines, "END:VCARD"].join("\r\n");
@@ -1250,7 +1371,7 @@ export function applyDecisions(
     const qDecision = qualityDecisions[card.id];
     if (qDecision === "remove") {
       continue;
-    } else if (qDecision === "fix") {
+    } else if (qDecision === "fix" || (qDecision === undefined && isQualityIssueAutoFixable(current))) {
       current = safelyRepairContact(current).card;
     } else if (typeof qDecision === "object" && qDecision.choice === "edit") {
       current = qDecision.customCard;

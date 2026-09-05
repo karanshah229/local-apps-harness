@@ -15,6 +15,10 @@ interface ExportConfirmationModalProps {
   totalIssues: number;
   resolvedIssues: number;
   effectiveContactsCount: number;
+  autoFixCount?: number;
+  mergedDuplicatesCount?: number;
+  removedContactsCount?: number;
+  onInspectAutoFixes?: () => void;
   onConfirmExport: () => void;
 }
 
@@ -24,6 +28,10 @@ export function ExportConfirmationModal({
   totalIssues,
   resolvedIssues,
   effectiveContactsCount,
+  autoFixCount = 0,
+  mergedDuplicatesCount = 0,
+  removedContactsCount = 0,
+  onInspectAutoFixes,
   onConfirmExport,
 }: ExportConfirmationModalProps) {
   useEffect(() => {
@@ -45,6 +53,27 @@ export function ExportConfirmationModal({
     onConfirmExport();
     onClose();
   };
+
+  // Build natural-language summary parts
+  const summaryParts: string[] = [];
+  if (autoFixCount > 0) {
+    summaryParts.push(`${autoFixCount.toLocaleString()} safe auto-fix${autoFixCount === 1 ? "" : "es"}`);
+  }
+  if (mergedDuplicatesCount > 0) {
+    summaryParts.push(`${mergedDuplicatesCount.toLocaleString()} duplicate pair${mergedDuplicatesCount === 1 ? "" : "s"} merged`);
+  }
+  if (removedContactsCount > 0) {
+    summaryParts.push(`${removedContactsCount.toLocaleString()} ghost/empty contact${removedContactsCount === 1 ? "" : "s"} removed`);
+  }
+
+  let completedSummarySentence = `All ${totalIssues.toLocaleString()} issues have been addressed. Your clean vCard is fully optimized and ready to import.`;
+  if (summaryParts.length === 1) {
+    completedSummarySentence = `Applied ${summaryParts[0]}. Your clean vCard is fully optimized and ready to import.`;
+  } else if (summaryParts.length === 2) {
+    completedSummarySentence = `Applied ${summaryParts[0]} and ${summaryParts[1]}. Your clean vCard is fully optimized and ready to import.`;
+  } else if (summaryParts.length >= 3) {
+    completedSummarySentence = `Applied ${summaryParts.slice(0, -1).join(", ")}, and ${summaryParts[summaryParts.length - 1]}. Your clean vCard is fully optimized and ready to import.`;
+  }
 
   return (
     <div
@@ -100,7 +129,7 @@ export function ExportConfirmationModal({
           {hasUnresolved ? (
             <div className="space-y-3">
               <p className="text-muted-foreground text-xs sm:text-sm leading-relaxed">
-                You have made <strong className="text-foreground font-semibold">{resolvedIssues}</strong> decision{resolvedIssues === 1 ? "" : "s"} out of <strong className="text-foreground font-semibold">{totalIssues}</strong> total issues detected.
+                You have made <strong className="text-foreground font-semibold">{resolvedIssues.toLocaleString()}</strong> decision{resolvedIssues === 1 ? "" : "s"} out of <strong className="text-foreground font-semibold">{totalIssues.toLocaleString()}</strong> total issues detected.
               </p>
               <div className="rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/30 p-3.5 space-y-2">
                 <div className="flex items-center gap-2 text-xs font-bold text-amber-900 dark:text-amber-200">
@@ -108,7 +137,7 @@ export function ExportConfirmationModal({
                   <span>Important Export Notice</span>
                 </div>
                 <p className="text-xs text-amber-950/90 dark:text-amber-100/90 leading-relaxed">
-                  The exported file will apply your <strong>{resolvedIssues}</strong> selected decisions and will still contain <strong>{pending}</strong> unresolved issues (kept as they originally were).
+                  The exported file will apply your <strong>{resolvedIssues.toLocaleString()}</strong> selected decisions and will still contain <strong>{pending.toLocaleString()}</strong> unresolved issues (kept as they originally were).
                 </p>
               </div>
             </div>
@@ -119,7 +148,7 @@ export function ExportConfirmationModal({
                 <div className="text-xs text-emerald-950 dark:text-emerald-100 space-y-1">
                   <p className="font-bold text-sm">100% Cleanup Complete</p>
                   <p className="leading-relaxed">
-                    All {totalIssues} issues have been addressed. Your clean vCard is fully optimized and ready to import.
+                    {completedSummarySentence}
                   </p>
                 </div>
               </div>
@@ -128,17 +157,34 @@ export function ExportConfirmationModal({
 
           {/* Stats summary */}
           <div className="grid grid-cols-3 gap-2 pt-1 text-center">
-            <div className="rounded-lg bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-100 dark:border-stone-800">
+            <div className="rounded-xl bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-200/80 dark:border-stone-800 flex flex-col items-center justify-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Contacts</p>
-              <p className="font-display text-base font-extrabold tabular-nums text-foreground mt-0.5">{effectiveContactsCount}</p>
+              <p className="font-display text-base font-extrabold tabular-nums text-foreground mt-0.5">{effectiveContactsCount.toLocaleString()}</p>
             </div>
-            <div className="rounded-lg bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-100 dark:border-stone-800">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Decided</p>
-              <p className="font-display text-base font-extrabold tabular-nums text-foreground mt-0.5">{resolvedIssues}</p>
-            </div>
-            <div className="rounded-lg bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-100 dark:border-stone-800">
+            {onInspectAutoFixes && autoFixCount > 0 ? (
+              <button
+                type="button"
+                onClick={onInspectAutoFixes}
+                className="group relative rounded-xl bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-200/80 dark:border-stone-800 hover:border-emerald-500/60 dark:hover:border-emerald-500/60 transition-all text-center flex flex-col items-center justify-center cursor-pointer"
+                title="Tap to inspect auto-fixes"
+              >
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Auto-fixes</p>
+                <p className="font-display text-base font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {autoFixCount.toLocaleString()}
+                </p>
+                <span className="text-[9px] text-emerald-600/80 dark:text-emerald-400/80 font-medium underline underline-offset-2 decoration-emerald-500/40 group-hover:text-emerald-600 dark:group-hover:text-emerald-300">
+                  tap to inspect
+                </span>
+              </button>
+            ) : (
+              <div className="rounded-xl bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-200/80 dark:border-stone-800 flex flex-col items-center justify-center">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">Auto-fixes</p>
+                <p className="font-display text-base font-extrabold tabular-nums text-emerald-600 dark:text-emerald-400 mt-0.5">{autoFixCount.toLocaleString()}</p>
+              </div>
+            )}
+            <div className="rounded-xl bg-stone-50 dark:bg-stone-900/60 p-2.5 border border-stone-200/80 dark:border-stone-800 flex flex-col items-center justify-center">
               <p className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">Pending</p>
-              <p className="font-display text-base font-extrabold tabular-nums text-foreground mt-0.5">{pending}</p>
+              <p className="font-display text-base font-extrabold tabular-nums text-foreground mt-0.5">{pending.toLocaleString()}</p>
             </div>
           </div>
         </div>

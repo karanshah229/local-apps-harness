@@ -1,12 +1,14 @@
 import type { ContactCard, DuplicateDecision, QualityDecision } from "./vcard";
 
+export type ReviewMode = "duplicates" | "manual" | "autofix" | "quality";
+
 export interface HistoryEntry {
   type: "duplicate" | "quality";
   id: string;
   previousDuplicate?: DuplicateDecision;
   previousQuality?: QualityDecision;
   targetIndex: number;
-  mode: "duplicates" | "quality";
+  mode: ReviewMode;
   notice: string;
 }
 
@@ -22,7 +24,7 @@ export interface CleanupSession {
   duplicateIndex: number;
   qualityIndex: number;
   history: HistoryEntry[];
-  mode: "duplicates" | "quality";
+  mode: ReviewMode;
   totalContacts: number;
   totalIssues: number;
   resolvedIssues: number;

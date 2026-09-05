@@ -31,7 +31,18 @@ export function ContactDetailModal({
   onSave,
 }: ContactDetailModalProps) {
   if (!isOpen || !card) return null;
+  return <ContactDetailModalContent card={card} onClose={onClose} onSave={onSave} />;
+}
 
+function ContactDetailModalContent({
+  card,
+  onClose,
+  onSave,
+}: {
+  card: ContactCard;
+  onClose: () => void;
+  onSave?: (updatedCard: ContactCard) => void;
+}) {
   const summary = summarizeContact(card);
 
   const [name, setName] = useState(summary.name);
@@ -69,13 +80,13 @@ export function ContactDetailModal({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && isOpen) {
+      if (e.key === "Escape") {
         onClose();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [onClose]);
 
   const handlePhoneValueChange = (index: number, val: string) => {
     const next = [...phones];
