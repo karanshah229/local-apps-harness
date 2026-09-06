@@ -1553,7 +1553,7 @@ export const localTodoDb = {
         title, color_theme, icon, filter_config, sort_config, default_whatsapp_contact_id, default_whatsapp_share_scope, position,
         whatsapp_message_style, whatsapp_include_notes, whatsapp_include_assignee, whatsapp_include_important, whatsapp_include_steps, whatsapp_include_due_date, whatsapp_include_list_name,
         active
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)`,
       [title, theme, icon, filterStr, sortStr, contactId, shareScope, position]
     );
     return this.getCustomViewById(Number(result.lastInsertRowId))!;

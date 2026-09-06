@@ -28,7 +28,7 @@ import {
 } from '../../src/hooks/useTodoQueries';
 import { syncDeviceContacts } from '../../src/services/nativeContacts';
 import { User, normalizeToE164, fuzzyMatch, getMultiFieldSearchScore } from '@shared/todo';
-import { logError } from '../../src/services/clientLogger';
+import { logClientEvent, logError } from '../../src/services/clientLogger';
 
 const ITEM_HEIGHT = 72;
 
@@ -130,11 +130,13 @@ export default function ContactsScreen() {
 
   const handleRefreshContacts = useCallback(async () => {
     setIsRefreshing(true);
+    logClientEvent({ event: 'contacts_refresh_started', outcome: 'started' });
     try {
       const res = await syncDeviceContacts(async (contacts) => {
         await batchImportMutation.mutateAsync(contacts);
       }, true);
       if (res.success) {
+        logClientEvent({ event: 'contacts_refresh_succeeded', outcome: 'success', data: { count: res.count } });
         showAlertDialog('Contacts Synced', 'Successfully refreshed and synced contacts.');
       } else if (res.error) {
         showAlertDialog('Sync Contacts', res.error);
@@ -149,11 +151,13 @@ export default function ContactsScreen() {
 
   const handleAddUser = useCallback(async () => {
     if (!newName.trim()) return;
+    logClientEvent({ event: 'contact_create_started', outcome: 'started' });
     try {
       await addUserMutation.mutateAsync({
         name: newName.trim(),
         phone: normalizeToE164(newPhone.trim()) || newPhone.trim(),
       });
+      logClientEvent({ event: 'contact_create_succeeded', outcome: 'success' });
       setNewName('');
       setNewPhone('');
       setShowAddUser(false);
@@ -397,7 +401,12 @@ export default function ContactsScreen() {
             placeholder="Search contacts by name or phone..."
             placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
             value={searchQuery}
-            onChangeText={setSearchQuery}
+            onChangeText={(text) => {
+              if (!text && searchQuery.length > 0) {
+                logClientEvent({ event: 'contact_search_cleared', outcome: 'succeeded' });
+              }
+              setSearchQuery(text);
+            }}
             style={{
               flex: 1,
               fontSize: 13,
@@ -407,7 +416,13 @@ export default function ContactsScreen() {
             }}
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <TouchableOpacity
+              onPress={() => {
+                logClientEvent({ event: 'contact_search_cleared', outcome: 'succeeded' });
+                setSearchQuery('');
+              }}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
               <X size={14} color={isDarkMode ? '#71717a' : '#94a3b8'} />
             </TouchableOpacity>
           )}

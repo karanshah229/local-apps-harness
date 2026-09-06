@@ -70,7 +70,7 @@ import { TasksView } from '../../src/components/TasksView';
 import { ListOrViewDropdownModal } from '../../src/components/ListOrViewDropdownModal';
 import { ContactPickerModal } from '../../src/components/ContactPickerModal';
 import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
-import { logError } from '../../src/services/clientLogger';
+import { logClientEvent, logError } from '../../src/services/clientLogger';
 
 interface ListsDirectoryViewProps {
   onSelectList: (id: number) => void;
@@ -280,22 +280,36 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     const chosen = CUSTOM_LIST_THEMES[lists.length % CUSTOM_LIST_THEMES.length] || 'teal';
     setNewListTheme(chosen);
     setShowAddList(true);
+    logClientEvent({ event: 'list_create_opened', outcome: 'started' });
   }, [lists.length]);
 
   const handleCreateList = async () => {
-    if (!newListTitle.trim()) return;
+    if (!newListTitle.trim()) {
+      logClientEvent({ event: 'list_create_validation_failed', outcome: 'failure' });
+      return;
+    }
+    const startedAt = Date.now();
+    logClientEvent({ event: 'list_create_started', outcome: 'started' });
     try {
       const newList = await createListMutation.mutateAsync({
         title: newListTitle.trim(),
         color_theme: newListTheme,
         created_by: 1,
       });
+      logClientEvent({
+        event: 'list_create_succeeded',
+        outcome: 'success',
+        durationMs: Date.now() - startedAt,
+        data: { listId: newList?.id },
+      });
       setNewListTitle('');
       setShowAddList(false);
       if (newList?.id) {
+        logClientEvent({ event: 'list_opened', outcome: 'success', data: { listId: newList.id } });
         onSelectList(newList.id);
       }
     } catch (err: any) {
+      logError({ event: 'list_create_failed', outcome: 'failure' }, err);
       showAlertDialog('Error', err.message || 'Failed to create list');
     }
   };
@@ -305,22 +319,36 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     const chosen = CUSTOM_LIST_THEMES[(customViews.length + 3) % CUSTOM_LIST_THEMES.length] || 'purple';
     setNewViewTheme(chosen);
     setShowAddView(true);
+    logClientEvent({ event: 'custom_view_create_opened', outcome: 'started' });
   }, [customViews.length]);
 
   const handleCreateCustomView = async () => {
-    if (!newViewTitle.trim()) return;
+    if (!newViewTitle.trim()) {
+      logClientEvent({ event: 'custom_view_create_validation_failed', outcome: 'failure' });
+      return;
+    }
+    const startedAt = Date.now();
+    logClientEvent({ event: 'custom_view_create_started', outcome: 'started' });
     try {
       const created = await createCustomViewMutation.mutateAsync({
         title: newViewTitle.trim(),
         color_theme: newViewTheme,
         filter_config: {},
       });
+      logClientEvent({
+        event: 'custom_view_create_succeeded',
+        outcome: 'success',
+        durationMs: Date.now() - startedAt,
+        data: { customViewId: created?.id },
+      });
       setNewViewTitle('');
       setShowAddView(false);
       if (created?.id) {
+        logClientEvent({ event: 'view_opened', outcome: 'success', data: { customViewId: created.id } });
         onSelectCustomView(created.id);
       }
     } catch (err: any) {
+      logError({ event: 'custom_view_create_failed', outcome: 'failure' }, err);
       showAlertDialog('Error', err.message || 'Failed to create view');
     }
   };
@@ -340,7 +368,12 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   };
 
   const handleSaveRename = () => {
-    if (!renameTarget || !renameInput.trim()) return;
+    if (!renameTarget) return;
+    if (!renameInput.trim()) {
+      logClientEvent({ event: 'rename_validation_failed', outcome: 'failure', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
+      return;
+    }
+    logClientEvent({ event: 'rename_started', outcome: 'started', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
     if (renameTarget.type === 'view') {
       updateCustomViewMutation.mutate({
         id: renameTarget.id,
@@ -352,11 +385,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         title: renameInput.trim(),
       });
     }
+    logClientEvent({ event: 'rename_succeeded', outcome: 'success', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
     setRenameTarget(null);
   };
 
   const handleSaveTheme = (theme: string) => {
     if (!themeTarget) return;
+    logClientEvent({ event: 'theme_changed', outcome: 'success', data: { itemType: themeTarget.type, itemId: themeTarget.id, theme } });
     if (themeTarget.type === 'view') {
       updateCustomViewMutation.mutate({
         id: themeTarget.id,
@@ -1093,6 +1128,12 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
           const pinKey = activeDropdown.type === 'view'
             ? `custom_view:${activeDropdown.data.id}`
             : `list:${activeDropdown.data.id}`;
+          const isCurrentlyPinned = pinnedViews.includes(pinKey);
+          logClientEvent({
+            event: 'pin_toggled',
+            outcome: 'success',
+            data: { itemType: activeDropdown.type, itemId: activeDropdown.data.id, pinned: !isCurrentlyPinned },
+          });
           togglePinViewMutation.mutate(pinKey);
         }}
         onRename={() => {
@@ -1117,21 +1158,33 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         }}
         onDelete={() => {
           if (!activeDropdown) return;
-          if (activeDropdown.type === 'view') {
+          const targetType = activeDropdown.type;
+          const targetId = activeDropdown.data.id;
+          if (targetType === 'view') {
+            logClientEvent({ event: 'custom_view_delete_prompted', outcome: 'started', data: { itemId: targetId } });
             showConfirmDialog({
               title: 'Delete View',
               message: `Are you sure you want to delete "${activeDropdown.data.title}"? (Tasks will not be deleted)`,
               type: 'danger',
               confirmLabel: 'Delete View',
-              onConfirm: () => deleteCustomViewMutation.mutate(activeDropdown.data.id),
+              onConfirm: () => {
+                logClientEvent({ event: 'custom_view_delete_started', outcome: 'started', data: { itemId: targetId } });
+                deleteCustomViewMutation.mutate(targetId);
+                logClientEvent({ event: 'custom_view_delete_succeeded', outcome: 'success', data: { itemId: targetId } });
+              },
             });
           } else {
+            logClientEvent({ event: 'list_delete_prompted', outcome: 'started', data: { itemId: targetId } });
             showConfirmDialog({
               title: 'Delete List',
               message: `Are you sure you want to delete "${activeDropdown.data.title}"?`,
               type: 'danger',
               confirmLabel: 'Delete List',
-              onConfirm: () => deleteListMutation.mutate(activeDropdown.data.id),
+              onConfirm: () => {
+                logClientEvent({ event: 'list_delete_started', outcome: 'started', data: { itemId: targetId } });
+                deleteListMutation.mutate(targetId);
+                logClientEvent({ event: 'list_delete_succeeded', outcome: 'success', data: { itemId: targetId } });
+              },
             });
           }
         }}

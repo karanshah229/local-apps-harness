@@ -43,7 +43,7 @@ import { localTodoDb } from '../db/sqlite';
 import { useUiStore } from '../store/useUiStore';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
-import { logError } from '../services/clientLogger';
+import { logClientEvent, logError } from '../services/clientLogger';
 
 interface WhatsAppShareModalProps {
   isOpen: boolean;
@@ -325,6 +325,11 @@ export default function WhatsAppShareModal({
   };
 
   const handleUserSelect = (userId: number | null) => {
+    logClientEvent({
+      event: 'whatsapp_scope_selected',
+      outcome: 'succeeded',
+      data: { recipientUserId: userId },
+    });
     setSelectedUserId(userId);
     const u = users.find((item) => item.id === userId);
     if (u && u.phone) {
@@ -362,6 +367,11 @@ export default function WhatsAppShareModal({
   };
 
   const handleOpenWhatsApp = async () => {
+    logClientEvent({
+      event: 'whatsapp_share_started',
+      outcome: 'started',
+      data: { type: config?.type, recipientUserId: selectedUserId },
+    });
     const deepLink = generateWhatsAppDeepLink(recipientPhone, message);
     const webLink = generateWhatsAppWebLink(recipientPhone, message);
 
@@ -372,8 +382,18 @@ export default function WhatsAppShareModal({
       } else {
         await Linking.openURL(webLink);
       }
+      logClientEvent({
+        event: 'whatsapp_log_succeeded',
+        outcome: 'success',
+        data: { type: config?.type },
+      });
     } catch {
       await Linking.openURL(webLink);
+      logClientEvent({
+        event: 'whatsapp_log_succeeded',
+        outcome: 'success',
+        data: { type: config?.type },
+      });
     }
   };
 

@@ -14,7 +14,7 @@ type LogData = Record<string, unknown> | undefined;
 export interface ClientLogEvent {
   level?: LogLevel;
   event: string;
-  outcome?: 'started' | 'success' | 'failure' | 'ignored' | 'cancelled';
+  outcome?: 'started' | 'success' | 'succeeded' | 'failure' | 'ignored' | 'cancelled';
   durationMs?: number;
   taskId?: number;
   attemptId?: string;

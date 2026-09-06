@@ -73,7 +73,7 @@ import {
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
-import { logError } from '../services/clientLogger';
+import { logClientEvent, logError } from '../services/clientLogger';
 import {
   Task,
   User,
@@ -413,6 +413,21 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     }
   }, [fixedCustomViewId, customView?.id]);
 
+  useEffect(() => {
+    if (fixedView) {
+      logClientEvent({ event: 'view_opened', outcome: 'success', data: { view: fixedView } });
+    } else if (fixedCustomViewId) {
+      logClientEvent({ event: 'view_opened', outcome: 'success', data: { customViewId: fixedCustomViewId } });
+    }
+    return () => {
+      if (fixedView) {
+        logClientEvent({ event: 'view_closed', outcome: 'success', data: { view: fixedView } });
+      } else if (fixedCustomViewId) {
+        logClientEvent({ event: 'view_closed', outcome: 'success', data: { customViewId: fixedCustomViewId } });
+      }
+    };
+  }, [fixedView, fixedCustomViewId]);
+
   const flatListRef = useRef<FlatList>(null);
 
   const isDarkMode = useUiStore((s) => s.isDarkMode);
@@ -480,6 +495,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   const updatePrefsMutation = useUpdateUserPreferencesMutation();
 
   const handleSelectSort = useCallback((config: ViewSortConfig) => {
+    logClientEvent({ event: 'sort_changed', outcome: 'success', data: { viewKey, field: config.field, direction: config.direction } });
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({ id: fixedCustomViewId, sort_config: config });
     } else {
@@ -487,6 +503,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       const updated = { ...sortPreferences, [viewKey]: config };
       updatePrefsMutation.mutate({ sort_preferences: updated });
     }
+    logClientEvent({ event: 'sort_persist_succeeded', outcome: 'success', data: { viewKey, field: config.field, direction: config.direction } });
   }, [fixedCustomViewId, viewKey, sortPreferences, setViewSort, updatePrefsMutation, updateCustomViewMutation]);
 
   const listsQuery = useListsQuery(1);
@@ -539,6 +556,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   // Handle updating and autosaving filter changes
   const handleUpdateFilterStatus = useCallback((status: 'all' | 'pending' | 'completed') => {
+    logClientEvent({ event: 'filter_changed', outcome: 'success', data: { dimension: 'status', value: status } });
     setFilterStatus(status);
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({
@@ -549,6 +567,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [fixedCustomViewId, filterImportance, filterDue, filterListId, filterAssigneeId, updateCustomViewMutation]);
 
   const handleUpdateFilterImportance = useCallback((importance: 'all' | 'important' | 'normal') => {
+    logClientEvent({ event: 'filter_changed', outcome: 'success', data: { dimension: 'importance', value: importance } });
     setFilterImportance(importance);
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({
@@ -559,6 +578,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [fixedCustomViewId, filterStatus, filterDue, filterListId, filterAssigneeId, updateCustomViewMutation]);
 
   const handleUpdateFilterDue = useCallback((due: 'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due') => {
+    logClientEvent({ event: 'filter_changed', outcome: 'success', data: { dimension: 'due', value: due } });
     setFilterDue(due);
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({
@@ -569,6 +589,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [fixedCustomViewId, filterStatus, filterImportance, filterListId, filterAssigneeId, updateCustomViewMutation]);
 
   const handleUpdateFilterListId = useCallback((listId: number | 'all') => {
+    logClientEvent({ event: 'filter_changed', outcome: 'success', data: { dimension: 'list', value: listId } });
     setFilterListId(listId);
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({
@@ -579,6 +600,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [fixedCustomViewId, filterStatus, filterImportance, filterDue, filterAssigneeId, updateCustomViewMutation]);
 
   const handleUpdateFilterAssigneeId = useCallback((assigneeId: number | 'unassigned' | 'all') => {
+    logClientEvent({ event: 'filter_changed', outcome: 'success', data: { dimension: 'assignee', value: assigneeId } });
     setFilterAssigneeId(assigneeId);
     if (fixedCustomViewId) {
       updateCustomViewMutation.mutate({
@@ -589,6 +611,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
   }, [fixedCustomViewId, filterStatus, filterImportance, filterDue, filterListId, updateCustomViewMutation]);
 
   const handleClearAllFiltersAndSort = useCallback(() => {
+    logClientEvent({ event: 'filters_reset', outcome: 'success' });
     setSearchQuery('');
     setFilterStatus('all');
     setFilterImportance('all');
@@ -667,43 +690,73 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const handleToggleComplete = useCallback((task: Task) => {
     if (isMultiSelectMode) {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     } else {
+      const nextCompleted = task.is_completed ? 0 : 1;
+      logClientEvent({
+        event: 'task_completed_toggled',
+        outcome: 'succeeded',
+        data: { taskId: task.id, isCompleted: nextCompleted === 1 },
+      });
       updateTaskMutation.mutate({
         id: task.id,
-        is_completed: task.is_completed ? 0 : 1,
+        is_completed: nextCompleted,
       });
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation, selectedTaskIds]);
 
   const handleToggleImportant = useCallback((task: Task) => {
+    const nextImportant = task.is_important ? 0 : 1;
+    logClientEvent({
+      event: 'task_important_toggled',
+      outcome: 'succeeded',
+      data: { taskId: task.id, isImportant: nextImportant === 1 },
+    });
     updateTaskMutation.mutate({
       id: task.id,
-      is_important: task.is_important ? 0 : 1,
+      is_important: nextImportant,
     });
   }, [updateTaskMutation]);
 
   const handleTaskPress = useCallback((task: Task) => {
     if (isMultiSelectMode) {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     } else {
       openTask(task.id, currentViewTheme);
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, currentViewTheme]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, currentViewTheme, selectedTaskIds]);
 
   const handleTaskLongPress = useCallback((task: Task) => {
     if (!isMultiSelectMode) {
+      logClientEvent({ event: 'multiselect_started', outcome: 'started', data: { initialTaskId: task.id } });
+      logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
       startMultiSelectWithTask(task.id);
     } else {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     }
-  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch]);
+  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch, selectedTaskIds]);
 
   // Bulk Actions
   const handleBulkShare = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     if (selectedTasks.length === 0) return;
+    logClientEvent({ event: 'bulk_share_started', outcome: 'started', data: { count: selectedTaskIds.length } });
 
     const message = formatBatchTasksMessage(selectedTasks);
     const firstWithPhone = selectedTasks.find((t) => t.assignee_phone);
@@ -719,6 +772,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     const allCompleted = selectedTasks.every((t) => t.is_completed);
     const newStatus = allCompleted ? 0 : 1;
+    logClientEvent({ event: 'bulk_complete_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_completed: newStatus });
@@ -731,6 +785,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     const allImportant = selectedTasks.every((t) => t.is_important);
     const newStatus = allImportant ? 0 : 1;
+    logClientEvent({ event: 'bulk_important_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_important: newStatus });
@@ -740,6 +795,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const handleBulkDueDate = useCallback((dueDate: string | null, dueTimezone?: string | null) => {
     if (selectedTaskIds.length === 0) return;
+    logClientEvent({ event: 'bulk_due_date_started', outcome: 'started', data: { count: selectedTaskIds.length, hasDueDate: Boolean(dueDate) } });
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, due_date: dueDate, due_timezone: dueTimezone });
     }
@@ -748,6 +804,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const handleBulkAssignee = useCallback((userId: number | null) => {
     if (selectedTaskIds.length === 0) return;
+    logClientEvent({ event: 'bulk_assign_started', outcome: 'started', data: { count: selectedTaskIds.length, assigned: Boolean(userId) } });
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, assigned_to_user_id: userId });
     }
@@ -756,6 +813,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
 
   const handleBulkAddToLists = useCallback((listIds: number[]) => {
     if (selectedTaskIds.length === 0 || listIds.length === 0) return;
+    logClientEvent({ event: 'bulk_list_started', outcome: 'started', data: { count: selectedTaskIds.length, listCount: listIds.length } });
     const selectedListIdSet = new Set(listIds);
     const selectedTasks = tasks.filter((task) => selectedTaskIds.includes(task.id));
 
@@ -777,6 +835,7 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
       type: 'danger',
       confirmLabel: 'Delete Tasks',
       onConfirm: () => {
+        logClientEvent({ event: 'bulk_delete_started', outcome: 'started', data: { count: selectedTaskIds.length } });
         for (const taskId of selectedTaskIds) {
           deleteTaskMutation.mutate(taskId);
         }
@@ -1411,7 +1470,12 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
                 placeholder="Search"
                 placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+                onChangeText={(text) => {
+                  if (!text && searchQuery.length > 0) {
+                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                  }
+                  setSearchQuery(text);
+                }}
                 style={{
                   flex: 1,
                   height: '100%',
@@ -1422,7 +1486,10 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
+                  onPress={() => {
+                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                    setSearchQuery('');
+                  }}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 4 }}
                 >
@@ -1645,7 +1712,10 @@ export function TasksView({ fixedView, fixedCustomViewId, onBack }: TasksViewPro
     return (
       <View style={{ marginTop: 12, paddingBottom: 16 }}>
         <TouchableOpacity
-          onPress={() => setShowCompleted(!showCompleted)}
+          onPress={() => {
+            logClientEvent({ event: 'completed_section_toggled', outcome: 'succeeded', data: { showCompleted: !showCompleted } });
+            setShowCompleted(!showCompleted);
+          }}
           activeOpacity={0.7}
           style={{
             flexDirection: 'row',

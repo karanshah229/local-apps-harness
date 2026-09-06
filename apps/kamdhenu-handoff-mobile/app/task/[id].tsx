@@ -470,6 +470,11 @@ export default function TaskDetailScreen() {
     } else {
       nextListIds = [...selectedListIds, targetListId];
     }
+    logClientEvent({
+      event: 'task_lists_changed',
+      outcome: 'succeeded',
+      data: { taskId: task?.id, listIds: nextListIds },
+    });
     setSelectedListIds(nextListIds);
 
     if (!isNewTask && task) {
@@ -485,6 +490,7 @@ export default function TaskDetailScreen() {
     const stepTitle = newStep.trim();
     setNewStep('');
 
+    logClientEvent({ event: 'step_created', outcome: 'started', data: { taskId: task?.id, title: stepTitle } });
     if (isNewTask) {
       setLocalSteps((prev) => [
         ...prev,
@@ -497,6 +503,11 @@ export default function TaskDetailScreen() {
 
   const handleToggleStep = (stepId: number, currentCompleted: number | boolean) => {
     const nextCompleted = currentCompleted ? 0 : 1;
+    logClientEvent({
+      event: 'step_completed_toggled',
+      outcome: 'succeeded',
+      data: { taskId: task?.id, stepId, isCompleted: nextCompleted === 1 },
+    });
     if (isNewTask) {
       setLocalSteps((prev) =>
         prev.map((s) => (s.id === stepId ? { ...s, is_completed: s.is_completed ? 0 : 1 } : s))
@@ -507,6 +518,7 @@ export default function TaskDetailScreen() {
   };
 
   const handleDeleteStep = (stepId: number) => {
+    logClientEvent({ event: 'step_deleted', outcome: 'started', data: { taskId: task?.id, stepId } });
     if (isNewTask) {
       setLocalSteps((prev) => prev.filter((s) => s.id !== stepId));
     } else if (task) {
@@ -559,6 +571,11 @@ export default function TaskDetailScreen() {
       }
       dateStr = formatDateString(d);
     }
+    logClientEvent({
+      event: 'due_date_changed',
+      outcome: 'succeeded',
+      data: { taskId: task?.id, dueDate: dateStr },
+    });
     setDueDate(dateStr);
     if (!isNewTask && task) {
       queueSave({ due_date: dateStr });
@@ -569,6 +586,11 @@ export default function TaskDetailScreen() {
   const handleSelectCalendarDay = (day: number) => {
     const d = new Date(calendarYear, calendarMonth, day);
     const dateStr = formatDateString(d);
+    logClientEvent({
+      event: 'due_date_changed',
+      outcome: 'succeeded',
+      data: { taskId: task?.id, dueDate: dateStr },
+    });
     setDueDate(dateStr);
     if (!isNewTask && task) {
       queueSave({ due_date: dateStr });
@@ -577,6 +599,11 @@ export default function TaskDetailScreen() {
   };
 
   const handleSelectAssignee = (userId: number | null) => {
+    logClientEvent({
+      event: 'task_assignee_changed',
+      outcome: 'succeeded',
+      data: { taskId: task?.id, assignedUserId: userId },
+    });
     setAssignedUserId(userId);
     setShowAssigneeModal(false);
     if (!isNewTask && task) {
@@ -810,6 +837,7 @@ export default function TaskDetailScreen() {
           <TouchableOpacity
             onPress={() => {
               if (isNewTask) {
+                logClientEvent({ event: 'task_create_cancelled', outcome: 'succeeded' });
                 router.back();
               } else {
                 void flushAutosave().finally(() => router.back());
@@ -1907,14 +1935,21 @@ export default function TaskDetailScreen() {
                 onPress={() => {
                   setShowMoreMenu(false);
                   if (!task) return;
+                  logClientEvent({ event: 'task_delete_prompted', outcome: 'started', data: { taskId: task.id } });
                   showConfirmDialog({
                     title: 'Delete Task',
                     message: `Are you sure you want to delete "${task.title}"?`,
                     type: 'danger',
                     confirmLabel: 'Delete Task',
-                    onConfirm: () => {
-                      deleteTaskMutation.mutate(task.id);
-                      router.back();
+                    onConfirm: async () => {
+                      logClientEvent({ event: 'task_delete_started', outcome: 'started', data: { taskId: task.id } });
+                      try {
+                        await deleteTaskMutation.mutateAsync(task.id);
+                        logClientEvent({ event: 'task_delete_succeeded', outcome: 'success', data: { taskId: task.id } });
+                        router.back();
+                      } catch (err) {
+                        logError({ event: 'task_delete_failed', outcome: 'failure', data: { taskId: task.id } }, err);
+                      }
                     },
                   });
                 }}

@@ -29,7 +29,7 @@ import {
   useUserPreferencesQuery,
   useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
-import { shareDiagnosticReport } from '../../src/services/clientLogger';
+import { logClientEvent, shareDiagnosticReport } from '../../src/services/clientLogger';
 import { BUILD_IDENTITY } from '../../src/config/buildIdentity';
 import { QaDiagnosticsPanel } from '../../src/components/QaDiagnosticsPanel';
 
@@ -92,6 +92,7 @@ export default function SettingsScreen() {
   ];
 
   const handleThemeChange = (mode: 'system' | 'light' | 'dark') => {
+    logClientEvent({ event: 'setting_changed', outcome: 'success', data: { setting: 'theme', valueType: mode } });
     setThemeMode(mode);
     if (mode === 'system') {
       setIsDarkMode(systemColorScheme === 'dark');
@@ -101,6 +102,7 @@ export default function SettingsScreen() {
   };
 
   const handleToggleRememberLastView = (enabled: boolean) => {
+    logClientEvent({ event: 'setting_changed', outcome: 'success', data: { setting: 'remember_last_view', valueType: enabled ? 'enabled' : 'disabled' } });
     updatePrefs.mutate({ remember_last_view: enabled ? 1 : 0 });
   };
 
@@ -227,7 +229,10 @@ export default function SettingsScreen() {
           Contacts
         </Text>
         <TouchableOpacity
-          onPress={() => router.push('/contacts')}
+          onPress={() => {
+            logClientEvent({ event: 'settings_navigation', outcome: 'success', data: { destination: 'contacts' } });
+            router.push('/contacts');
+          }}
           activeOpacity={0.7}
           style={{
             flexDirection: 'row',

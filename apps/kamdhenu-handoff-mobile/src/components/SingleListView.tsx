@@ -70,7 +70,7 @@ import {
   prefetchAllTasksInView,
 } from '../hooks/useTodoQueries';
 import { useTaskNavigation } from '../hooks/useTaskNavigation';
-import { logError } from '../services/clientLogger';
+import { logClientEvent, logError } from '../services/clientLogger';
 import { BulkDueDatePickerModal } from './BulkDueDatePickerModal';
 import { BulkAssigneePickerModal } from './BulkAssigneePickerModal';
 import {
@@ -371,6 +371,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     clearSelectedBatchTasks();
   }, [listId, clearSelectedBatchTasks]);
 
+  useEffect(() => {
+    if (listId) {
+      logClientEvent({ event: 'view_opened', outcome: 'success', data: { listId } });
+    }
+    return () => {
+      if (listId) {
+        logClientEvent({ event: 'view_closed', outcome: 'success', data: { listId } });
+      }
+    };
+  }, [listId]);
+
   const [showBulkDueModal, setShowBulkDueModal] = useState(false);
   const [showBulkAssigneeModal, setShowBulkAssigneeModal] = useState(false);
 
@@ -484,6 +495,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const currentSort = useMemo(() => sortPreferences[viewKey] || DEFAULT_SORT_CONFIG, [sortPreferences, viewKey]);
 
   const handleSelectSort = useCallback((config: ViewSortConfig) => {
+    logClientEvent({
+      event: 'sort_changed',
+      outcome: 'succeeded',
+      data: { viewKey, field: config.field, direction: config.direction },
+    });
     setViewSort(viewKey, config);
     const updated = { ...sortPreferences, [viewKey]: config };
     updatePrefs.mutate({ sort_preferences: updated });
@@ -533,29 +549,51 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleToggleComplete = useCallback((task: Task) => {
     if (isMultiSelectMode) {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     } else {
+      const nextCompleted = task.is_completed ? 0 : 1;
+      logClientEvent({
+        event: 'task_completed_toggled',
+        outcome: 'succeeded',
+        data: { taskId: task.id, isCompleted: nextCompleted === 1 },
+      });
       updateTaskMutation.mutate({
         id: task.id,
-        is_completed: task.is_completed ? 0 : 1,
+        is_completed: nextCompleted,
       });
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation, selectedTaskIds]);
 
   const handleToggleImportant = useCallback((task: Task) => {
+    const nextImportant = task.is_important ? 0 : 1;
+    logClientEvent({
+      event: 'task_important_toggled',
+      outcome: 'succeeded',
+      data: { taskId: task.id, isImportant: nextImportant === 1 },
+    });
     updateTaskMutation.mutate({
       id: task.id,
-      is_important: task.is_important ? 0 : 1,
+      is_important: nextImportant,
     });
   }, [updateTaskMutation]);
 
   const handleTaskPress = useCallback((task: Task) => {
     if (isMultiSelectMode) {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     } else {
       openTask(task.id, listTheme);
     }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, listTheme]);
+  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, listTheme, selectedTaskIds]);
 
   const handleOpenNewTask = useCallback(() => {
     const themeParam = listTheme ? `&themeColor=${encodeURIComponent(listTheme)}` : '';
@@ -630,13 +668,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   const handleResetFilters = useCallback(() => {
+    logClientEvent({ event: 'filters_reset', outcome: 'succeeded', data: { view: 'list', listId } });
     setSearchQuery('');
     setFilterStatus('all');
     setFilterImportance('all');
     setFilterDue('all');
     setFilterAssigneeId('all');
     handleSelectSort(DEFAULT_SORT_CONFIG);
-  }, [handleSelectSort]);
+  }, [handleSelectSort, listId]);
 
   // Filtered tasks
   const filteredTasks = useMemo(() => {
@@ -953,17 +992,25 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleTaskLongPress = useCallback((task: Task) => {
     if (!isMultiSelectMode) {
+      logClientEvent({ event: 'multiselect_started', outcome: 'started', data: { initialTaskId: task.id } });
+      logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
       startMultiSelectWithTask(task.id);
     } else {
+      if (selectedTaskIds.includes(task.id)) {
+        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+      } else {
+        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+      }
       toggleSelectTaskForBatch(task.id);
     }
-  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch]);
+  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch, selectedTaskIds]);
 
   // Bulk Actions
   const handleBulkShare = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     if (selectedTasks.length === 0) return;
+    logClientEvent({ event: 'bulk_share_started', outcome: 'started', data: { count: selectedTaskIds.length } });
 
     const message = formatBatchTasksMessage(selectedTasks);
     const defaultUser = activeList?.default_whatsapp_contact_id
@@ -982,6 +1029,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     const allCompleted = selectedTasks.every((t) => t.is_completed);
     const newStatus = allCompleted ? 0 : 1;
+    logClientEvent({ event: 'bulk_complete_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_completed: newStatus });
@@ -994,6 +1042,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
     const allImportant = selectedTasks.every((t) => t.is_important);
     const newStatus = allImportant ? 0 : 1;
+    logClientEvent({ event: 'bulk_important_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_important: newStatus });
@@ -1003,6 +1052,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleBulkDueDate = useCallback((dueDate: string | null, dueTimezone?: string | null) => {
     if (selectedTaskIds.length === 0) return;
+    logClientEvent({ event: 'bulk_due_date_started', outcome: 'started', data: { count: selectedTaskIds.length, dueDate } });
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, due_date: dueDate, due_timezone: dueTimezone });
     }
@@ -1011,6 +1061,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleBulkAssignee = useCallback((userId: number | null) => {
     if (selectedTaskIds.length === 0) return;
+    logClientEvent({ event: 'bulk_assign_started', outcome: 'started', data: { count: selectedTaskIds.length, userId } });
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, assigned_to_user_id: userId });
     }
@@ -1025,6 +1076,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       type: 'danger',
       confirmLabel: 'Delete Tasks',
       onConfirm: () => {
+        logClientEvent({ event: 'bulk_delete_started', outcome: 'started', data: { count: selectedTaskIds.length } });
         for (const taskId of selectedTaskIds) {
           deleteTaskMutation.mutate(taskId);
         }
@@ -1253,7 +1305,12 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 placeholder="Search"
                 placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
                 value={searchQuery}
-                onChangeText={setSearchQuery}
+                onChangeText={(text) => {
+                  if (!text && searchQuery.length > 0) {
+                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                  }
+                  setSearchQuery(text);
+                }}
                 style={{
                   flex: 1,
                   height: '100%',
@@ -1264,7 +1321,10 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
               />
               {searchQuery.length > 0 && (
                 <TouchableOpacity
-                  onPress={() => setSearchQuery('')}
+                  onPress={() => {
+                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                    setSearchQuery('');
+                  }}
                   hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                   style={{ padding: 4 }}
                 >
@@ -1481,7 +1541,10 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     return (
       <View style={{ marginTop: 12, paddingBottom: 30 }}>
         <TouchableOpacity
-          onPress={() => setShowCompleted(!showCompleted)}
+          onPress={() => {
+            logClientEvent({ event: 'completed_section_toggled', outcome: 'succeeded', data: { showCompleted: !showCompleted } });
+            setShowCompleted(!showCompleted);
+          }}
           activeOpacity={0.7}
           style={{
             flexDirection: 'row',

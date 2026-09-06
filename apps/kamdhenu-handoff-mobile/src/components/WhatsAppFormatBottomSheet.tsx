@@ -29,6 +29,7 @@ import {
   formatBatchTasksMessage,
   formatWholeListMessage,
 } from '@shared/todo';
+import { logClientEvent } from '../services/clientLogger';
 
 export interface WhatsAppFormatOptions {
   includeNotes: boolean;
@@ -202,6 +203,19 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     dueDate: boolean,
     listName: boolean = listNameEnabled
   ) => {
+    logClientEvent({
+      event: 'whatsapp_format_saved',
+      outcome: 'succeeded',
+      data: {
+        style,
+        includeNotes: notes,
+        includeAssignee: assignee,
+        includeImportant: important,
+        includeSteps: steps,
+        includeDueDate: dueDate,
+        includeListName: listName,
+      },
+    });
     onSave(style, {
       includeNotes: notes,
       includeAssignee: assignee,
