@@ -24,19 +24,19 @@ import {
 import { WhatsAppMessageStyle } from '@shared/todo';
 import { useUiStore } from '../../src/store/useUiStore';
 import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
-import Constants from 'expo-constants';
-import appConfig from '../../app.json';
 import {
   useUsersQuery,
   useUserPreferencesQuery,
   useUpdateUserPreferencesMutation,
 } from '../../src/hooks/useTodoQueries';
 import { shareDiagnosticReport } from '../../src/services/clientLogger';
+import { BUILD_IDENTITY } from '../../src/config/buildIdentity';
+import { QaDiagnosticsPanel } from '../../src/components/QaDiagnosticsPanel';
 
 export default function SettingsScreen() {
   const router = useRouter();
-  const appVersion = appConfig.expo?.version ?? Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.3';
-  const appName = appConfig.expo?.name ?? Constants.expoConfig?.name ?? 'Kamdhenu Handoff';
+  const appVersion = BUILD_IDENTITY.release;
+  const appName = BUILD_IDENTITY.appName;
   const {
     themeMode,
     setThemeMode,
@@ -392,6 +392,8 @@ export default function SettingsScreen() {
           </View>
           <ChevronRight size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} />
         </TouchableOpacity>
+
+        <QaDiagnosticsPanel isDarkMode={isDarkMode} />
 
         {/* About Section */}
         <Text style={{ fontSize: 11, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8, paddingLeft: 4 }}>

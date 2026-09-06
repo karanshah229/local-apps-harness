@@ -98,6 +98,7 @@ android {
         targetSdkVersion = rootProject.ext.targetSdkVersion
         versionCode = 17
         versionName = "1.0.17"
+        manifestPlaceholders = [appScheme: "kamdhenu-handoff"]
 
         buildConfigField "String", "REACT_NATIVE_RELEASE_LEVEL", "\"${findProperty('reactNativeReleaseLevel') ?: 'stable'}\""
     }
@@ -123,6 +124,14 @@ android {
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
             def enablePngCrunchInRelease = findProperty('android.enablePngCrunchInReleaseBuilds') ?: 'true'
             crunchPngs = enablePngCrunchInRelease.toBoolean()
+        }
+        qa {
+            initWith release
+            applicationIdSuffix ".qa"
+            versionNameSuffix "-qa"
+            signingConfig = signingConfigs.debug
+            matchingFallbacks = ['release']
+            manifestPlaceholders = [appScheme: "kamdhenu-handoff-qa"]
         }
     }
     packagingOptions {

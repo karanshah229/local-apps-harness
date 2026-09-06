@@ -1,0 +1,29 @@
+{
+  "appId": "kamdhenu-handoff",
+  "request": "Create an Android-only, side-by-side QA build for safely exercising local diagnostics, retention, handled errors, and crash-to-Sentry behavior on a real device.",
+  "acceptance": [
+    "The QA APK installs beside the production app under package com.kamdhenu.handoff.qa and uses an independent data directory.",
+    "The QA build is visibly named Kamdhenu Handoff QA and uses a distinct deep-link scheme.",
+    "Production and QA APK copy scripts place artifacts under apps/kamdhenu-handoff/releases.",
+    "The QA APK bundles release-mode JavaScript so production observability behavior remains active while Android run-as can read its private diagnostic file.",
+    "QA-only Settings controls can emit a breadcrumb, capture a handled error, generate a retention probe, and deliberately trigger confirmed JavaScript or native crashes.",
+    "Production builds cannot render or execute the QA-only diagnostic controls.",
+    "A reusable agent runbook records execution, safety, evidence, environment limitations, known discrepancies, and recovery procedures."
+  ],
+  "excluded": [
+    "iOS QA builds or iOS testing.",
+    "Changes to the production Android package, version, data, or user-visible behavior.",
+    "Remote deployment, TestFlight, Play Store distribution, or public exposure.",
+    "Changing Sentry credentials or committing values from ignored environment files."
+  ],
+  "surfaces": ["mobile", "environment", "tests", "registry"],
+  "risk": "automatic",
+  "verification": [
+    "Run focused QA-build and observability tests.",
+    "Run mobile TypeScript typecheck.",
+    "Run workspace platform checks and the Kamdhenu reference scan.",
+    "Build the QA APK and inspect its package, label, version, debuggable flag, permissions, and deep-link scheme.",
+    "After the user installs it, verify direct diagnostic-file extraction and the QA probes on the connected Android phone."
+  ],
+  "rollback": "Remove the QA APK from the phone, delete the ignored QA artifact, and revert this local change. The production package and its data remain unchanged."
+}

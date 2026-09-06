@@ -11,7 +11,9 @@
     "web": "expo start --web",
     "build": "pnpm run build:android && pnpm run build:ios",
     "clean:android": "rm -rf android/app/build/generated/assets android/app/build/intermediates/assets android/app/build/intermediates/incremental android/app/build/outputs/apk/release",
+    "clean:android:qa": "rm -rf android/app/build/generated/assets/qa android/app/build/intermediates/assets/qa android/app/build/intermediates/incremental/qa android/app/build/outputs/apk/qa",
     "build:android": "pnpm --filter @shared/todo build && pnpm run clean:android && cd android && JAVA_TOOL_OPTIONS=\"--enable-native-access=ALL-UNNAMED\" ./gradlew assembleRelease && node ../scripts/copy-release-apk.mjs",
+    "build:android:qa": "pnpm --filter @shared/todo build && pnpm run clean:android:qa && cd android && EXPO_PUBLIC_QA_MODE=1 SENTRY_DISABLE_AUTO_UPLOAD=true JAVA_TOOL_OPTIONS=\"--enable-native-access=ALL-UNNAMED\" ./gradlew assembleQa && node ../scripts/copy-qa-apk.mjs",
     "build:ios": "npx expo run:ios --configuration Release",
     "ios:ipa": "eas build --platform ios --local",
     "typecheck": "tsc --noEmit"

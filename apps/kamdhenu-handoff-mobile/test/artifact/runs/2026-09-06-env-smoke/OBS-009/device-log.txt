@@ -1,0 +1,1 @@
+09-06 11:21:22.000 31187 31220 I ReactNativeJS: {"timestamp":"2026-09-06T05:51:21.999Z","app":"kamdhenu-handoff","environment":"production","release":"1.0.17","platform":"android","journeyId":"1788672720592-kwisgv6h","event":"app_state_background","outcome":"success","level":"debug"}

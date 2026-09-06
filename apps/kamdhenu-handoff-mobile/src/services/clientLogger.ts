@@ -1,14 +1,11 @@
 import { Platform, Share } from 'react-native';
-import Constants from 'expo-constants';
 import * as FileSystem from 'expo-file-system/legacy';
 import { logger, type transportFunctionType } from 'react-native-logs';
 import * as Sentry from '@sentry/react-native';
-import appConfig from '../../app.json';
+import { BUILD_IDENTITY } from '../config/buildIdentity';
 
-const APP_ID = 'kamdhenu-handoff';
 const MAX_ENTRIES = 250;
 const LOG_FILE = `${FileSystem.documentDirectory ?? ''}kamdhenu-diagnostics.jsonl`;
-const APP_VERSION = appConfig.expo?.version ?? Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? 'unknown';
 const JOURNEY_ID = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -56,9 +53,9 @@ function appendEntry(line: string) {
 function buildEntry(event: ClientLogEvent) {
   return {
     timestamp: new Date().toISOString(),
-    app: APP_ID,
-    environment: __DEV__ ? 'development' : 'production',
-    release: APP_VERSION,
+    app: BUILD_IDENTITY.appId,
+    environment: BUILD_IDENTITY.environment,
+    release: BUILD_IDENTITY.release,
     platform: Platform.OS,
     journeyId: JOURNEY_ID,
     ...event,
@@ -151,9 +148,9 @@ export function logError(event: Omit<ClientLogEvent, 'level'>, error?: unknown) 
 export async function getDiagnosticReport(): Promise<string> {
   await loadPromise;
   await flushDiagnosticLogs();
-  return [`Kamdhenu Handoff diagnostic report`,
-    `Version: ${APP_VERSION}`,
-    `Platform: ${Platform.OS}`, `Environment: ${__DEV__ ? 'development' : 'production'}`,
+  return [`${BUILD_IDENTITY.appName} diagnostic report`,
+    `Version: ${BUILD_IDENTITY.release}`,
+    `Platform: ${Platform.OS}`, `Environment: ${BUILD_IDENTITY.environment}`,
     '', 'Recent events:', entries.join('\n')].join('\n');
 }
 
@@ -162,7 +159,7 @@ export async function shareDiagnosticReport() {
   logClientEvent({ event: 'diagnostic_share_started', outcome: 'started' });
   sharePromise = (async () => {
     try {
-      const result = await Share.share({ title: 'Kamdhenu Handoff diagnostic report', message: await getDiagnosticReport() });
+      const result = await Share.share({ title: `${BUILD_IDENTITY.appName} diagnostic report`, message: await getDiagnosticReport() });
       logClientEvent({ event: 'diagnostic_share_completed', outcome: 'success', data: { action: result.action } });
       return result;
     } catch (error) {

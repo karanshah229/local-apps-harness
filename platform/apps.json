@@ -32,10 +32,13 @@
       "docker": null,
       "nginx": null,
       "backup": null,
-      "mobile": {
-        "androidPackage": "com.kamdhenu.handoff",
-        "iosBundleId": "com.kamdhenu.handoff"
-      }
+  "mobile": {
+    "androidPackage": "com.kamdhenu.handoff",
+    "iosBundleId": "com.kamdhenu.handoff",
+    "qaAndroidPackage": "com.kamdhenu.handoff.qa",
+    "qaDisplayName": "Kamdhenu Handoff QA",
+    "qaArtifact": "apps/kamdhenu-handoff/releases/Kamdhenu-Handoff-QA-1.0.17.apk"
+  }
     },
     {
       "id": "stock-manager",

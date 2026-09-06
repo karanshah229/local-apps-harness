@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/react-native';
-import appConfig from '../../app.json';
 import { installGlobalErrorLogging, logClientEvent } from './clientLogger';
+import { BUILD_IDENTITY } from '../config/buildIdentity';
 
 let initialized = false;
 
@@ -18,8 +18,9 @@ export function initializeObservability() {
 
   Sentry.init({
     dsn: process.env.EXPO_PUBLIC_SENTRY_DSN,
-    release: appConfig.expo?.version,
-    dist: String(appConfig.expo?.android?.versionCode ?? ''),
+    release: BUILD_IDENTITY.release,
+    dist: BUILD_IDENTITY.sentryDist,
+    environment: BUILD_IDENTITY.environment,
     enabled: !__DEV__,
     replaysSessionSampleRate: 0,
     replaysOnErrorSampleRate: 1,

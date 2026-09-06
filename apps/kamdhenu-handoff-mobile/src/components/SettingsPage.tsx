@@ -19,12 +19,12 @@ import {
   Share2,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Constants from 'expo-constants';
-import appConfig from '../../app.json';
 import { useUserPreferencesQuery, useUpdateUserPreferencesMutation } from '../hooks/useTodoQueries';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { shareDiagnosticReport } from '../services/clientLogger';
+import { BUILD_IDENTITY } from '../config/buildIdentity';
+import { QaDiagnosticsPanel } from './QaDiagnosticsPanel';
 
 interface SettingsPageProps {
   onBack: () => void;
@@ -243,6 +243,8 @@ export default function SettingsPage({
           </TouchableOpacity>
         </View>
 
+        <QaDiagnosticsPanel isDarkMode={isDarkMode} />
+
         {/* About Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -258,11 +260,11 @@ export default function SettingsPage({
           >
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Application</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{appConfig.expo?.name ?? Constants.expoConfig?.name ?? 'Kamdhenu Handoff'}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{BUILD_IDENTITY.appName}</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Version</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{appConfig.expo?.version ?? Constants.expoConfig?.version ?? Constants.nativeAppVersion ?? '1.0.0'}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>{BUILD_IDENTITY.release}</Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Platform</Text>

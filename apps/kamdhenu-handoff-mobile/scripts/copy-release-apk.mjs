@@ -6,14 +6,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const appDir = resolve(__dirname, '..');
-const repoRoot = resolve(appDir, '../..');
 const appJsonPath = resolve(appDir, 'app.json');
 
 const appJson = JSON.parse(readFileSync(appJsonPath, 'utf8'));
 const version = appJson.expo?.version || '1.0.0';
 
 const apkSource = resolve(appDir, 'android/app/build/outputs/apk/release/app-release.apk');
-const releasesDir = resolve(repoRoot, 'releases');
+const releasesDir = resolve(appDir, '../kamdhenu-handoff/releases');
 const apkDestination = resolve(releasesDir, `Kamdhenu-Handoff-${version}.apk`);
 
 if (!existsSync(apkSource)) {
