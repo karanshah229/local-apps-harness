@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -92,7 +91,9 @@ export function SortModal({
       id: 'due_date',
       title: 'Due Date',
       description: isDueDate
-        ? (currentSort.direction === 'asc' ? 'Earliest deadline first' : 'Latest deadline first')
+        ? currentSort.direction === 'asc'
+          ? 'Earliest deadline first'
+          : 'Latest deadline first'
         : 'Sort by target completion date',
       icon: Calendar,
       isActive: isDueDate,
@@ -104,7 +105,9 @@ export function SortModal({
       id: 'created_at',
       title: 'Creation Date',
       description: isCreatedAt
-        ? (currentSort.direction === 'desc' ? 'Newest added first' : 'Oldest added first')
+        ? currentSort.direction === 'desc'
+          ? 'Newest added first'
+          : 'Oldest added first'
         : 'Sort by date task was created',
       icon: Clock,
       isActive: isCreatedAt,
@@ -116,7 +119,9 @@ export function SortModal({
       id: 'title',
       title: 'Alphabetical',
       description: isTitle
-        ? (currentSort.direction === 'asc' ? 'Alphabetical (A to Z)' : 'Reverse alphabetical (Z to A)')
+        ? currentSort.direction === 'asc'
+          ? 'Alphabetical (A to Z)'
+          : 'Reverse alphabetical (Z to A)'
         : 'Sort alphabetically by task title',
       icon: ArrowDownAZ,
       isActive: isTitle,
@@ -127,12 +132,7 @@ export function SortModal({
   ];
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View
           style={{
@@ -142,7 +142,7 @@ export function SortModal({
             alignItems: 'center',
           }}
         >
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
               style={{
                 width: '100%',
@@ -199,7 +199,9 @@ export function SortModal({
                       marginTop: 2,
                     }}
                   >
-                    {viewTitle ? `Organize tasks in ${viewTitle}` : 'Choose how tasks are organized'}
+                    {viewTitle
+                      ? `Organize tasks in ${viewTitle}`
+                      : 'Choose how tasks are organized'}
                   </Text>
                 </View>
 
@@ -221,7 +223,7 @@ export function SortModal({
 
               <ScrollView showsVerticalScrollIndicator={false}>
                 <View style={{ gap: 10 }}>
-                  {options.map((opt) => {
+                  {options.map(opt => {
                     const Icon = opt.icon;
                     return (
                       <TouchableOpacity
@@ -236,28 +238,51 @@ export function SortModal({
                           minHeight: 64,
                           borderRadius: 20,
                           backgroundColor: opt.isActive
-                            ? (isDarkMode ? 'rgba(255,255,255,0.06)' : '#f8fafc')
-                            : (isDarkMode ? '#27272a' : '#f8fafc'),
+                            ? isDarkMode
+                              ? 'rgba(255,255,255,0.06)'
+                              : '#f8fafc'
+                            : isDarkMode
+                              ? '#27272a'
+                              : '#f8fafc',
                           borderWidth: 1.5,
                           borderColor: opt.isActive
                             ? themePrimary
-                            : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                            : isDarkMode
+                              ? '#3f3f46'
+                              : '#e2e8f0',
                         }}
                       >
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14, flex: 1, marginRight: 8 }}>
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            gap: 14,
+                            flex: 1,
+                            marginRight: 8,
+                          }}
+                        >
                           <View
                             style={{
                               width: 40,
                               height: 40,
                               borderRadius: 12,
                               backgroundColor: opt.isActive
-                                ? (isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.04)')
-                                : (isDarkMode ? '#18181b' : '#ffffff'),
+                                ? isDarkMode
+                                  ? 'rgba(255,255,255,0.1)'
+                                  : 'rgba(0,0,0,0.04)'
+                                : isDarkMode
+                                  ? '#18181b'
+                                  : '#ffffff',
                               alignItems: 'center',
                               justifyContent: 'center',
                             }}
                           >
-                            <Icon size={20} color={opt.isActive ? themePrimary : (isDarkMode ? '#a1a1aa' : '#64748b')} />
+                            <Icon
+                              size={20}
+                              color={
+                                opt.isActive ? themePrimary : isDarkMode ? '#a1a1aa' : '#64748b'
+                              }
+                            />
                           </View>
 
                           <View style={{ flex: 1 }}>
@@ -266,8 +291,12 @@ export function SortModal({
                                 fontSize: 15,
                                 fontWeight: opt.isActive ? '800' : '700',
                                 color: opt.isActive
-                                  ? (isDarkMode ? '#ffffff' : '#0f172a')
-                                  : (isDarkMode ? '#d4d4d8' : '#334155'),
+                                  ? isDarkMode
+                                    ? '#ffffff'
+                                    : '#0f172a'
+                                  : isDarkMode
+                                    ? '#d4d4d8'
+                                    : '#334155',
                               }}
                             >
                               {opt.title}
@@ -288,7 +317,7 @@ export function SortModal({
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                           {opt.isActive && opt.hasDirection && (
                             <TouchableOpacity
-                              onPress={(e) => handleToggleDirection(opt.id, e)}
+                              onPress={e => handleToggleDirection(opt.id, e)}
                               activeOpacity={0.7}
                               style={{
                                 flexDirection: 'row',
@@ -350,9 +379,7 @@ export function SortModal({
                   elevation: 3,
                 }}
               >
-                <Text style={{ fontSize: 15, fontWeight: '800', color: '#ffffff' }}>
-                  Done
-                </Text>
+                <Text style={{ fontSize: 15, fontWeight: '800', color: '#ffffff' }}>Done</Text>
               </TouchableOpacity>
             </View>
           </TouchableWithoutFeedback>

@@ -9,7 +9,7 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Modal,
 } from 'react-native';
 import {
   Plus,
@@ -24,7 +24,7 @@ import {
   Send,
   ListTodo,
   ChevronDown,
-  X
+  X,
 } from 'lucide-react-native';
 import { Task, List, getThemePrimary } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
@@ -33,7 +33,10 @@ import { fontSizes } from '../theme/typography';
 function hexToRgba(hex: string, alpha: number): string {
   let cleanHex = hex.replace('#', '');
   if (cleanHex.length === 3) {
-    cleanHex = cleanHex.split('').map((char) => char + char).join('');
+    cleanHex = cleanHex
+      .split('')
+      .map(char => char + char)
+      .join('');
   }
   if (cleanHex.length !== 6) return `rgba(0, 120, 212, ${alpha})`;
   const r = parseInt(cleanHex.substring(0, 2), 16);
@@ -48,7 +51,11 @@ interface TaskMainViewProps {
   tasks: Task[];
   selectedTaskId?: number | null;
   onSelectTask: (task: Task) => void;
-  onCreateTask: (taskData: { title: string; is_important?: number; list_id?: number | null }) => void;
+  onCreateTask: (taskData: {
+    title: string;
+    is_important?: number;
+    list_id?: number | null;
+  }) => void;
   onOpenCreateTask?: () => void;
   onToggleTaskComplete: (task: Task) => void;
   onToggleTaskImportant: (task: Task) => void;
@@ -75,19 +82,20 @@ export default function TaskMainView({
   selectedTaskIds,
   onToggleSelectTaskForBatch,
   onLongPressTask,
-  isDarkMode
+  isDarkMode,
 }: TaskMainViewProps) {
   const [showCompleted, setShowCompleted] = useState(false);
   const colors = isDarkMode ? darkColors : lightColors;
 
-  const activeTasks = tasks.filter((t) => !t.is_completed);
-  const completedTasks = tasks.filter((t) => Boolean(t.is_completed));
-  const hasTaskMetadata = (task: Task) => Boolean(
-    task.due_date ||
-    (task.subtask_count && task.subtask_count > 0) ||
-    task.assignee_name ||
-    (task.lists && task.lists.length > 0)
-  );
+  const activeTasks = tasks.filter(t => !t.is_completed);
+  const completedTasks = tasks.filter(t => Boolean(t.is_completed));
+  const hasTaskMetadata = (task: Task) =>
+    Boolean(
+      task.due_date ||
+      (task.subtask_count && task.subtask_count > 0) ||
+      task.assignee_name ||
+      (task.lists && task.lists.length > 0)
+    );
 
   const getHeaderTitle = () => {
     if (activeList) return activeList.title;
@@ -115,8 +123,8 @@ export default function TaskMainView({
             styles.batchBar,
             {
               backgroundColor: isDarkMode ? '#0f172a' : '#1e293b',
-              borderColor: isDarkMode ? '#334155' : '#334155'
-            }
+              borderColor: isDarkMode ? '#334155' : '#334155',
+            },
           ]}
         >
           <View style={styles.batchLeftWrap}>
@@ -131,16 +139,14 @@ export default function TaskMainView({
             onPress={() =>
               onOpenWhatsAppModal({
                 type: 'batch',
-                taskIds: selectedTaskIds
+                taskIds: selectedTaskIds,
               })
             }
             style={styles.whatsappBatchBtn}
             activeOpacity={0.85}
           >
             <Send size={15} color="#ffffff" />
-            <Text style={styles.whatsappBatchText}>
-              Send WhatsApp ({selectedTaskIds.length})
-            </Text>
+            <Text style={styles.whatsappBatchText}>Send WhatsApp ({selectedTaskIds.length})</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -148,7 +154,7 @@ export default function TaskMainView({
       {/* Tasks List */}
       <FlatList
         data={activeTasks}
-        keyExtractor={(item) => String(item.id)}
+        keyExtractor={item => String(item.id)}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets={true}
@@ -166,8 +172,8 @@ export default function TaskMainView({
                   {
                     backgroundColor: isDarkMode
                       ? 'rgba(16, 185, 129, 0.15)'
-                      : 'rgba(16, 185, 129, 0.1)'
-                  }
+                      : 'rgba(16, 185, 129, 0.1)',
+                  },
                 ]}
               >
                 <CheckCircle2 size={24} color="#10b981" />
@@ -175,12 +181,7 @@ export default function TaskMainView({
               <Text style={[styles.allCompletedTitle, { color: colors.text }]}>
                 All tasks completed!
               </Text>
-              <Text
-                style={[
-                  styles.allCompletedSubtitle,
-                  { color: colors.textMuted }
-                ]}
-              >
+              <Text style={[styles.allCompletedSubtitle, { color: colors.textMuted }]}>
                 Nice work! You're all caught up on this list.
               </Text>
             </View>
@@ -192,14 +193,12 @@ export default function TaskMainView({
               <View
                 style={[
                   styles.emptyIconWrap,
-                  { backgroundColor: isDarkMode ? '#27272a' : '#e2e8f0' }
+                  { backgroundColor: isDarkMode ? '#27272a' : '#e2e8f0' },
                 ]}
               >
                 <ListTodo size={32} color={colors.textMuted} />
               </View>
-              <Text style={[styles.emptyTitle, { color: colors.text }]}>
-                No tasks here yet
-              </Text>
+              <Text style={[styles.emptyTitle, { color: colors.text }]}>No tasks here yet</Text>
               <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
                 Stay organized by adding tasks above or assigning them from your lists.
               </Text>
@@ -234,14 +233,14 @@ export default function TaskMainView({
                 !hasMetadata && styles.taskCardCompact,
                 {
                   backgroundColor: colors.card,
-                  borderColor: isSelected ? '#0078d4' : colors.border
+                  borderColor: isSelected ? '#0078d4' : colors.border,
                 },
                 isBatchChecked && {
                   backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
                   borderColor: '#0078d4',
-                  borderWidth: 1.5
+                  borderWidth: 1.5,
                 },
-                isDone && styles.taskCardDone
+                isDone && styles.taskCardDone,
               ]}
               activeOpacity={0.7}
             >
@@ -269,7 +268,12 @@ export default function TaskMainView({
                       <Check size={12} color="#ffffff" strokeWidth={3} />
                     </View>
                   ) : (
-                    <View style={[styles.checkboxBox, { borderColor: isDarkMode ? '#64748b' : '#94a3b8' }]} />
+                    <View
+                      style={[
+                        styles.checkboxBox,
+                        { borderColor: isDarkMode ? '#64748b' : '#94a3b8' },
+                      ]}
+                    />
                   )}
                 </TouchableOpacity>
               )}
@@ -280,85 +284,94 @@ export default function TaskMainView({
                   style={[
                     styles.taskTitle,
                     { color: colors.text },
-                    isDone && [styles.taskTitleDone, { color: colors.textMuted }]
+                    isDone && [styles.taskTitleDone, { color: colors.textMuted }],
                   ]}
                   numberOfLines={2}
                 >
                   {item.title}
                 </Text>
 
-                {hasMetadata && <View style={styles.metadataRow}>
-                  {Boolean(item.due_date) && (
-                    <View style={styles.dateBadge}>
-                      <Calendar size={11} color="#0078d4" />
-                      <Text style={styles.dateText}>{item.due_date}</Text>
-                    </View>
-                  )}
+                {hasMetadata && (
+                  <View style={styles.metadataRow}>
+                    {Boolean(item.due_date) && (
+                      <View style={styles.dateBadge}>
+                        <Calendar size={11} color="#0078d4" />
+                        <Text style={styles.dateText}>{item.due_date}</Text>
+                      </View>
+                    )}
 
-                  {Boolean(item.subtask_count && item.subtask_count > 0) && (
-                    <View
-                      style={[
-                        styles.chipBadge,
-                        { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }
-                      ]}
-                    >
-                      <Text
-                        style={[styles.chipText, { color: colors.textMuted }]}
+                    {Boolean(item.subtask_count && item.subtask_count > 0) && (
+                      <View
+                        style={[
+                          styles.chipBadge,
+                          { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' },
+                        ]}
                       >
-                        {item.subtask_completed_count || 0}/{item.subtask_count} steps
-                      </Text>
-                    </View>
-                  )}
+                        <Text style={[styles.chipText, { color: colors.textMuted }]}>
+                          {item.subtask_completed_count || 0}/{item.subtask_count} steps
+                        </Text>
+                      </View>
+                    )}
 
-                  {Boolean(item.assignee_name) && (
-                    <View
-                      style={[
-                        styles.assigneeBadge,
-                        { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }
-                      ]}
-                    >
-                      <Image
-                        source={{
-                          uri:
-                            item.assignee_avatar ||
-                            `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(item.assignee_name || '')}`
+                    {Boolean(item.assignee_name) && (
+                      <View
+                        style={[
+                          styles.assigneeBadge,
+                          { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' },
+                        ]}
+                      >
+                        <Image
+                          source={{
+                            uri:
+                              item.assignee_avatar ||
+                              `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(item.assignee_name || '')}`,
+                          }}
+                          style={styles.assigneeAvatar}
+                        />
+                        <Text
+                          style={[styles.assigneeText, { color: colors.text }]}
+                          numberOfLines={1}
+                        >
+                          {item.assignee_name?.split(' ')[0]}
+                        </Text>
+                      </View>
+                    )}
+
+                    {Boolean(item.lists && item.lists.length > 0) && (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          flexWrap: 'wrap',
                         }}
-                        style={styles.assigneeAvatar}
-                      />
-                      <Text
-                        style={[styles.assigneeText, { color: colors.text }]}
-                        numberOfLines={1}
                       >
-                        {item.assignee_name?.split(' ')[0]}
-                      </Text>
-                    </View>
-                  )}
-
-                  {Boolean(item.lists && item.lists.length > 0) && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                      {item.lists?.map((l) => {
-                        const listColor = getThemePrimary(l.color_theme, isDarkMode);
-                        return (
-                          <View
-                            key={l.id}
-                            style={[
-                              styles.chipBadge,
-                              {
-                                backgroundColor: hexToRgba(listColor, isDarkMode ? 0.2 : 0.12),
-                                borderColor: hexToRgba(listColor, 0.3),
-                                borderWidth: 1
-                              }
-                            ]}
-                          >
-                            <Text style={[styles.chipText, { color: listColor, fontWeight: '700' }]}>
-                              {l.title}
-                            </Text>
-                          </View>
-                        );
-                      })}
-                    </View>
-                  )}
-                </View>}
+                        {item.lists?.map(l => {
+                          const listColor = getThemePrimary(l.color_theme, isDarkMode);
+                          return (
+                            <View
+                              key={l.id}
+                              style={[
+                                styles.chipBadge,
+                                {
+                                  backgroundColor: hexToRgba(listColor, isDarkMode ? 0.2 : 0.12),
+                                  borderColor: hexToRgba(listColor, 0.3),
+                                  borderWidth: 1,
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[styles.chipText, { color: listColor, fontWeight: '700' }]}
+                              >
+                                {l.title}
+                              </Text>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    )}
+                  </View>
+                )}
               </View>
 
               {/* Right Star Button */}
@@ -389,22 +402,17 @@ export default function TaskMainView({
                   size={16}
                   color={colors.textMuted}
                   style={{
-                    transform: [{ rotate: showCompleted ? '180deg' : '0deg' }]
+                    transform: [{ rotate: showCompleted ? '180deg' : '0deg' }],
                   }}
                 />
-                <Text
-                  style={[
-                    styles.completedHeaderText,
-                    { color: colors.textMuted }
-                  ]}
-                >
+                <Text style={[styles.completedHeaderText, { color: colors.textMuted }]}>
                   Completed ({completedTasks.length})
                 </Text>
               </TouchableOpacity>
 
               {showCompleted && (
                 <View style={styles.completedList}>
-                  {completedTasks.map((item) => {
+                  {completedTasks.map(item => {
                     const isSelected = selectedTaskId === item.id;
                     const isBatchChecked = selectedTaskIds.includes(item.id);
                     const hasMetadata = hasTaskMetadata(item);
@@ -425,8 +433,8 @@ export default function TaskMainView({
                           styles.taskCardDone,
                           {
                             backgroundColor: colors.card,
-                            borderColor: isSelected ? '#0078d4' : colors.border
-                          }
+                            borderColor: isSelected ? '#0078d4' : colors.border,
+                          },
                         ]}
                         activeOpacity={0.7}
                       >
@@ -461,80 +469,71 @@ export default function TaskMainView({
                             style={[
                               styles.taskTitle,
                               styles.taskTitleDone,
-                              { color: colors.textMuted }
+                              { color: colors.textMuted },
                             ]}
                             numberOfLines={2}
                           >
                             {item.title}
                           </Text>
 
-                          {hasMetadata && <View style={styles.metadataRow}>
-                            {Boolean(item.due_date) && (
-                              <View style={styles.dateBadge}>
-                                <Calendar size={11} color="#0078d4" />
-                                <Text style={styles.dateText}>
-                                  {item.due_date}
-                                </Text>
-                              </View>
-                            )}
-                            {Boolean(
-                              item.subtask_count && item.subtask_count > 0
-                            ) && (
-                              <View
-                                style={[
-                                  styles.chipBadge,
-                                  {
-                                    backgroundColor: isDarkMode
-                                      ? '#27272a'
-                                      : '#f1f5f9'
-                                  }
-                                ]}
-                              >
-                                <Text
+                          {hasMetadata && (
+                            <View style={styles.metadataRow}>
+                              {Boolean(item.due_date) && (
+                                <View style={styles.dateBadge}>
+                                  <Calendar size={11} color="#0078d4" />
+                                  <Text style={styles.dateText}>{item.due_date}</Text>
+                                </View>
+                              )}
+                              {Boolean(item.subtask_count && item.subtask_count > 0) && (
+                                <View
                                   style={[
-                                    styles.chipText,
-                                    { color: colors.textMuted }
+                                    styles.chipBadge,
+                                    {
+                                      backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                                    },
                                   ]}
                                 >
-                                  {item.subtask_completed_count || 0}/
-                                  {item.subtask_count} steps
-                                </Text>
-                              </View>
-                            )}
-                            {Boolean(item.assignee_name) && (
-                              <View
-                                style={[
-                                  styles.assigneeBadge,
-                                  {
-                                    backgroundColor: isDarkMode
-                                      ? '#27272a'
-                                      : '#f1f5f9'
-                                  }
-                                ]}
-                              >
-                                <Image
-                                  source={{
-                                    uri:
-                                      item.assignee_avatar ||
-                                      `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(item.assignee_name || '')}`
-                                  }}
-                                  style={styles.assigneeAvatar}
-                                />
-                                <Text
+                                  <Text style={[styles.chipText, { color: colors.textMuted }]}>
+                                    {item.subtask_completed_count || 0}/{item.subtask_count} steps
+                                  </Text>
+                                </View>
+                              )}
+                              {Boolean(item.assignee_name) && (
+                                <View
                                   style={[
-                                    styles.assigneeText,
-                                    { color: colors.text }
+                                    styles.assigneeBadge,
+                                    {
+                                      backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                                    },
                                   ]}
-                                  numberOfLines={1}
                                 >
-                                  {item.assignee_name?.split(' ')[0]}
-                                </Text>
-                              </View>
-                            )}
+                                  <Image
+                                    source={{
+                                      uri:
+                                        item.assignee_avatar ||
+                                        `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(item.assignee_name || '')}`,
+                                    }}
+                                    style={styles.assigneeAvatar}
+                                  />
+                                  <Text
+                                    style={[styles.assigneeText, { color: colors.text }]}
+                                    numberOfLines={1}
+                                  >
+                                    {item.assignee_name?.split(' ')[0]}
+                                  </Text>
+                                </View>
+                              )}
 
-                            {Boolean(item.lists && item.lists.length > 0) && (
-                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-                                  {item.lists?.map((l) => (
+                              {Boolean(item.lists && item.lists.length > 0) && (
+                                <View
+                                  style={{
+                                    flexDirection: 'row',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  {item.lists?.map(l => (
                                     <View
                                       key={l.id}
                                       style={[
@@ -542,18 +541,24 @@ export default function TaskMainView({
                                         {
                                           backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
                                           borderColor: colors.border,
-                                          borderWidth: 1
-                                        }
+                                          borderWidth: 1,
+                                        },
                                       ]}
                                     >
-                                      <Text style={[styles.chipText, { color: colors.textMuted, fontWeight: '600' }]}>
+                                      <Text
+                                        style={[
+                                          styles.chipText,
+                                          { color: colors.textMuted, fontWeight: '600' },
+                                        ]}
+                                      >
                                         {l.title}
                                       </Text>
                                     </View>
                                   ))}
                                 </View>
                               )}
-                          </View>}
+                            </View>
+                          )}
                         </View>
 
                         {/* Right Star Button */}
@@ -564,9 +569,7 @@ export default function TaskMainView({
                         >
                           <Star
                             size={20}
-                            color={
-                              item.is_important ? '#f59e0b' : colors.textMuted
-                            }
+                            color={item.is_important ? '#f59e0b' : colors.textMuted}
                             fill={item.is_important ? '#f59e0b' : 'transparent'}
                           />
                         </TouchableOpacity>
@@ -599,7 +602,7 @@ export default function TaskMainView({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   fabBtn: {
     position: 'absolute',
@@ -616,14 +619,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
-    zIndex: 50
+    zIndex: 50,
   },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20
+    padding: 20,
   },
   modalCard: {
     width: '100%',
@@ -636,16 +639,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 5
+    elevation: 5,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   modalTitle: {
     fontSize: fontSizes.medium,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   modalInput: {
     height: 48,
@@ -653,30 +656,30 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   modalActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 10
+    gap: 10,
   },
   modalCancelBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1
+    borderWidth: 1,
   },
   modalCancelText: {
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   modalCreateBtn: {
     paddingHorizontal: 20,
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   batchBar: {
     marginHorizontal: 14,
@@ -694,12 +697,12 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.25,
     shadowRadius: 8,
-    elevation: 6
+    elevation: 6,
   },
   batchLeftWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10
+    gap: 10,
   },
   batchIconWrap: {
     width: 28,
@@ -707,13 +710,13 @@ const styles = StyleSheet.create({
     borderRadius: 9,
     backgroundColor: 'rgba(56, 189, 248, 0.15)',
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   batchText: {
     color: '#f8fafc',
     fontSize: fontSizes.small,
     fontWeight: '800',
-    letterSpacing: 0.2
+    letterSpacing: 0.2,
   },
   whatsappBatchBtn: {
     backgroundColor: '#25D366',
@@ -727,24 +730,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.35,
     shadowRadius: 4,
-    elevation: 3
+    elevation: 3,
   },
   whatsappBatchText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   listContent: {
     paddingHorizontal: 6,
     paddingTop: 10,
     paddingBottom: 100,
-    gap: 8
+    gap: 8,
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 60,
-    paddingHorizontal: 24
+    paddingHorizontal: 24,
   },
   emptyIconWrap: {
     width: 64,
@@ -752,18 +755,18 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 14
+    marginBottom: 14,
   },
   emptyTitle: {
     fontSize: fontSizes.heading,
     fontWeight: '800',
-    marginBottom: 6
+    marginBottom: 6,
   },
   emptySubtitle: {
     fontSize: fontSizes.small,
     textAlign: 'center',
     lineHeight: 18,
-    maxWidth: 260
+    maxWidth: 260,
   },
   taskCard: {
     flexDirection: 'row',
@@ -776,21 +779,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
-    elevation: 1
+    elevation: 1,
   },
   taskCardCompact: {
     paddingVertical: 2,
-    minHeight: 42
+    minHeight: 42,
   },
   taskCardDone: {
-    opacity: 0.65
+    opacity: 0.65,
   },
   checkTouchArea: {
     width: 36,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 2
+    marginRight: 2,
   },
   checkboxBox: {
     width: 20,
@@ -799,30 +802,30 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   checkboxBoxDone: {
     backgroundColor: '#0078d4',
-    borderColor: '#0078d4'
+    borderColor: '#0078d4',
   },
   taskInfo: {
     flex: 1,
-    paddingRight: 4
+    paddingRight: 4,
   },
   taskTitle: {
     fontSize: fontSizes.small,
     fontWeight: '700',
-    lineHeight: 20
+    lineHeight: 20,
   },
   taskTitleDone: {
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
   metadataRow: {
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 4
+    marginTop: 4,
   },
   dateBadge: {
     flexDirection: 'row',
@@ -830,21 +833,21 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6
+    borderRadius: 6,
   },
   dateText: {
     fontSize: fontSizes.caption,
     fontWeight: '600',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   chipBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6
+    borderRadius: 6,
   },
   chipText: {
     fontSize: fontSizes.caption,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   assigneeBadge: {
     flexDirection: 'row',
@@ -852,50 +855,50 @@ const styles = StyleSheet.create({
     gap: 4,
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 12
+    borderRadius: 12,
   },
   assigneeAvatar: {
     width: 14,
     height: 14,
-    borderRadius: 7
+    borderRadius: 7,
   },
   assigneeText: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   starTouchArea: {
     width: 36,
     height: 44,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   completedContainer: {
     marginTop: 16,
     marginBottom: 12,
-    gap: 8
+    gap: 8,
   },
   completedHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     paddingVertical: 8,
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   completedHeaderText: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   completedList: {
     gap: 8,
-    marginTop: 4
+    marginTop: 4,
   },
   allCompletedHeader: {
     paddingVertical: 24,
     paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8
+    marginBottom: 8,
   },
   allCompletedIconWrap: {
     width: 48,
@@ -903,16 +906,16 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8
+    marginBottom: 8,
   },
   allCompletedTitle: {
     fontSize: fontSizes.small,
     fontWeight: '800',
-    marginBottom: 4
+    marginBottom: 4,
   },
   allCompletedSubtitle: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    textAlign: 'center'
-  }
+    textAlign: 'center',
+  },
 });

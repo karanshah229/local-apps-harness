@@ -34,84 +34,90 @@ export const SELF_USER: User = {
   active: 1,
 };
 
-const ContactPickerItem = React.memo(({
-  user,
-  isSelected,
-  isDarkMode,
-  onSelect,
-}: {
-  user: User;
-  isSelected: boolean;
-  isDarkMode: boolean;
-  onSelect: (user: User) => void;
-}) => {
-  return (
-    <TouchableOpacity
-      onPress={() => onSelect(user)}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 12,
-        borderRadius: 16,
-        marginBottom: 8,
-        backgroundColor: isSelected
-          ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
-          : (isDarkMode ? '#27272a' : '#f8fafc'),
-        borderWidth: isSelected ? 1.5 : 1,
-        borderColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-      }}
-      activeOpacity={0.7}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
-        <View
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: 19,
-            backgroundColor: isSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Phone size={18} color={isSelected ? '#ffffff' : '#0078d4'} />
-        </View>
-
-        <View style={{ flex: 1 }}>
-          <Text
+const ContactPickerItem = React.memo(
+  ({
+    user,
+    isSelected,
+    isDarkMode,
+    onSelect,
+  }: {
+    user: User;
+    isSelected: boolean;
+    isDarkMode: boolean;
+    onSelect: (user: User) => void;
+  }) => {
+    return (
+      <TouchableOpacity
+        onPress={() => onSelect(user)}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          paddingVertical: 12,
+          paddingHorizontal: 12,
+          borderRadius: 16,
+          marginBottom: 8,
+          backgroundColor: isSelected
+            ? isDarkMode
+              ? 'rgba(37, 211, 102, 0.15)'
+              : '#f0fdf4'
+            : isDarkMode
+              ? '#27272a'
+              : '#f8fafc',
+          borderWidth: isSelected ? 1.5 : 1,
+          borderColor: isSelected ? '#25D366' : isDarkMode ? '#3f3f46' : '#e2e8f0',
+        }}
+        activeOpacity={0.7}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
+          <View
             style={{
-              fontSize: 15,
-              fontWeight: '700',
-              color: isDarkMode ? '#ffffff' : '#0f172a',
+              width: 38,
+              height: 38,
+              borderRadius: 19,
+              backgroundColor: isSelected ? '#25D366' : isDarkMode ? '#3f3f46' : '#e2e8f0',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-            numberOfLines={1}
           >
-            {user.name}
-          </Text>
-          <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
-            {user.phone || user.email || 'No phone'}
-          </Text>
-        </View>
-      </View>
+            <Phone size={18} color={isSelected ? '#ffffff' : '#0078d4'} />
+          </View>
 
-      {isSelected && (
-        <View
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 12,
-            backgroundColor: '#25D366',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          <Check size={14} color="#ffffff" strokeWidth={3} />
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '700',
+                color: isDarkMode ? '#ffffff' : '#0f172a',
+              }}
+              numberOfLines={1}
+            >
+              {user.name}
+            </Text>
+            <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+              {user.phone || user.email || 'No phone'}
+            </Text>
+          </View>
         </View>
-      )}
-    </TouchableOpacity>
-  );
-});
+
+        {isSelected && (
+          <View
+            style={{
+              width: 24,
+              height: 24,
+              borderRadius: 12,
+              backgroundColor: '#25D366',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Check size={14} color="#ffffff" strokeWidth={3} />
+          </View>
+        )}
+      </TouchableOpacity>
+    );
+  }
+);
 
 export interface ContactPickerModalProps {
   visible: boolean;
@@ -146,7 +152,7 @@ export function ContactPickerModal({
   const handleRefreshContacts = async () => {
     setIsRefreshing(true);
     try {
-      await syncDeviceContacts(async (contacts) => {
+      await syncDeviceContacts(async contacts => {
         await batchImportMutation.mutateAsync(contacts);
       }, true);
     } catch (err) {
@@ -159,16 +165,18 @@ export function ContactPickerModal({
   const isGroupSelected = selectedContactId === -1;
   const isSelfSelected = selectedContactId === 1;
 
-  const individualContacts = useMemo(
-    () => users.filter((u) => !u.is_group && u.id !== 1),
-    [users]
-  );
+  const individualContacts = useMemo(() => users.filter(u => !u.is_group && u.id !== 1), [users]);
 
   const filteredIndividuals = useMemo(() => {
     const q = searchQuery.trim();
     if (!q) return individualContacts;
     return individualContacts
-      .filter((u) => fuzzyMatch(u.name || '', q) || fuzzyMatch(u.phone || '', q) || fuzzyMatch(u.email || '', q))
+      .filter(
+        u =>
+          fuzzyMatch(u.name || '', q) ||
+          fuzzyMatch(u.phone || '', q) ||
+          fuzzyMatch(u.email || '', q)
+      )
       .sort((a, b) => {
         const scoreA = getMultiFieldSearchScore([a.name, a.phone], q);
         const scoreB = getMultiFieldSearchScore([b.name, b.phone], q);
@@ -203,7 +211,10 @@ export function ContactPickerModal({
 
   const ListHeader = useMemo(() => {
     const isGroupMatch = !searchQuery.trim() || fuzzyMatch('WhatsApp Group', searchQuery);
-    const isSelfMatch = !searchQuery.trim() || fuzzyMatch('Self (You)', searchQuery) || fuzzyMatch('Self', searchQuery);
+    const isSelfMatch =
+      !searchQuery.trim() ||
+      fuzzyMatch('Self (You)', searchQuery) ||
+      fuzzyMatch('Self', searchQuery);
 
     return (
       <View>
@@ -246,10 +257,14 @@ export function ContactPickerModal({
               borderRadius: 16,
               marginBottom: 8,
               backgroundColor: isGroupSelected
-                ? (isDarkMode ? 'rgba(37, 211, 102, 0.18)' : '#ecfdf5')
-                : (isDarkMode ? '#27272a' : '#f8fafc'),
+                ? isDarkMode
+                  ? 'rgba(37, 211, 102, 0.18)'
+                  : '#ecfdf5'
+                : isDarkMode
+                  ? '#27272a'
+                  : '#f8fafc',
               borderWidth: isGroupSelected ? 1.5 : 1,
-              borderColor: isGroupSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+              borderColor: isGroupSelected ? '#25D366' : isDarkMode ? '#3f3f46' : '#e2e8f0',
             }}
             activeOpacity={0.7}
           >
@@ -268,7 +283,13 @@ export function ContactPickerModal({
               </View>
               <View style={{ flex: 1 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                    }}
+                  >
                     WhatsApp Group
                   </Text>
                   <View
@@ -282,7 +303,9 @@ export function ContactPickerModal({
                     <Text style={{ fontSize: 10, fontWeight: '800', color: '#25D366' }}>Group</Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                <Text
+                  style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}
+                >
                   Opens WhatsApp group selector
                 </Text>
               </View>
@@ -318,10 +341,14 @@ export function ContactPickerModal({
               borderRadius: 16,
               marginBottom: 8,
               backgroundColor: isSelfSelected
-                ? (isDarkMode ? 'rgba(37, 211, 102, 0.15)' : '#f0fdf4')
-                : (isDarkMode ? '#27272a' : '#f8fafc'),
+                ? isDarkMode
+                  ? 'rgba(37, 211, 102, 0.15)'
+                  : '#f0fdf4'
+                : isDarkMode
+                  ? '#27272a'
+                  : '#f8fafc',
               borderWidth: isSelfSelected ? 1.5 : 1,
-              borderColor: isSelfSelected ? '#25D366' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+              borderColor: isSelfSelected ? '#25D366' : isDarkMode ? '#3f3f46' : '#e2e8f0',
             }}
             activeOpacity={0.7}
           >
@@ -359,13 +386,13 @@ export function ContactPickerModal({
                       borderRadius: 6,
                     }}
                   >
-                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>
-                      You
-                    </Text>
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>You</Text>
                   </View>
                 </View>
 
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                <Text
+                  style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}
+                >
                   Opens WhatsApp chat selector
                 </Text>
               </View>
@@ -389,23 +416,23 @@ export function ContactPickerModal({
         )}
       </View>
     );
-  }, [searchQuery, selectedContactId, onClearContact, isDarkMode, isGroupSelected, isSelfSelected, handleSelectUser, onClose]);
+  }, [
+    searchQuery,
+    selectedContactId,
+    onClearContact,
+    isDarkMode,
+    isGroupSelected,
+    isSelfSelected,
+    handleSelectUser,
+    onClose,
+  ]);
 
   if (!visible) return null;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View
           style={{
             backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
@@ -419,12 +446,28 @@ export function ContactPickerModal({
           }}
         >
           {/* Header */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: 12,
+            }}
+          >
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              >
                 {title}
               </Text>
-              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }} numberOfLines={1}>
+              <Text
+                style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}
+                numberOfLines={1}
+              >
                 {subtitle}
               </Text>
             </View>
@@ -479,7 +522,11 @@ export function ContactPickerModal({
               marginBottom: 12,
             }}
           >
-            <Search size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 8 }} />
+            <Search
+              size={16}
+              color={isDarkMode ? '#71717a' : '#94a3b8'}
+              style={{ marginRight: 8 }}
+            />
             <TextInput
               placeholder="Search contacts..."
               placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
@@ -494,7 +541,10 @@ export function ContactPickerModal({
               }}
             />
             {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setSearchQuery('')}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <X size={14} color={isDarkMode ? '#71717a' : '#94a3b8'} />
               </TouchableOpacity>
             )}

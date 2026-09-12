@@ -1,19 +1,6 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Image,
-  StyleSheet
-} from 'react-native';
+import { View, Text, TouchableOpacity, Image, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  CheckSquare,
-  Star,
-  User as UserIcon,
-  ListTodo,
-  Users
-} from 'lucide-react-native';
+import { CheckSquare, Star, User as UserIcon, ListTodo, Users } from 'lucide-react-native';
 import Svg, { Path, Rect, Circle } from 'react-native-svg';
 import { User, List } from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
@@ -42,7 +29,7 @@ export default function MobileBottomNav({
   onOpenUserLibrary,
   activeUser,
   lists,
-  isDarkMode
+  isDarkMode,
 }: MobileBottomNavProps) {
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -60,8 +47,8 @@ export default function MobileBottomNav({
         {
           backgroundColor: colors.card,
           borderTopColor: colors.border,
-          paddingBottom: Math.max(insets.bottom, 10)
-        }
+          paddingBottom: Math.max(insets.bottom, 10),
+        },
       ]}
     >
       <View style={styles.navRow}>
@@ -87,10 +74,7 @@ export default function MobileBottomNav({
                 />
               </Svg>
             ) : (
-              <CheckSquare
-                size={20}
-                color={colors.textMuted}
-              />
+              <CheckSquare size={20} color={colors.textMuted} />
             )}
             {Boolean(taskCounts['all-tasks'] && taskCounts['all-tasks'] > 0) && (
               <View style={[styles.badge, { backgroundColor: '#f59e0b' }]}>
@@ -102,7 +86,7 @@ export default function MobileBottomNav({
             style={[
               styles.navLabel,
               { color: isAllTasksActive ? '#0078d4' : colors.textMuted },
-              isAllTasksActive && styles.navLabelActive
+              isAllTasksActive && styles.navLabelActive,
             ]}
           >
             Tasks
@@ -134,7 +118,7 @@ export default function MobileBottomNav({
             style={[
               styles.navLabel,
               { color: isImportantActive ? '#742774' : colors.textMuted },
-              isImportantActive && styles.navLabelActive
+              isImportantActive && styles.navLabelActive,
             ]}
           >
             Important
@@ -158,9 +142,7 @@ export default function MobileBottomNav({
             />
             {Boolean(taskCounts['assigned-to-me'] && taskCounts['assigned-to-me'] > 0) && (
               <View style={[styles.badge, { backgroundColor: '#d83b01' }]}>
-                <Text style={styles.badgeText}>
-                  {taskCounts['assigned-to-me']}
-                </Text>
+                <Text style={styles.badgeText}>{taskCounts['assigned-to-me']}</Text>
               </View>
             )}
           </View>
@@ -168,7 +150,7 @@ export default function MobileBottomNav({
             style={[
               styles.navLabel,
               { color: isAssignedActive ? '#d83b01' : colors.textMuted },
-              isAssignedActive && styles.navLabelActive
+              isAssignedActive && styles.navLabelActive,
             ]}
           >
             Assigned
@@ -187,8 +169,8 @@ export default function MobileBottomNav({
           <View style={styles.iconWrap}>
             <ListTodo
               size={20}
-              color={(activeView === 'lists' || isCustomListActive) ? '#0078d4' : colors.textMuted}
-              strokeWidth={(activeView === 'lists' || isCustomListActive) ? 2.5 : 2}
+              color={activeView === 'lists' || isCustomListActive ? '#0078d4' : colors.textMuted}
+              strokeWidth={activeView === 'lists' || isCustomListActive ? 2.5 : 2}
             />
             {Boolean(lists.length > 0) && (
               <View style={[styles.badge, { backgroundColor: '#64748b' }]}>
@@ -199,8 +181,10 @@ export default function MobileBottomNav({
           <Text
             style={[
               styles.navLabel,
-              { color: (activeView === 'lists' || isCustomListActive) ? '#0078d4' : colors.textMuted },
-              (activeView === 'lists' || isCustomListActive) && styles.navLabelActive
+              {
+                color: activeView === 'lists' || isCustomListActive ? '#0078d4' : colors.textMuted,
+              },
+              (activeView === 'lists' || isCustomListActive) && styles.navLabelActive,
             ]}
           >
             Lists
@@ -217,16 +201,13 @@ export default function MobileBottomNav({
           activeOpacity={0.7}
         >
           <View style={styles.iconWrap}>
-            <Users
-              size={20}
-              color={isContactsActive ? '#10b981' : colors.textMuted}
-            />
+            <Users size={20} color={isContactsActive ? '#10b981' : colors.textMuted} />
           </View>
           <Text
             style={[
               styles.navLabel,
               { color: isContactsActive ? '#10b981' : colors.textMuted },
-              isContactsActive && styles.navLabelActive
+              isContactsActive && styles.navLabelActive,
             ]}
             numberOfLines={1}
           >
@@ -245,27 +226,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.08,
     shadowRadius: 6,
-    elevation: 12
+    elevation: 12,
   },
   navRow: {
     height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-around',
-    paddingHorizontal: 8
+    paddingHorizontal: 8,
   },
   navItem: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 4
+    paddingVertical: 4,
   },
   iconWrap: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
     width: 28,
-    height: 28
+    height: 28,
   },
   badge: {
     position: 'absolute',
@@ -277,26 +258,26 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 3
+    paddingHorizontal: 3,
   },
   badgeText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '900'
+    fontWeight: '900',
   },
   navLabel: {
     fontSize: fontSizes.caption,
     fontWeight: '600',
-    marginTop: 2
+    marginTop: 2,
   },
   navLabelActive: {
-    fontWeight: '800'
+    fontWeight: '800',
   },
   userAvatar: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: '#0078d4'
-  }
+    borderColor: '#0078d4',
+  },
 });

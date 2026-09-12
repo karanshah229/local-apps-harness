@@ -41,12 +41,7 @@ export const BulkDueDatePickerModal = ({
   };
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View
           style={{
@@ -57,7 +52,7 @@ export const BulkDueDatePickerModal = ({
             padding: 20,
           }}
         >
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
               style={{
                 width: '100%',
@@ -70,12 +65,31 @@ export const BulkDueDatePickerModal = ({
               }}
             >
               {/* Header */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                }}
+              >
                 <View>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: '800',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                    }}
+                  >
                     Assign Due Date
                   </Text>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      marginTop: 2,
+                    }}
+                  >
                     For {selectedCount} selected {selectedCount === 1 ? 'task' : 'tasks'}
                   </Text>
                 </View>
@@ -98,7 +112,10 @@ export const BulkDueDatePickerModal = ({
               {/* Quick Presets */}
               <View style={{ gap: 8, marginBottom: 16 }}>
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(presets.today, timeZone); onClose(); }}
+                  onPress={() => {
+                    onSelectDueDate(presets.today, timeZone);
+                    onClose();
+                  }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -110,17 +127,32 @@ export const BulkDueDatePickerModal = ({
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <Sun size={18} color="#0284c7" />
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#f4f4f5' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#f4f4f5' : '#0f172a',
+                      }}
+                    >
                       Today
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      fontWeight: '700',
+                    }}
+                  >
                     {presets.todayFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(presets.tomorrow, timeZone); onClose(); }}
+                  onPress={() => {
+                    onSelectDueDate(presets.tomorrow, timeZone);
+                    onClose();
+                  }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -132,17 +164,32 @@ export const BulkDueDatePickerModal = ({
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <Sunrise size={18} color="#ea580c" />
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#f4f4f5' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#f4f4f5' : '#0f172a',
+                      }}
+                    >
                       Tomorrow
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      fontWeight: '700',
+                    }}
+                  >
                     {presets.tomorrowFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(presets.nextMonday, timeZone); onClose(); }}
+                  onPress={() => {
+                    onSelectDueDate(presets.nextMonday, timeZone);
+                    onClose();
+                  }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -154,17 +201,32 @@ export const BulkDueDatePickerModal = ({
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                     <CalendarDays size={18} color="#7c3aed" />
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#f4f4f5' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#f4f4f5' : '#0f172a',
+                      }}
+                    >
                       Next Week
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', fontWeight: '700' }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      fontWeight: '700',
+                    }}
+                  >
                     {presets.nextMondayFormatted}
                   </Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  onPress={() => { onSelectDueDate(null, null); onClose(); }}
+                  onPress={() => {
+                    onSelectDueDate(null, null);
+                    onClose();
+                  }}
                   style={{
                     flexDirection: 'row',
                     alignItems: 'center',
@@ -183,8 +245,23 @@ export const BulkDueDatePickerModal = ({
               </View>
 
               {/* Custom Date Input */}
-              <View style={{ borderTopWidth: 1, borderTopColor: isDarkMode ? '#27272a' : '#e2e8f0', paddingTop: 14 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              <View
+                style={{
+                  borderTopWidth: 1,
+                  borderTopColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                  paddingTop: 14,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#a1a1aa' : '#64748b',
+                    marginBottom: 8,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
                   Or Custom Date (YYYY-MM-DD)
                 </Text>
                 <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -211,14 +288,16 @@ export const BulkDueDatePickerModal = ({
                       height: 46,
                       paddingHorizontal: 16,
                       borderRadius: 12,
-                      backgroundColor: /^\d{4}-\d{2}-\d{2}$/.test(customDate.trim()) ? themePrimary : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                      backgroundColor: /^\d{4}-\d{2}-\d{2}$/.test(customDate.trim())
+                        ? themePrimary
+                        : isDarkMode
+                          ? '#3f3f46'
+                          : '#cbd5e1',
                       alignItems: 'center',
                       justifyContent: 'center',
                     }}
                   >
-                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>
-                      Set
-                    </Text>
+                    <Text style={{ color: '#ffffff', fontWeight: '700', fontSize: 14 }}>Set</Text>
                   </TouchableOpacity>
                 </View>
               </View>

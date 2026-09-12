@@ -1,0 +1,11 @@
+node_modules
+.expo
+.expo-dist
+android
+ios
+releases
+.maestro
+test
+dist
+build
+pnpm-lock.yaml

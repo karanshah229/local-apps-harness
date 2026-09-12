@@ -13,13 +13,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import {
-  ArrowLeft,
-  Search,
-  UserPlus,
-  RefreshCw,
-  X,
-} from 'lucide-react-native';
+import { ArrowLeft, Search, UserPlus, RefreshCw, X } from 'lucide-react-native';
 import { useUiStore } from '../../src/store/useUiStore';
 import {
   useUsersQuery,
@@ -56,10 +50,7 @@ const ContactItem = React.memo(({ user, isDarkMode }: ContactItemProps) => {
       }}
     >
       {user.avatar ? (
-        <Image
-          source={{ uri: user.avatar }}
-          style={{ width: 38, height: 38, borderRadius: 19 }}
-        />
+        <Image source={{ uri: user.avatar }} style={{ width: 38, height: 38, borderRadius: 19 }} />
       ) : (
         <View
           style={{
@@ -71,9 +62,7 @@ const ContactItem = React.memo(({ user, isDarkMode }: ContactItemProps) => {
             justifyContent: 'center',
           }}
         >
-          <Text style={{ color: '#0078d4', fontWeight: '800', fontSize: 13 }}>
-            {initials}
-          </Text>
+          <Text style={{ color: '#0078d4', fontWeight: '800', fontSize: 13 }}>{initials}</Text>
         </View>
       )}
 
@@ -132,11 +121,15 @@ export default function ContactsScreen() {
     setIsRefreshing(true);
     logClientEvent({ event: 'contacts_refresh_started', outcome: 'started' });
     try {
-      const res = await syncDeviceContacts(async (contacts) => {
+      const res = await syncDeviceContacts(async contacts => {
         await batchImportMutation.mutateAsync(contacts);
       }, true);
       if (res.success) {
-        logClientEvent({ event: 'contacts_refresh_succeeded', outcome: 'success', data: { count: res.count } });
+        logClientEvent({
+          event: 'contacts_refresh_succeeded',
+          outcome: 'success',
+          data: { count: res.count },
+        });
         showAlertDialog('Contacts Synced', 'Successfully refreshed and synced contacts.');
       } else if (res.error) {
         showAlertDialog('Sync Contacts', res.error);
@@ -172,7 +165,7 @@ export default function ContactsScreen() {
     if (!q) return users;
     return users
       .filter(
-        (u) =>
+        u =>
           fuzzyMatch(u.name || '', q) ||
           fuzzyMatch(u.phone || '', q) ||
           fuzzyMatch(u.email || '', q)
@@ -188,7 +181,10 @@ export default function ContactsScreen() {
   }, [users, searchQuery]);
 
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0
+  );
 
   const keyExtractor = useCallback((item: User) => String(item.id), []);
 
@@ -220,11 +216,18 @@ export default function ContactsScreen() {
           gap: 10,
         }}
       >
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Text style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+        <View
+          style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}
+        >
+          <Text
+            style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+          >
             New Contact
           </Text>
-          <TouchableOpacity onPress={() => setShowAddUser(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <TouchableOpacity
+            onPress={() => setShowAddUser(false)}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
             <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
           </TouchableOpacity>
         </View>
@@ -294,7 +297,9 @@ export default function ContactsScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}>
+    <View
+      style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}
+    >
       {/* Header Bar - Consistent with Task Detail Header */}
       <View
         style={{
@@ -327,7 +332,9 @@ export default function ContactsScreen() {
           </TouchableOpacity>
 
           <View>
-            <Text style={{ fontSize: 17, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+            <Text
+              style={{ fontSize: 17, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+            >
               Contacts
             </Text>
             <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
@@ -401,7 +408,7 @@ export default function ContactsScreen() {
             placeholder="Search contacts by name or phone..."
             placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
             value={searchQuery}
-            onChangeText={(text) => {
+            onChangeText={text => {
               if (!text && searchQuery.length > 0) {
                 logClientEvent({ event: 'contact_search_cleared', outcome: 'succeeded' });
               }
@@ -441,7 +448,10 @@ export default function ContactsScreen() {
         removeClippedSubviews={Platform.OS === 'android'}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
-        contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: Math.max(insets.bottom + 20, 36) }}
+        contentContainerStyle={{
+          paddingHorizontal: 16,
+          paddingBottom: Math.max(insets.bottom + 20, 36),
+        }}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       />

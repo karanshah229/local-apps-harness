@@ -1,6 +1,15 @@
 import { create } from 'zustand';
 import { Appearance } from 'react-native';
-import { User, List, Task, WhatsAppPayloadConfig, ViewSortConfig, SortPreferences, DEFAULT_SORT_CONFIG, WhatsAppMessageStyle } from '@shared/todo';
+import {
+  User,
+  List,
+  Task,
+  WhatsAppPayloadConfig,
+  ViewSortConfig,
+  SortPreferences,
+  DEFAULT_SORT_CONFIG,
+  WhatsAppMessageStyle,
+} from '@shared/todo';
 
 const getInitialDarkMode = (mode: 'system' | 'light' | 'dark'): boolean => {
   if (mode === 'dark') return true;
@@ -87,20 +96,21 @@ export interface DialogConfig {
 export const useUiStore = create<UiState>((set, get) => ({
   themeMode: 'system',
   isDarkMode: getInitialDarkMode('system'),
-  setThemeMode: (mode) => set({ themeMode: mode, isDarkMode: getInitialDarkMode(mode) }),
-  setIsDarkMode: (isDark) => set({ isDarkMode: isDark }),
+  setThemeMode: mode => set({ themeMode: mode, isDarkMode: getInitialDarkMode(mode) }),
+  setIsDarkMode: isDark => set({ isDarkMode: isDark }),
 
   activeView: 'all-tasks',
-  setActiveView: (view) => set({ activeView: view, activeListId: null, activeCustomViewId: null }),
+  setActiveView: view => set({ activeView: view, activeListId: null, activeCustomViewId: null }),
 
   activeListId: null,
-  setActiveListId: (id) => set({ activeListId: id, activeView: null, activeCustomViewId: null }),
+  setActiveListId: id => set({ activeListId: id, activeView: null, activeCustomViewId: null }),
 
   activeCustomViewId: null,
-  setActiveCustomViewId: (id) => set({ activeCustomViewId: id, activeView: null, activeListId: null }),
+  setActiveCustomViewId: id =>
+    set({ activeCustomViewId: id, activeView: null, activeListId: null }),
 
   selectedTaskId: null,
-  setSelectedTaskId: (id) => set({ selectedTaskId: id }),
+  setSelectedTaskId: id => set({ selectedTaskId: id }),
 
   isMultiSelectMode: false,
   selectedTaskIds: [],
@@ -114,7 +124,7 @@ export const useUiStore = create<UiState>((set, get) => ({
   toggleSelectTaskForBatch: (taskId: number) => {
     const current = get().selectedTaskIds;
     if (current.includes(taskId)) {
-      const next = current.filter((id) => id !== taskId);
+      const next = current.filter(id => id !== taskId);
       set({ selectedTaskIds: next, isMultiSelectMode: next.length > 0 });
     } else {
       set({ selectedTaskIds: [...current, taskId], isMultiSelectMode: true });
@@ -126,36 +136,36 @@ export const useUiStore = create<UiState>((set, get) => ({
   clearSelectedBatchTasks: () => set({ selectedTaskIds: [], isMultiSelectMode: false }),
 
   activeUser: null,
-  setActiveUser: (user) => set({ activeUser: user }),
+  setActiveUser: user => set({ activeUser: user }),
 
   sharingList: null,
-  setSharingList: (list) => set({ sharingList: list }),
+  setSharingList: list => set({ sharingList: list }),
 
   whatsappConfig: null,
-  setWhatsappConfig: (config) => set({ whatsappConfig: config }),
+  setWhatsappConfig: config => set({ whatsappConfig: config }),
 
   defaultWhatsAppStyle: 'executive',
-  setDefaultWhatsAppStyle: (style) => set({ defaultWhatsAppStyle: style }),
+  setDefaultWhatsAppStyle: style => set({ defaultWhatsAppStyle: style }),
   defaultWhatsAppIncludeNotes: true,
-  setDefaultWhatsAppIncludeNotes: (include) => set({ defaultWhatsAppIncludeNotes: include }),
+  setDefaultWhatsAppIncludeNotes: include => set({ defaultWhatsAppIncludeNotes: include }),
   defaultWhatsAppIncludeAssignee: true,
-  setDefaultWhatsAppIncludeAssignee: (include) => set({ defaultWhatsAppIncludeAssignee: include }),
+  setDefaultWhatsAppIncludeAssignee: include => set({ defaultWhatsAppIncludeAssignee: include }),
   defaultWhatsAppIncludeImportant: false,
-  setDefaultWhatsAppIncludeImportant: (include) => set({ defaultWhatsAppIncludeImportant: include }),
+  setDefaultWhatsAppIncludeImportant: include => set({ defaultWhatsAppIncludeImportant: include }),
   defaultWhatsAppIncludeSteps: true,
-  setDefaultWhatsAppIncludeSteps: (include) => set({ defaultWhatsAppIncludeSteps: include }),
+  setDefaultWhatsAppIncludeSteps: include => set({ defaultWhatsAppIncludeSteps: include }),
   defaultWhatsAppIncludeDueDate: true,
-  setDefaultWhatsAppIncludeDueDate: (include) => set({ defaultWhatsAppIncludeDueDate: include }),
+  setDefaultWhatsAppIncludeDueDate: include => set({ defaultWhatsAppIncludeDueDate: include }),
   defaultWhatsAppIncludeListName: true,
-  setDefaultWhatsAppIncludeListName: (include) => set({ defaultWhatsAppIncludeListName: include }),
+  setDefaultWhatsAppIncludeListName: include => set({ defaultWhatsAppIncludeListName: include }),
   hasChosenWhatsAppFormat: false,
-  setHasChosenWhatsAppFormat: (val) => set({ hasChosenWhatsAppFormat: val }),
+  setHasChosenWhatsAppFormat: val => set({ hasChosenWhatsAppFormat: val }),
 
   isListsSheetOpen: false,
-  setIsListsSheetOpen: (open) => set({ isListsSheetOpen: open }),
+  setIsListsSheetOpen: open => set({ isListsSheetOpen: open }),
 
   dialogConfig: null,
-  showConfirmDialog: (config) => set({ dialogConfig: config }),
+  showConfirmDialog: config => set({ dialogConfig: config }),
   showAlertDialog: (title, message, onOk) =>
     set({
       dialogConfig: {

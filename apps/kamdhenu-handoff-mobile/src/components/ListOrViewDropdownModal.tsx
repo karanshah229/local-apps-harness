@@ -1,13 +1,4 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  StyleSheet,
-  Platform,
-  StatusBar,
-} from 'react-native';
+import { View, Text, TouchableOpacity, Modal, StyleSheet, Platform, StatusBar } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   ListTodo,
@@ -64,47 +55,49 @@ export function ListOrViewDropdownModal({
   onDelete,
 }: ListOrViewDropdownModalProps) {
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0
+  );
 
   if (!item) return null;
 
   const themePrimary = getThemePrimary(item.color_theme || 'teal', isDarkMode);
 
-  const defaultContactTitle = item.default_whatsapp_contact_id === -1
-    ? 'WhatsApp Group'
-    : item.default_whatsapp_contact_id === 1
-    ? 'Self (You)'
-    : item.default_whatsapp_contact_id
-    ? (users.find((u) => u.id === item.default_whatsapp_contact_id)?.name || 'Contact')
-    : null;
+  const defaultContactTitle =
+    item.default_whatsapp_contact_id === -1
+      ? 'WhatsApp Group'
+      : item.default_whatsapp_contact_id === 1
+        ? 'Self (You)'
+        : item.default_whatsapp_contact_id
+          ? users.find(u => u.id === item.default_whatsapp_contact_id)?.name || 'Contact'
+          : null;
 
-  const scopeLabel = item.default_whatsapp_share_scope === 'all'
-    ? 'All Tasks'
-    : item.default_whatsapp_share_scope === 'current_view'
-    ? 'Current View'
-    : item.default_whatsapp_share_scope === 'pending'
-    ? 'Pending Tasks'
-    : 'Not set (Ask on send)';
+  const scopeLabel =
+    item.default_whatsapp_share_scope === 'all'
+      ? 'All Tasks'
+      : item.default_whatsapp_share_scope === 'current_view'
+        ? 'Current View'
+        : item.default_whatsapp_share_scope === 'pending'
+          ? 'Pending Tasks'
+          : 'Not set (Ask on send)';
 
-  const styleLabel = (item as any).whatsapp_message_style === 'executive'
-    ? 'Executive'
-    : (item as any).whatsapp_message_style === 'crisp'
-    ? 'Crisp'
-    : (item as any).whatsapp_message_style === 'modern'
-    ? 'Modern'
-    : 'Default';
+  const styleLabel =
+    (item as any).whatsapp_message_style === 'executive'
+      ? 'Executive'
+      : (item as any).whatsapp_message_style === 'crisp'
+        ? 'Crisp'
+        : (item as any).whatsapp_message_style === 'modern'
+          ? 'Modern'
+          : 'Default';
 
-  const calculatedPaddingTop = topOffset !== undefined
-    ? Math.max(topInset + 40, Math.min(topOffset - 10, 480))
-    : topInset + 56;
+  const calculatedPaddingTop =
+    topOffset !== undefined
+      ? Math.max(topInset + 40, Math.min(topOffset - 10, 480))
+      : topInset + 56;
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="none" onRequestClose={onClose}>
       <View
         style={{
           flex: 1,
@@ -114,11 +107,7 @@ export function ListOrViewDropdownModal({
           alignItems: 'flex-end',
         }}
       >
-        <TouchableOpacity
-          style={StyleSheet.absoluteFill}
-          activeOpacity={1}
-          onPress={onClose}
-        />
+        <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={onClose} />
         <View
           style={{
             width: 230,
@@ -151,13 +140,19 @@ export function ListOrViewDropdownModal({
           >
             <WhatsAppIcon size={18} color="#25D366" />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              >
                 WhatsApp Contact
               </Text>
               <Text
                 style={{
                   fontSize: 11,
-                  color: defaultContactTitle ? '#25D366' : (isDarkMode ? '#71717a' : '#94a3b8'),
+                  color: defaultContactTitle ? '#25D366' : isDarkMode ? '#71717a' : '#94a3b8',
                   fontWeight: defaultContactTitle ? '700' : '600',
                   marginTop: 1,
                 }}
@@ -169,7 +164,13 @@ export function ListOrViewDropdownModal({
           </TouchableOpacity>
 
           {/* Divider */}
-          <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+              marginVertical: 2,
+            }}
+          />
 
           {/* Option 2: Tasks to Send */}
           <TouchableOpacity
@@ -188,17 +189,32 @@ export function ListOrViewDropdownModal({
           >
             <ListTodo size={18} color="#0078d4" />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontWeight: '700',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              >
                 Tasks to Send
               </Text>
-              <Text style={{ fontSize: 11, color: '#0078d4', fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+              <Text
+                style={{ fontSize: 11, color: '#0078d4', fontWeight: '700', marginTop: 1 }}
+                numberOfLines={1}
+              >
                 {scopeLabel}
               </Text>
             </View>
           </TouchableOpacity>
 
           {/* Divider */}
-          <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+              marginVertical: 2,
+            }}
+          />
 
           {/* Option 2.5: WhatsApp Message Format */}
           {onOpenFormatPicker && (
@@ -219,15 +235,30 @@ export function ListOrViewDropdownModal({
               >
                 <Sparkles size={18} color="#8b5cf6" />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                    }}
+                  >
                     Message Format
                   </Text>
-                  <Text style={{ fontSize: 11, color: '#8b5cf6', fontWeight: '700', marginTop: 1 }} numberOfLines={1}>
+                  <Text
+                    style={{ fontSize: 11, color: '#8b5cf6', fontWeight: '700', marginTop: 1 }}
+                    numberOfLines={1}
+                  >
                     {styleLabel}
                   </Text>
                 </View>
               </TouchableOpacity>
-              <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+              <View
+                style={{
+                  height: 1,
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  marginVertical: 2,
+                }}
+              />
             </>
           )}
 
@@ -251,13 +282,21 @@ export function ListOrViewDropdownModal({
             ) : (
               <Pin size={18} color={themePrimary} />
             )}
-            <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+            <Text
+              style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+            >
               {isPinned ? 'Unpin from Bottom Bar' : 'Pin to Bottom Bar'}
             </Text>
           </TouchableOpacity>
 
           {/* Divider */}
-          <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+              marginVertical: 2,
+            }}
+          />
 
           {/* Option 4: Rename */}
           <TouchableOpacity
@@ -275,13 +314,21 @@ export function ListOrViewDropdownModal({
             activeOpacity={0.7}
           >
             <Pencil size={18} color={themePrimary} />
-            <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+            <Text
+              style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+            >
               {targetType === 'view' ? 'Rename View' : 'Rename List'}
             </Text>
           </TouchableOpacity>
 
           {/* Divider */}
-          <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+              marginVertical: 2,
+            }}
+          />
 
           {/* Option 5: Change Theme */}
           <TouchableOpacity
@@ -299,13 +346,21 @@ export function ListOrViewDropdownModal({
             activeOpacity={0.7}
           >
             <Palette size={18} color={themePrimary} />
-            <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+            <Text
+              style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+            >
               Change Theme
             </Text>
           </TouchableOpacity>
 
           {/* Divider */}
-          <View style={{ height: 1, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', marginVertical: 2 }} />
+          <View
+            style={{
+              height: 1,
+              backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+              marginVertical: 2,
+            }}
+          />
 
           {/* Option 6: Delete */}
           <TouchableOpacity

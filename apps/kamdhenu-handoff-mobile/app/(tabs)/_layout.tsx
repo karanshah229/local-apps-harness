@@ -1,4 +1,3 @@
-import React from 'react';
 import { Tabs } from 'expo-router';
 import { useUiStore } from '../../src/store/useUiStore';
 import { AppBottomBar } from '../../src/components/AppBottomBar';
@@ -8,7 +7,7 @@ export default function TabLayout() {
 
   return (
     <Tabs
-      tabBar={(props) => <AppBottomBar {...props} />}
+      tabBar={props => <AppBottomBar {...props} />}
       screenOptions={{
         headerShown: false,
         sceneStyle: {

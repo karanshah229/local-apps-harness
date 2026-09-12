@@ -42,14 +42,14 @@ export const BulkAssigneePickerModal = ({
 }: BulkAssigneePickerModalProps) => {
   const [search, setSearch] = useState('');
 
-  const contactUsers = useMemo(() => users.filter((u) => u.id !== 1 && !u.is_group), [users]);
+  const contactUsers = useMemo(() => users.filter(u => u.id !== 1 && !u.is_group), [users]);
 
   const filteredUsers = useMemo(() => {
     const q = search.trim();
     if (!q) return contactUsers;
     return contactUsers
       .filter(
-        (u) =>
+        u =>
           fuzzyMatch(u.name || '', q) ||
           fuzzyMatch(u.phone || '', q) ||
           fuzzyMatch(u.email || '', q)
@@ -65,12 +65,7 @@ export const BulkAssigneePickerModal = ({
   }, [contactUsers, search]);
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
-    >
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <TouchableWithoutFeedback onPress={onClose}>
         <View
           style={{
@@ -81,7 +76,7 @@ export const BulkAssigneePickerModal = ({
             padding: 20,
           }}
         >
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
               style={{
                 width: '100%',
@@ -95,12 +90,31 @@ export const BulkAssigneePickerModal = ({
               }}
             >
               {/* Header */}
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 14,
+                }}
+              >
                 <View>
-                  <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <Text
+                    style={{
+                      fontSize: 18,
+                      fontWeight: '800',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                    }}
+                  >
                     Assign Assignee
                   </Text>
-                  <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      marginTop: 2,
+                    }}
+                  >
                     For {selectedCount} selected {selectedCount === 1 ? 'task' : 'tasks'}
                   </Text>
                 </View>
@@ -132,7 +146,11 @@ export const BulkAssigneePickerModal = ({
                   marginBottom: 12,
                 }}
               >
-                <Search size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 8 }} />
+                <Search
+                  size={16}
+                  color={isDarkMode ? '#71717a' : '#94a3b8'}
+                  style={{ marginRight: 8 }}
+                />
                 <TextInput
                   placeholder="Search contacts..."
                   placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
@@ -150,13 +168,18 @@ export const BulkAssigneePickerModal = ({
 
               {/* Self Option (First Option with Distinctive Styling) */}
               <TouchableOpacity
-                onPress={() => { onSelectAssignee(1); onClose(); }}
+                onPress={() => {
+                  onSelectAssignee(1);
+                  onClose();
+                }}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
                   padding: 12,
                   borderRadius: 14,
-                  backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.08),
+                  backgroundColor: isDarkMode
+                    ? hexToRgba(themePrimary, 0.2)
+                    : hexToRgba(themePrimary, 0.08),
                   borderWidth: 1.5,
                   borderColor: themePrimary,
                   marginBottom: 8,
@@ -168,7 +191,9 @@ export const BulkAssigneePickerModal = ({
                     width: 36,
                     height: 36,
                     borderRadius: 18,
-                    backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.3) : hexToRgba(themePrimary, 0.15),
+                    backgroundColor: isDarkMode
+                      ? hexToRgba(themePrimary, 0.3)
+                      : hexToRgba(themePrimary, 0.15),
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
@@ -177,7 +202,13 @@ export const BulkAssigneePickerModal = ({
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '800',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       Self (You)
                     </Text>
                     <View
@@ -193,7 +224,13 @@ export const BulkAssigneePickerModal = ({
                       </Text>
                     </View>
                   </View>
-                  <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                  <Text
+                    style={{
+                      fontSize: 12,
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      marginTop: 1,
+                    }}
+                  >
                     Assign selected tasks to yourself
                   </Text>
                 </View>
@@ -201,7 +238,10 @@ export const BulkAssigneePickerModal = ({
 
               {/* Unassigned Option */}
               <TouchableOpacity
-                onPress={() => { onSelectAssignee(null); onClose(); }}
+                onPress={() => {
+                  onSelectAssignee(null);
+                  onClose();
+                }}
                 style={{
                   flexDirection: 'row',
                   alignItems: 'center',
@@ -239,12 +279,15 @@ export const BulkAssigneePickerModal = ({
               {/* Contact List */}
               <FlatList
                 data={filteredUsers}
-                keyExtractor={(u) => String(u.id)}
+                keyExtractor={u => String(u.id)}
                 showsVerticalScrollIndicator={false}
                 style={{ maxHeight: 280 }}
                 renderItem={({ item: u }) => (
                   <TouchableOpacity
-                    onPress={() => { onSelectAssignee(u.id); onClose(); }}
+                    onPress={() => {
+                      onSelectAssignee(u.id);
+                      onClose();
+                    }}
                     style={{
                       flexDirection: 'row',
                       alignItems: 'center',
@@ -276,7 +319,13 @@ export const BulkAssigneePickerModal = ({
                       </View>
                     )}
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      <Text
+                        style={{
+                          fontSize: 14,
+                          fontWeight: '700',
+                          color: isDarkMode ? '#ffffff' : '#0f172a',
+                        }}
+                      >
                         {u.name}
                       </Text>
                       <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b' }}>

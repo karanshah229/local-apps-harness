@@ -8,15 +8,26 @@
     <script>
       (function () {
         try {
-          const saved = localStorage.getItem("tidy-contacts-theme");
-          const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-          if (saved === "dark" || (!saved && prefersDark)) {
-            document.documentElement.classList.add("dark");
+          const saved = localStorage.getItem('tidy-contacts-theme');
+          const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+          if (saved === 'dark' || (!saved && prefersDark)) {
+            document.documentElement.classList.add('dark');
           } else {
-            document.documentElement.classList.remove("dark");
+            document.documentElement.classList.remove('dark');
           }
         } catch (_) {}
       })();
+    </script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag() {
+        dataLayer.push(arguments);
+      }
+      gtag('js', new Date());
+
+      gtag('config', 'G-PERX5E1XVD');
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="alternate icon" href="/favicon.ico" />

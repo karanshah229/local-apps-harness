@@ -4,10 +4,7 @@ import { Stack, useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as SplashScreen from 'expo-splash-screen';
-import {
-  useBatchImportUsersMutation,
-  useUserPreferencesQuery,
-} from '../src/hooks/useTodoQueries';
+import { useBatchImportUsersMutation, useUserPreferencesQuery } from '../src/hooks/useTodoQueries';
 import { getDatabase } from '../src/db/sqlite';
 import { useUiStore } from '../src/store/useUiStore';
 import { autoSyncDeviceContacts } from '../src/services/nativeContacts';
@@ -67,7 +64,7 @@ function RootLayoutNav() {
   useEffect(() => {
     // Every time the app opens, start a delayed background task (2s) to check and import contact updates
     const syncTimer = setTimeout(() => {
-      autoSyncDeviceContacts(async (contacts) => {
+      autoSyncDeviceContacts(async contacts => {
         try {
           await batchImportMutation.mutateAsync(contacts);
         } catch (err) {
@@ -88,9 +85,10 @@ function RootLayoutNav() {
 
       if (preferences?.sort_preferences) {
         try {
-          const parsed = typeof preferences.sort_preferences === 'string'
-            ? JSON.parse(preferences.sort_preferences || '{}')
-            : preferences.sort_preferences;
+          const parsed =
+            typeof preferences.sort_preferences === 'string'
+              ? JSON.parse(preferences.sort_preferences || '{}')
+              : preferences.sort_preferences;
           useUiStore.getState().setAllSortPreferences(parsed || {});
         } catch (_e) {
           // ignore parse error
@@ -98,28 +96,60 @@ function RootLayoutNav() {
       }
 
       if (preferences?.has_chosen_whatsapp_format !== undefined) {
-        useUiStore.getState().setHasChosenWhatsAppFormat(Boolean(preferences.has_chosen_whatsapp_format));
+        useUiStore
+          .getState()
+          .setHasChosenWhatsAppFormat(Boolean(preferences.has_chosen_whatsapp_format));
       }
       if (preferences?.default_whatsapp_style) {
         useUiStore.getState().setDefaultWhatsAppStyle(preferences.default_whatsapp_style as any);
       }
       if (preferences?.default_whatsapp_include_notes !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeNotes(preferences.default_whatsapp_include_notes !== 0 && preferences.default_whatsapp_include_notes !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeNotes(
+            preferences.default_whatsapp_include_notes !== 0 &&
+              preferences.default_whatsapp_include_notes !== false
+          );
       }
       if (preferences?.default_whatsapp_include_assignee !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeAssignee(preferences.default_whatsapp_include_assignee !== 0 && preferences.default_whatsapp_include_assignee !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeAssignee(
+            preferences.default_whatsapp_include_assignee !== 0 &&
+              preferences.default_whatsapp_include_assignee !== false
+          );
       }
       if (preferences?.default_whatsapp_include_important !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeImportant(preferences.default_whatsapp_include_important !== 0 && preferences.default_whatsapp_include_important !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeImportant(
+            preferences.default_whatsapp_include_important !== 0 &&
+              preferences.default_whatsapp_include_important !== false
+          );
       }
       if (preferences?.default_whatsapp_include_steps !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeSteps(preferences.default_whatsapp_include_steps !== 0 && preferences.default_whatsapp_include_steps !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeSteps(
+            preferences.default_whatsapp_include_steps !== 0 &&
+              preferences.default_whatsapp_include_steps !== false
+          );
       }
       if (preferences?.default_whatsapp_include_due_date !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeDueDate(preferences.default_whatsapp_include_due_date !== 0 && preferences.default_whatsapp_include_due_date !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeDueDate(
+            preferences.default_whatsapp_include_due_date !== 0 &&
+              preferences.default_whatsapp_include_due_date !== false
+          );
       }
       if (preferences?.default_whatsapp_include_list_name !== undefined) {
-        useUiStore.getState().setDefaultWhatsAppIncludeListName(preferences.default_whatsapp_include_list_name !== 0 && preferences.default_whatsapp_include_list_name !== false);
+        useUiStore
+          .getState()
+          .setDefaultWhatsAppIncludeListName(
+            preferences.default_whatsapp_include_list_name !== 0 &&
+              preferences.default_whatsapp_include_list_name !== false
+          );
       }
 
       if (preferences?.remember_last_view) {

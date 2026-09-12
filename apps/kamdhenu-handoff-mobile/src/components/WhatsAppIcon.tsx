@@ -1,4 +1,3 @@
-import React from 'react';
 import Svg, { Path } from 'react-native-svg';
 
 export interface WhatsAppIconProps {
@@ -9,10 +8,7 @@ export interface WhatsAppIconProps {
 /**
  * Official high-quality WhatsApp vector logo.
  */
-export const WhatsAppIcon: React.FC<WhatsAppIconProps> = ({
-  size = 24,
-  color = '#ffffff',
-}) => {
+export const WhatsAppIcon: React.FC<WhatsAppIconProps> = ({ size = 24, color = '#ffffff' }) => {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
       <Path

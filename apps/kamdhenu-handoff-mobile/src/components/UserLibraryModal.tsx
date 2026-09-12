@@ -9,7 +9,7 @@ import {
   Image,
   StyleSheet,
   Alert,
-  ActivityIndicator
+  ActivityIndicator,
 } from 'react-native';
 import {
   Users,
@@ -24,14 +24,10 @@ import {
   Trash2,
   CheckCircle2,
   AlertCircle,
-  X
+  X,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import {
-  User as UserType,
-  BatchImportContact,
-  normalizeToE164
-} from '@shared/todo';
+import { User as UserType, BatchImportContact, normalizeToE164 } from '@shared/todo';
 import { getDeviceContacts } from '../services/nativeContacts';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
@@ -44,7 +40,12 @@ interface UserLibraryModalProps {
   activeUser: UserType | null;
   setActiveUser: (user: UserType) => void;
   onAddUser: (user: { name: string; email: string; phone: string }) => Promise<boolean>;
-  onUpdateUser: (user: { id: number; name: string; email: string; phone: string }) => Promise<boolean>;
+  onUpdateUser: (user: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+  }) => Promise<boolean>;
   onDeleteUser: (userId: number) => void;
   onBatchImportUsers: (contacts: BatchImportContact[]) => Promise<any>;
   isDarkMode: boolean;
@@ -60,7 +61,7 @@ export default function UserLibraryModal({
   onUpdateUser,
   onDeleteUser,
   onBatchImportUsers,
-  isDarkMode
+  isDarkMode,
 }: UserLibraryModalProps) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -109,7 +110,7 @@ export default function UserLibraryModal({
         id: editingUserId,
         name: name.trim(),
         email: email.trim(),
-        phone: normalizedPhone
+        phone: normalizedPhone,
       });
       if (success) {
         handleCancelEdit();
@@ -121,7 +122,7 @@ export default function UserLibraryModal({
       const success = await onAddUser({
         name: name.trim(),
         email: email.trim(),
-        phone: normalizedPhone
+        phone: normalizedPhone,
       });
       if (success) {
         handleCancelEdit();
@@ -132,7 +133,7 @@ export default function UserLibraryModal({
     }
   };
 
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
 
   const handleDelete = (u: UserType) => {
     showConfirmDialog({
@@ -182,17 +183,12 @@ export default function UserLibraryModal({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View
           style={[
             styles.sheetContainer,
-            { backgroundColor: colors.card, borderColor: colors.border }
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
           {/* Header */}
@@ -200,9 +196,7 @@ export default function UserLibraryModal({
             <View style={styles.headerTitleRow}>
               <Users size={22} color="#0078d4" />
               <View>
-                <Text style={[styles.title, { color: colors.text }]}>
-                  Contacts Directory
-                </Text>
+                <Text style={[styles.title, { color: colors.text }]}>Contacts Directory</Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                   Import device contacts & manage WhatsApp assignments
                 </Text>
@@ -238,25 +232,21 @@ export default function UserLibraryModal({
             <View
               style={[
                 styles.nativeContactsCard,
-                { borderColor: isDarkMode ? '#1e3a8a' : '#bfdbfe' }
+                { borderColor: isDarkMode ? '#1e3a8a' : '#bfdbfe' },
               ]}
             >
               <View style={styles.nativeContactsHeader}>
                 <View style={styles.nativeContactsTitleRow}>
                   <Smartphone size={16} color="#0078d4" />
-                  <Text style={styles.nativeContactsTitle}>
-                    Native Phone Contacts
-                  </Text>
+                  <Text style={styles.nativeContactsTitle}>Native Phone Contacts</Text>
                 </View>
                 <View style={styles.availableTag}>
                   <Text style={styles.availableTagText}>NATIVE API</Text>
                 </View>
               </View>
-              <Text
-                style={[styles.nativeContactsDesc, { color: colors.textMuted }]}
-              >
-                Access and import contacts directly from your iOS or Android device
-                address book for task assignments and WhatsApp sharing.
+              <Text style={[styles.nativeContactsDesc, { color: colors.textMuted }]}>
+                Access and import contacts directly from your iOS or Android device address book for
+                task assignments and WhatsApp sharing.
               </Text>
 
               <TouchableOpacity
@@ -268,16 +258,12 @@ export default function UserLibraryModal({
                 {isImporting ? (
                   <>
                     <ActivityIndicator size="small" color="#ffffff" />
-                    <Text style={styles.importBtnText}>
-                      Importing Phone Contacts...
-                    </Text>
+                    <Text style={styles.importBtnText}>Importing Phone Contacts...</Text>
                   </>
                 ) : (
                   <>
                     <DownloadCloud size={18} color="#ffffff" />
-                    <Text style={styles.importBtnText}>
-                      Import from Device Contacts
-                    </Text>
+                    <Text style={styles.importBtnText}>Import from Device Contacts</Text>
                   </>
                 )}
               </TouchableOpacity>
@@ -288,7 +274,7 @@ export default function UserLibraryModal({
               <View
                 style={[
                   styles.formCard,
-                  { backgroundColor: colors.card, borderColor: colors.border }
+                  { backgroundColor: colors.card, borderColor: colors.border },
                 ]}
               >
                 <View style={styles.formHeader}>
@@ -306,7 +292,7 @@ export default function UserLibraryModal({
                   <View
                     style={[
                       styles.inputWrap,
-                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
+                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
                     ]}
                   >
                     <User size={16} color={colors.textMuted} />
@@ -322,7 +308,7 @@ export default function UserLibraryModal({
                   <View
                     style={[
                       styles.inputWrap,
-                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
+                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
                     ]}
                   >
                     <Phone size={16} color="#25D366" />
@@ -342,9 +328,7 @@ export default function UserLibraryModal({
                     activeOpacity={0.8}
                   >
                     <Text style={styles.saveContactBtnText}>
-                      {editingUserId
-                        ? 'Save Changes'
-                        : 'Save Contact to Library'}
+                      {editingUserId ? 'Save Changes' : 'Save Contact to Library'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -354,38 +338,34 @@ export default function UserLibraryModal({
                 onPress={() => setIsFormOpen(true)}
                 style={[
                   styles.addManualBtn,
-                  { borderColor: colors.border, backgroundColor: colors.card }
+                  { borderColor: colors.border, backgroundColor: colors.card },
                 ]}
                 activeOpacity={0.7}
               >
                 <UserPlus size={18} color="#0078d4" />
-                <Text style={styles.addManualBtnText}>
-                  Add Contact Manually
-                </Text>
+                <Text style={styles.addManualBtnText}>Add Contact Manually</Text>
               </TouchableOpacity>
             )}
 
             {/* Saved Contacts Directory List */}
-            <Text style={styles.sectionHeader}>
-              SAVED CONTACTS DIRECTORY ({users.length})
-            </Text>
+            <Text style={styles.sectionHeader}>SAVED CONTACTS DIRECTORY ({users.length})</Text>
 
             <View style={styles.contactsList}>
-              {users.map((u) => {
+              {users.map(u => {
                 const isCurrentActive = activeUser?.id === u.id;
                 return (
                   <View
                     key={u.id}
                     style={[
                       styles.contactCard,
-                      { backgroundColor: colors.card, borderColor: colors.border }
+                      { backgroundColor: colors.card, borderColor: colors.border },
                     ]}
                   >
                     <Image
                       source={{
                         uri:
                           u.avatar ||
-                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
+                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`,
                       }}
                       style={styles.contactAvatar}
                     />
@@ -437,15 +417,11 @@ export default function UserLibraryModal({
               styles.bottomBar,
               {
                 borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, 16)
-              }
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
             ]}
           >
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.doneBtn}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity onPress={onClose} style={styles.doneBtn} activeOpacity={0.8}>
               <Text style={styles.doneBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -473,7 +449,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 10
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
@@ -481,22 +457,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1
+    flex: 1,
   },
   title: {
     fontSize: fontSizes.heading,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   subtitle: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    marginTop: 1
+    marginTop: 1,
   },
   closeBtn: {
     width: 44,
@@ -505,42 +481,42 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   scrollArea: {
     paddingHorizontal: 16,
-    paddingTop: 12
+    paddingTop: 12,
   },
   scrollContent: {
     gap: 10,
-    paddingBottom: 120
+    paddingBottom: 120,
   },
   activeUserCard: {
     borderRadius: 18,
     borderWidth: 1,
-    padding: 12
+    padding: 12,
   },
   activeUserHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8
+    marginBottom: 8,
   },
   activeUserTag: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   activeUserTagText: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#0078d4',
-    letterSpacing: 0.5
+    letterSpacing: 0.5,
   },
   userPillRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingVertical: 2
+    paddingVertical: 2,
   },
   userPill: {
     flexDirection: 'row',
@@ -549,19 +525,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 20,
-    borderWidth: 1
+    borderWidth: 1,
   },
   userPillSelected: {
-    borderWidth: 2
+    borderWidth: 2,
   },
   userPillAvatar: {
     width: 20,
     height: 20,
-    borderRadius: 10
+    borderRadius: 10,
   },
   userPillName: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   errorBanner: {
     flexDirection: 'row',
@@ -571,13 +547,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(239, 68, 68, 0.2)',
     padding: 10,
-    borderRadius: 12
+    borderRadius: 12,
   },
   errorText: {
     color: '#ef4444',
     fontSize: fontSizes.caption,
     fontWeight: '600',
-    flex: 1
+    flex: 1,
   },
   successBanner: {
     flexDirection: 'row',
@@ -587,50 +563,50 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(16, 185, 129, 0.2)',
     padding: 10,
-    borderRadius: 12
+    borderRadius: 12,
   },
   successText: {
     color: '#10b981',
     fontSize: fontSizes.caption,
     fontWeight: '600',
-    flex: 1
+    flex: 1,
   },
   nativeContactsCard: {
     backgroundColor: 'rgba(0, 120, 212, 0.06)',
     borderRadius: 20,
     borderWidth: 1,
     padding: 14,
-    gap: 8
+    gap: 8,
   },
   nativeContactsHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   nativeContactsTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   nativeContactsTitle: {
     fontSize: fontSizes.small,
     fontWeight: '800',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   availableTag: {
     backgroundColor: 'rgba(0, 120, 212, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6
+    borderRadius: 6,
   },
   availableTagText: {
     fontSize: fontSizes.caption,
     fontWeight: '900',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   nativeContactsDesc: {
     fontSize: fontSizes.caption,
-    lineHeight: 16
+    lineHeight: 16,
   },
   importBtn: {
     backgroundColor: '#0078d4',
@@ -640,30 +616,30 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 44,
     borderRadius: 14,
-    marginTop: 2
+    marginTop: 2,
   },
   importBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   formCard: {
     borderRadius: 20,
     borderWidth: 1,
     padding: 14,
-    gap: 10
+    gap: 10,
   },
   formHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   formTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   formInputs: {
-    gap: 8
+    gap: 8,
   },
   inputWrap: {
     flexDirection: 'row',
@@ -671,12 +647,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
-    height: 44
+    height: 44,
   },
   formTextInput: {
     flex: 1,
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   saveContactBtn: {
     backgroundColor: '#0078d4',
@@ -684,12 +660,12 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 4
+    marginTop: 4,
   },
   saveContactBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   addManualBtn: {
     flexDirection: 'row',
@@ -699,67 +675,67 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 14,
     borderWidth: 1,
-    borderStyle: 'dashed'
+    borderStyle: 'dashed',
   },
   addManualBtnText: {
     color: '#0078d4',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   sectionHeader: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8,
-    marginTop: 6
+    marginTop: 6,
   },
   contactsList: {
-    gap: 6
+    gap: 6,
   },
   contactCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     borderRadius: 16,
-    borderWidth: 1
+    borderWidth: 1,
   },
   contactAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 10
+    marginRight: 10,
   },
   contactInfo: {
-    flex: 1
+    flex: 1,
   },
   contactNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   contactName: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   youBadge: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 6,
     paddingVertical: 1,
-    borderRadius: 8
+    borderRadius: 8,
   },
   youBadgeText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '900'
+    fontWeight: '900',
   },
   contactSub: {
     fontSize: fontSizes.caption,
-    marginTop: 1
+    marginTop: 1,
   },
   contactActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   contactActionBtn: {
     width: 44,
@@ -768,22 +744,22 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   bottomBar: {
     padding: 16,
-    borderTopWidth: 1
+    borderTopWidth: 1,
   },
   doneBtn: {
     backgroundColor: '#0078d4',
     height: 46,
     borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   doneBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
-  }
+    fontWeight: '800',
+  },
 });

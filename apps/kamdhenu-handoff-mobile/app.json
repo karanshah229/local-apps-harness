@@ -56,7 +56,9 @@
           "project": "kamdhenu-todo",
           "organization": "personal-4ck"
         }
-      ]
+      ],
+      "@sentry/react-native",
+      "expo-sqlite"
     ],
     "extra": {
       "router": {},

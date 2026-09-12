@@ -36,7 +36,12 @@ interface DynamicTabItem {
   badgeColor: string;
 }
 
-function renderTabIcon(tab: DynamicTabItem, isFocused: boolean, color: string, inactiveColor: string) {
+function renderTabIcon(
+  tab: DynamicTabItem,
+  isFocused: boolean,
+  color: string,
+  inactiveColor: string
+) {
   if (tab.key === 'tasks_main') {
     if (isFocused) {
       return (
@@ -80,7 +85,8 @@ function renderTabIcon(tab: DynamicTabItem, isFocused: boolean, color: string, i
 }
 
 export function AppBottomBar(props: AppBottomBarProps) {
-  const { isDarkMode, activeListId, setActiveListId, activeCustomViewId, setActiveCustomViewId } = useUiStore();
+  const { isDarkMode, activeListId, setActiveListId, activeCustomViewId, setActiveCustomViewId } =
+    useUiStore();
   const { data: taskCounts = {} } = useTaskCountsQuery();
   const { data: lists = [] } = useListsQuery();
   const { data: customViews = [] } = useCustomViewsQuery();
@@ -90,7 +96,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
 
   const activeList = React.useMemo(() => {
     if (!activeListId) return null;
-    return lists.find((l) => l.id === activeListId) || null;
+    return lists.find(l => l.id === activeListId) || null;
   }, [lists, activeListId]);
 
   const listThemeColor = React.useMemo(() => {
@@ -126,7 +132,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
     });
 
     // 2. Pinned Views in exact order of pinning
-    pinnedViews.forEach((viewKey) => {
+    pinnedViews.forEach(viewKey => {
       if (viewKey === 'important') {
         tabs.push({
           key: 'pinned_important',
@@ -151,7 +157,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
         });
       } else if (viewKey.startsWith('custom_view:')) {
         const id = Number(viewKey.split(':')[1]);
-        const cv = customViews.find((v) => v.id === id);
+        const cv = customViews.find(v => v.id === id);
         if (cv) {
           const themeHex = getThemePrimary(cv.color_theme, isDarkMode);
           tabs.push({
@@ -168,7 +174,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
         }
       } else if (viewKey.startsWith('list:')) {
         const id = Number(viewKey.split(':')[1]);
-        const l = lists.find((item) => item.id === id);
+        const l = lists.find(item => item.id === id);
         if (l) {
           const themeHex = getThemePrimary(l.color_theme, isDarkMode);
           tabs.push({
@@ -255,9 +261,12 @@ export function AppBottomBar(props: AppBottomBarProps) {
       setActiveCustomViewId(null);
     }
 
-    const viewId = tab.targetScreen === 'index'
-      ? 'all-tasks'
-      : (tab.targetScreen === 'assigned' ? 'assigned-to-me' : tab.targetScreen);
+    const viewId =
+      tab.targetScreen === 'index'
+        ? 'all-tasks'
+        : tab.targetScreen === 'assigned'
+          ? 'assigned-to-me'
+          : tab.targetScreen;
 
     localTodoDb.updateUserPreferences({
       last_view_type: 'tab',
@@ -265,7 +274,8 @@ export function AppBottomBar(props: AppBottomBarProps) {
     });
 
     if (props.navigation && props.state) {
-      const isFocused = currentScreenName === tab.targetScreen && !activeCustomViewId && !activeListId;
+      const isFocused =
+        currentScreenName === tab.targetScreen && !activeCustomViewId && !activeListId;
       const event = props.navigation.emit({
         type: 'tabPress',
         target: tab.targetScreen,
@@ -295,7 +305,7 @@ export function AppBottomBar(props: AppBottomBarProps) {
         borderTopColor: isDarkMode ? '#27272a' : '#e2e8f0',
       }}
     >
-      {dynamicTabs.map((tab) => {
+      {dynamicTabs.map(tab => {
         let isFocused = false;
 
         if (tab.type === 'custom_view') {
@@ -303,9 +313,13 @@ export function AppBottomBar(props: AppBottomBarProps) {
         } else if (tab.type === 'list') {
           isFocused = currentScreenName === 'lists' && activeListId === tab.listId;
         } else if (tab.targetScreen === 'lists') {
-          isFocused = currentScreenName === 'lists' && !activeCustomViewId && (!activeListId || !pinnedViews.includes(`list:${activeListId}`));
+          isFocused =
+            currentScreenName === 'lists' &&
+            !activeCustomViewId &&
+            (!activeListId || !pinnedViews.includes(`list:${activeListId}`));
         } else {
-          isFocused = currentScreenName === tab.targetScreen && !activeCustomViewId && !activeListId;
+          isFocused =
+            currentScreenName === tab.targetScreen && !activeCustomViewId && !activeListId;
         }
 
         const inactiveColor = isDarkMode ? '#a1a1aa' : '#64748b';
@@ -323,7 +337,15 @@ export function AppBottomBar(props: AppBottomBarProps) {
               paddingHorizontal: 2,
             }}
           >
-            <View style={{ position: 'relative', width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}>
+            <View
+              style={{
+                position: 'relative',
+                width: 24,
+                height: 24,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
               {renderTabIcon(tab, isFocused, color, inactiveColor)}
               {tab.badgeCount > 0 && (
                 <View
@@ -368,4 +390,3 @@ export function AppBottomBar(props: AppBottomBarProps) {
 }
 
 export default AppBottomBar;
-

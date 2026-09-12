@@ -1,4 +1,3 @@
-import React from 'react';
 import {
   View,
   Text,
@@ -11,9 +10,9 @@ import { Trash2, AlertTriangle, Info, AlertCircle } from 'lucide-react-native';
 import { useUiStore } from '../store/useUiStore';
 
 export const ThemedConfirmModal: React.FC = () => {
-  const dialogConfig = useUiStore((s) => s.dialogConfig);
-  const closeDialog = useUiStore((s) => s.closeDialog);
-  const isDarkMode = useUiStore((s) => s.isDarkMode);
+  const dialogConfig = useUiStore(s => s.dialogConfig);
+  const closeDialog = useUiStore(s => s.closeDialog);
+  const isDarkMode = useUiStore(s => s.isDarkMode);
 
   if (!dialogConfig) return null;
 
@@ -43,20 +42,25 @@ export const ThemedConfirmModal: React.FC = () => {
   const isWarning = type === 'warning';
   const isSingleButton = cancelLabel === '';
 
-  const IconComponent = isDanger ? Trash2 : isWarning ? AlertTriangle : isSingleButton ? Info : AlertCircle;
+  const IconComponent = isDanger
+    ? Trash2
+    : isWarning
+      ? AlertTriangle
+      : isSingleButton
+        ? Info
+        : AlertCircle;
   const iconColor = isDanger ? '#ef4444' : isWarning ? '#f59e0b' : '#0078d4';
-  const iconBg = isDanger ? 'rgba(239, 68, 68, 0.15)' : isWarning ? 'rgba(245, 158, 11, 0.15)' : 'rgba(0, 120, 212, 0.15)';
+  const iconBg = isDanger
+    ? 'rgba(239, 68, 68, 0.15)'
+    : isWarning
+      ? 'rgba(245, 158, 11, 0.15)'
+      : 'rgba(0, 120, 212, 0.15)';
 
   return (
-    <Modal
-      visible={true}
-      transparent
-      animationType="fade"
-      onRequestClose={handleCancel}
-    >
+    <Modal visible={true} transparent animationType="fade" onRequestClose={handleCancel}>
       <TouchableWithoutFeedback onPress={handleCancel}>
         <View style={styles.backdrop}>
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
               style={[
                 styles.modalCard,
@@ -72,21 +76,11 @@ export const ThemedConfirmModal: React.FC = () => {
               </View>
 
               {/* Title & Message */}
-              <Text
-                style={[
-                  styles.title,
-                  { color: isDarkMode ? '#ffffff' : '#0f172a' },
-                ]}
-              >
+              <Text style={[styles.title, { color: isDarkMode ? '#ffffff' : '#0f172a' }]}>
                 {title}
               </Text>
               {Boolean(message) && (
-                <Text
-                  style={[
-                    styles.message,
-                    { color: isDarkMode ? '#a1a1aa' : '#64748b' },
-                  ]}
-                >
+                <Text style={[styles.message, { color: isDarkMode ? '#a1a1aa' : '#64748b' }]}>
                   {message}
                 </Text>
               )}
@@ -127,9 +121,7 @@ export const ThemedConfirmModal: React.FC = () => {
                     },
                   ]}
                 >
-                  <Text style={styles.confirmButtonText}>
-                    {confirmLabel}
-                  </Text>
+                  <Text style={styles.confirmButtonText}>{confirmLabel}</Text>
                 </TouchableOpacity>
               </View>
             </View>

@@ -7,15 +7,9 @@ import {
   ScrollView,
   Modal,
   StyleSheet,
-  Alert
+  Alert,
 } from 'react-native';
-import {
-  Plus,
-  Trash2,
-  X,
-  Search,
-  ArrowLeft
-} from 'lucide-react-native';
+import { Plus, Trash2, X, Search, ArrowLeft } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { List, THEME_PALETTES, ThemeColor, fuzzyMatch, getSearchMatchScore } from '@shared/todo';
@@ -48,7 +42,7 @@ export default function ListsSheet({
   onCreateList,
   onDeleteList,
   taskCounts,
-  isDarkMode
+  isDarkMode,
 }: ListsSheetProps) {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
@@ -65,7 +59,7 @@ export default function ListsSheet({
     setIsCreatingList(false);
   };
 
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
 
   const handleDelete = (list: List) => {
     const listTitle = list.title || (list as any).name || 'Untitled list';
@@ -80,7 +74,7 @@ export default function ListsSheet({
 
   const q = (searchQuery || '').trim();
   const filteredLists = (lists || [])
-    .filter((l) => {
+    .filter(l => {
       if (!l) return false;
       const title = l.title || (l as any).name || '';
       return fuzzyMatch(title, q);
@@ -96,17 +90,12 @@ export default function ListsSheet({
     });
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View
           style={[
             styles.sheetContainer,
-            { backgroundColor: colors.card, borderColor: colors.border }
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
           {/* Top In-Line Header Row (Back Button + Search Bar) */}
@@ -115,7 +104,7 @@ export default function ListsSheet({
               onPress={onClose}
               style={[
                 styles.backButton,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+                { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border },
               ]}
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -127,7 +116,7 @@ export default function ListsSheet({
             <View
               style={[
                 styles.searchInputInner,
-                { backgroundColor: isDarkMode ? '#18181b' : '#f8fafc', borderColor: colors.border }
+                { backgroundColor: isDarkMode ? '#18181b' : '#f8fafc', borderColor: colors.border },
               ]}
             >
               <Search size={16} color={colors.textMuted} />
@@ -150,24 +139,19 @@ export default function ListsSheet({
           >
             {/* Lists Section Header */}
             <View style={styles.customSectionHeaderRow}>
-              <Text style={styles.sectionHeader}>
-                LISTS ({filteredLists.length})
-              </Text>
+              <Text style={styles.sectionHeader}>LISTS ({filteredLists.length})</Text>
             </View>
 
             {filteredLists.length === 0 ? (
               <View
-                style={[
-                  styles.emptyBox,
-                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
-                ]}
+                style={[styles.emptyBox, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
               >
                 <Text style={[styles.emptyText, { color: colors.textMuted }]}>
                   {searchQuery ? `No lists match "${searchQuery}".` : 'No lists yet.'}
                 </Text>
               </View>
             ) : (
-              filteredLists.map((l) => {
+              filteredLists.map(l => {
                 const isActive = activeListId === l.id;
                 const countKey = `list-${l.id}`;
                 const count = taskCounts[countKey] || 0;
@@ -183,8 +167,11 @@ export default function ListsSheet({
                     }}
                     style={[
                       styles.listItem,
-                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc', borderColor: colors.border },
-                      isActive && [styles.listItemActive, { borderColor: themeColor }]
+                      {
+                        backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                        borderColor: colors.border,
+                      },
+                      isActive && [styles.listItemActive, { borderColor: themeColor }],
                     ]}
                     activeOpacity={0.7}
                   >
@@ -203,7 +190,7 @@ export default function ListsSheet({
                       )}
 
                       <TouchableOpacity
-                        onPress={(e) => {
+                        onPress={e => {
                           e.stopPropagation();
                           handleDelete(l);
                         }}
@@ -223,7 +210,10 @@ export default function ListsSheet({
               <View
                 style={[
                   styles.createForm,
-                  { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+                  {
+                    backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                    borderColor: colors.border,
+                  },
                 ]}
               >
                 <TextInput
@@ -240,14 +230,9 @@ export default function ListsSheet({
                     onPress={() => setIsCreatingList(false)}
                     style={styles.cancelBtn}
                   >
-                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>
-                      Cancel
-                    </Text>
+                    <Text style={[styles.cancelText, { color: colors.textMuted }]}>Cancel</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={handleCreate}
-                    style={styles.saveBtn}
-                  >
+                  <TouchableOpacity onPress={handleCreate} style={styles.saveBtn}>
                     <Text style={styles.saveText}>Save</Text>
                   </TouchableOpacity>
                 </View>
@@ -257,7 +242,10 @@ export default function ListsSheet({
                 onPress={() => setIsCreatingList(true)}
                 style={[
                   styles.addListBtn,
-                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc', borderColor: colors.border }
+                  {
+                    backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
+                    borderColor: colors.border,
+                  },
                 ]}
                 activeOpacity={0.7}
               >
@@ -290,7 +278,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 10
+    elevation: 10,
   },
   headerRow: {
     height: 56,
@@ -298,7 +286,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     borderBottomWidth: 1,
-    gap: 10
+    gap: 10,
   },
   backButton: {
     width: 38,
@@ -306,7 +294,7 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1
+    borderWidth: 1,
   },
   searchInputInner: {
     flex: 1,
@@ -316,20 +304,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 12,
     borderWidth: 1,
-    gap: 8
+    gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   scrollArea: {
     paddingHorizontal: 16,
-    paddingTop: 12
+    paddingTop: 12,
   },
   scrollContent: {
     gap: 8,
-    paddingBottom: 100
+    paddingBottom: 100,
   },
   sectionHeader: {
     fontSize: fontSizes.caption,
@@ -338,10 +326,10 @@ const styles = StyleSheet.create({
     letterSpacing: 0.8,
     marginTop: 4,
     marginBottom: 4,
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   customSectionHeaderRow: {
-    marginTop: 4
+    marginTop: 4,
   },
   listItem: {
     flexDirection: 'row',
@@ -351,54 +339,54 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
-    minHeight: 52
+    minHeight: 52,
   },
   listItemActive: {
     borderWidth: 1.5,
-    borderColor: '#0078d4'
+    borderColor: '#0078d4',
   },
   listItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1
+    flex: 1,
   },
   colorDot: {
     width: 10,
     height: 10,
-    borderRadius: 5
+    borderRadius: 5,
   },
   listItemText: {
     fontSize: fontSizes.small,
     fontWeight: '700',
-    flex: 1
+    flex: 1,
   },
   listItemRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   countBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10
+    borderRadius: 10,
   },
   countText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   deleteBtn: {
-    padding: 6
+    padding: 6,
   },
   emptyBox: {
     padding: 16,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptyText: {
-    fontSize: fontSizes.small
+    fontSize: fontSizes.small,
   },
   addListBtn: {
     flexDirection: 'row',
@@ -408,47 +396,47 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 16,
     borderWidth: 1,
-    marginTop: 4
+    marginTop: 4,
   },
   addListBtnText: {
     fontSize: fontSizes.small,
     fontWeight: '700',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   createForm: {
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
     gap: 8,
-    marginTop: 4
+    marginTop: 4,
   },
   createInput: {
     fontSize: fontSizes.small,
-    paddingVertical: 4
+    paddingVertical: 4,
   },
   createActions: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 8
+    gap: 8,
   },
   cancelBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 6
+    paddingVertical: 6,
   },
   cancelText: {
     fontSize: fontSizes.caption,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   saveBtn: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 14,
     paddingVertical: 6,
-    borderRadius: 10
+    borderRadius: 10,
   },
   saveText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '700'
-  }
+    fontWeight: '700',
+  },
 });

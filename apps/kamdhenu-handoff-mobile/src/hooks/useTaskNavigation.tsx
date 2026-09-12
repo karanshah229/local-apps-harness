@@ -7,14 +7,17 @@ import { useUiStore } from '../store/useUiStore';
  */
 export function useTaskNavigation() {
   const router = useRouter();
-  const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
+  const setSelectedTaskId = useUiStore(s => s.setSelectedTaskId);
 
-  const openTask = useCallback((taskId: number, themeColor?: string) => {
-    if (!taskId || taskId <= 0) return;
-    setSelectedTaskId(taskId);
-    const query = themeColor ? `?themeColor=${encodeURIComponent(themeColor)}` : '';
-    router.push(`/task/${taskId}${query}`);
-  }, [router, setSelectedTaskId]);
+  const openTask = useCallback(
+    (taskId: number, themeColor?: string) => {
+      if (!taskId || taskId <= 0) return;
+      setSelectedTaskId(taskId);
+      const query = themeColor ? `?themeColor=${encodeURIComponent(themeColor)}` : '';
+      router.push(`/task/${taskId}${query}`);
+    },
+    [router, setSelectedTaskId]
+  );
 
   const TaskLoadingIndicator = useCallback(() => null, []);
 

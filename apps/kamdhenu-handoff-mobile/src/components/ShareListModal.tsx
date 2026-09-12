@@ -1,13 +1,5 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  Modal,
-  Image,
-  StyleSheet
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, Image, StyleSheet } from 'react-native';
 import { Share2, Trash2, X, Plus } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { User, List } from '@shared/todo';
@@ -31,7 +23,7 @@ export default function ShareListModal({
   users,
   onShareList,
   onRemoveShare,
-  isDarkMode
+  isDarkMode,
 }: ShareListModalProps) {
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const colors = isDarkMode ? darkColors : lightColors;
@@ -40,10 +32,8 @@ export default function ShareListModal({
   if (!list) return null;
 
   const members = list.members || [];
-  const memberIds = members.map((m) => m.id);
-  const availableUsers = users.filter(
-    (u) => u.id !== list.created_by && !memberIds.includes(u.id)
-  );
+  const memberIds = members.map(m => m.id);
+  const availableUsers = users.filter(u => u.id !== list.created_by && !memberIds.includes(u.id));
 
   const handleAddMember = () => {
     if (!selectedUserId) return;
@@ -52,17 +42,12 @@ export default function ShareListModal({
   };
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View
           style={[
             styles.sheetContainer,
-            { backgroundColor: colors.card, borderColor: colors.border }
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
           {/* Header */}
@@ -70,9 +55,7 @@ export default function ShareListModal({
             <View style={styles.headerTitleRow}>
               <Share2 size={20} color="#0078d4" />
               <View>
-                <Text style={[styles.title, { color: colors.text }]}>
-                  Share "{list.title}"
-                </Text>
+                <Text style={[styles.title, { color: colors.text }]}>Share "{list.title}"</Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                   Shared members receive real-time sync updates
                 </Text>
@@ -83,10 +66,7 @@ export default function ShareListModal({
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            style={styles.scrollArea}
-            contentContainerStyle={styles.scrollContent}
-          >
+          <ScrollView style={styles.scrollArea} contentContainerStyle={styles.scrollContent}>
             {/* Add Member from Contacts Section */}
             <Text style={styles.sectionHeader}>ADD MEMBER FROM CONTACTS</Text>
 
@@ -94,7 +74,7 @@ export default function ShareListModal({
               <View style={styles.userPickerRow}>
                 <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                   <View style={styles.pillRow}>
-                    {availableUsers.map((u) => {
+                    {availableUsers.map(u => {
                       const isPicked = selectedUserId === u.id;
                       return (
                         <TouchableOpacity
@@ -106,10 +86,10 @@ export default function ShareListModal({
                               backgroundColor: isPicked
                                 ? 'rgba(0, 120, 212, 0.12)'
                                 : isDarkMode
-                                ? '#27272a'
-                                : '#f8fafc',
-                              borderColor: isPicked ? '#0078d4' : colors.border
-                            }
+                                  ? '#27272a'
+                                  : '#f8fafc',
+                              borderColor: isPicked ? '#0078d4' : colors.border,
+                            },
                           ]}
                           activeOpacity={0.7}
                         >
@@ -117,14 +97,14 @@ export default function ShareListModal({
                             source={{
                               uri:
                                 u.avatar ||
-                                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
+                                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`,
                             }}
                             style={styles.userPickAvatar}
                           />
                           <Text
                             style={[
                               styles.userPickName,
-                              { color: isPicked ? '#0078d4' : colors.text }
+                              { color: isPicked ? '#0078d4' : colors.text },
                             ]}
                           >
                             {u.name}
@@ -138,10 +118,7 @@ export default function ShareListModal({
                 <TouchableOpacity
                   onPress={handleAddMember}
                   disabled={!selectedUserId}
-                  style={[
-                    styles.addMemberBtn,
-                    !selectedUserId && { opacity: 0.5 }
-                  ]}
+                  style={[styles.addMemberBtn, !selectedUserId && { opacity: 0.5 }]}
                   activeOpacity={0.8}
                 >
                   <Plus size={16} color="#ffffff" />
@@ -152,7 +129,7 @@ export default function ShareListModal({
               <View
                 style={[
                   styles.emptyUsersBox,
-                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
                 ]}
               >
                 <Text style={[styles.emptyUsersText, { color: colors.textMuted }]}>
@@ -162,48 +139,35 @@ export default function ShareListModal({
             )}
 
             {/* Active Members Section */}
-            <Text style={styles.sectionHeader}>
-              ACTIVE LIST MEMBERS ({members.length})
-            </Text>
+            <Text style={styles.sectionHeader}>ACTIVE LIST MEMBERS ({members.length})</Text>
 
             {members.length === 0 ? (
-              <View
-                style={[
-                  styles.emptyMembersBox,
-                  { borderColor: colors.border }
-                ]}
-              >
-                <Text
-                  style={[styles.emptyMembersText, { color: colors.textMuted }]}
-                >
+              <View style={[styles.emptyMembersBox, { borderColor: colors.border }]}>
+                <Text style={[styles.emptyMembersText, { color: colors.textMuted }]}>
                   This list is not shared with anyone yet. Select a contact above to share!
                 </Text>
               </View>
             ) : (
               <View style={styles.membersList}>
-                {members.map((m) => (
+                {members.map(m => (
                   <View
                     key={m.id}
                     style={[
                       styles.memberCard,
-                      { backgroundColor: colors.card, borderColor: colors.border }
+                      { backgroundColor: colors.card, borderColor: colors.border },
                     ]}
                   >
                     <Image
                       source={{
                         uri:
                           m.avatar ||
-                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(m.name)}`
+                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(m.name)}`,
                       }}
                       style={styles.memberAvatar}
                     />
                     <View style={styles.memberInfo}>
-                      <Text style={[styles.memberName, { color: colors.text }]}>
-                        {m.name}
-                      </Text>
-                      <Text
-                        style={[styles.memberPhone, { color: colors.textMuted }]}
-                      >
+                      <Text style={[styles.memberName, { color: colors.text }]}>{m.name}</Text>
+                      <Text style={[styles.memberPhone, { color: colors.textMuted }]}>
                         {m.phone}
                       </Text>
                     </View>
@@ -225,15 +189,11 @@ export default function ShareListModal({
               styles.bottomBar,
               {
                 borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, 16)
-              }
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
             ]}
           >
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.doneBtn}
-              activeOpacity={0.8}
-            >
+            <TouchableOpacity onPress={onClose} style={styles.doneBtn} activeOpacity={0.8}>
               <Text style={styles.doneBtnText}>Done</Text>
             </TouchableOpacity>
           </View>
@@ -261,7 +221,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 10
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
@@ -269,48 +229,48 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1
+    flex: 1,
   },
   title: {
     fontSize: fontSizes.heading,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   subtitle: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    marginTop: 1
+    marginTop: 1,
   },
   closeBtn: {
-    padding: 6
+    padding: 6,
   },
   scrollArea: {
     paddingHorizontal: 16,
-    paddingTop: 12
+    paddingTop: 12,
   },
   scrollContent: {
     gap: 10,
-    paddingBottom: 24
+    paddingBottom: 24,
   },
   sectionHeader: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.8,
-    marginTop: 6
+    marginTop: 6,
   },
   userPickerRow: {
-    gap: 10
+    gap: 10,
   },
   pillRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingVertical: 4
+    paddingVertical: 4,
   },
   userPickPill: {
     flexDirection: 'row',
@@ -319,16 +279,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1
+    borderWidth: 1,
   },
   userPickAvatar: {
     width: 24,
     height: 24,
-    borderRadius: 12
+    borderRadius: 12,
   },
   userPickName: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   addMemberBtn: {
     backgroundColor: '#0078d4',
@@ -337,78 +297,78 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     height: 44,
-    borderRadius: 14
+    borderRadius: 14,
   },
   addMemberBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   emptyUsersBox: {
     padding: 12,
     borderRadius: 14,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   emptyUsersText: {
     fontSize: fontSizes.caption,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   emptyMembersBox: {
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
     borderStyle: 'dashed',
-    alignItems: 'center'
+    alignItems: 'center',
   },
   emptyMembersText: {
     fontSize: fontSizes.caption,
     textAlign: 'center',
-    lineHeight: 16
+    lineHeight: 16,
   },
   membersList: {
-    gap: 6
+    gap: 6,
   },
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 10,
     borderRadius: 16,
-    borderWidth: 1
+    borderWidth: 1,
   },
   memberAvatar: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    marginRight: 10
+    marginRight: 10,
   },
   memberInfo: {
-    flex: 1
+    flex: 1,
   },
   memberName: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   memberPhone: {
     fontSize: fontSizes.caption,
-    marginTop: 1
+    marginTop: 1,
   },
   removeBtn: {
-    padding: 6
+    padding: 6,
   },
   bottomBar: {
     padding: 16,
-    borderTopWidth: 1
+    borderTopWidth: 1,
   },
   doneBtn: {
     backgroundColor: '#0078d4',
     height: 46,
     borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   doneBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
-  }
+    fontWeight: '800',
+  },
 });

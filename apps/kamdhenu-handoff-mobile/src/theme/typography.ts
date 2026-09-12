@@ -5,7 +5,7 @@ export const fontFamily = Platform.select({
   ios: 'Open Sans',
   android: 'Open Sans',
   web: "'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-  default: 'Open Sans, sans-serif'
+  default: 'Open Sans, sans-serif',
 });
 
 export const fontSizes = {
@@ -15,7 +15,7 @@ export const fontSizes = {
   body: 16,
   heading: 18,
   title: 20,
-  display: 24
+  display: 24,
 } as const;
 
 export const lineHeights = {
@@ -25,5 +25,5 @@ export const lineHeights = {
   body: 24,
   heading: 26,
   title: 28,
-  display: 32
+  display: 32,
 } as const;

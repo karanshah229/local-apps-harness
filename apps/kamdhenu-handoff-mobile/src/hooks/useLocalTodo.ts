@@ -45,9 +45,12 @@ const EMPTY_CUSTOM_VIEWS: CustomView[] = Object.freeze([]) as any;
 function useMutationState<TInput, TResult>(
   operationName: string,
   operation: (input: TInput) => TResult,
-  asyncOperation: (input: TInput) => Promise<TResult> | TResult = operation,
+  asyncOperation: (input: TInput) => Promise<TResult> | TResult = operation
 ) {
-  const [state, setState] = useState<{ status: 'idle' | 'pending' | 'success' | 'error'; error?: unknown }>({ status: 'idle' });
+  const [state, setState] = useState<{
+    status: 'idle' | 'pending' | 'success' | 'error';
+    error?: unknown;
+  }>({ status: 'idle' });
   const failureData = (input: TInput, startedAt: number) => {
     const data: Record<string, unknown> = {
       operation: operationName,
@@ -63,32 +66,52 @@ function useMutationState<TInput, TResult>(
     }
     return data;
   };
-  const mutate = useCallback((input: TInput) => {
-    const startedAt = Date.now();
-    setState({ status: 'pending' });
-    try {
-      const result = operation(input);
-      setState({ status: 'success' });
-      return result;
-    } catch (error) {
-      setState({ status: 'error', error });
-      logError({ event: 'local_mutation_failed', outcome: 'failure', data: failureData(input, startedAt) }, error);
-      throw error;
-    }
-  }, [operation, operationName]);
-  const mutateAsync = useCallback(async (input: TInput) => {
-    const startedAt = Date.now();
-    setState({ status: 'pending' });
-    try {
-      const result = await asyncOperation(input);
-      setState({ status: 'success' });
-      return result;
-    } catch (error) {
-      setState({ status: 'error', error });
-      logError({ event: 'local_mutation_failed', outcome: 'failure', data: failureData(input, startedAt) }, error);
-      throw error;
-    }
-  }, [asyncOperation, operationName]);
+  const mutate = useCallback(
+    (input: TInput) => {
+      const startedAt = Date.now();
+      setState({ status: 'pending' });
+      try {
+        const result = operation(input);
+        setState({ status: 'success' });
+        return result;
+      } catch (error) {
+        setState({ status: 'error', error });
+        logError(
+          {
+            event: 'local_mutation_failed',
+            outcome: 'failure',
+            data: failureData(input, startedAt),
+          },
+          error
+        );
+        throw error;
+      }
+    },
+    [operation, operationName]
+  );
+  const mutateAsync = useCallback(
+    async (input: TInput) => {
+      const startedAt = Date.now();
+      setState({ status: 'pending' });
+      try {
+        const result = await asyncOperation(input);
+        setState({ status: 'success' });
+        return result;
+      } catch (error) {
+        setState({ status: 'error', error });
+        logError(
+          {
+            event: 'local_mutation_failed',
+            outcome: 'failure',
+            data: failureData(input, startedAt),
+          },
+          error
+        );
+        throw error;
+      }
+    },
+    [asyncOperation, operationName]
+  );
   return {
     mutate,
     mutateAsync,
@@ -227,9 +250,12 @@ export function useUpdateTaskMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (params: Partial<Task> & { id: number }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: Partial<Task> & { id: number }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_task', mutate, mutateAsync);
 }
@@ -240,9 +266,12 @@ export function useDeleteTaskMutation() {
     notifyDbChange('tasks');
   }, []);
 
-  const mutateAsync = useCallback(async (taskId: number) => {
-    mutate(taskId);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (taskId: number) => {
+      mutate(taskId);
+    },
+    [mutate]
+  );
 
   return useMutationState('delete_task', mutate, mutateAsync);
 }
@@ -286,24 +315,33 @@ export function useAddSubtaskMutation() {
     return newStep;
   }, []);
 
-  const mutateAsync = useCallback(async (params: { taskId: number; title: string }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: { taskId: number; title: string }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('add_subtask', mutate, mutateAsync);
 }
 
 export function useUpdateSubtaskMutation() {
-  const mutate = useCallback(({ id, taskId, ...data }: Partial<Subtask> & { id: number; taskId: number }) => {
-    const updated = localTodoDb.updateSubtask(id, taskId, data);
-    notifyDbChange('subtasks');
-    notifyDbChange('tasks');
-    return updated;
-  }, []);
+  const mutate = useCallback(
+    ({ id, taskId, ...data }: Partial<Subtask> & { id: number; taskId: number }) => {
+      const updated = localTodoDb.updateSubtask(id, taskId, data);
+      notifyDbChange('subtasks');
+      notifyDbChange('tasks');
+      return updated;
+    },
+    []
+  );
 
-  const mutateAsync = useCallback(async (params: Partial<Subtask> & { id: number; taskId: number }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: Partial<Subtask> & { id: number; taskId: number }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_subtask', mutate, mutateAsync);
 }
@@ -315,9 +353,12 @@ export function useDeleteSubtaskMutation() {
     notifyDbChange('tasks');
   }, []);
 
-  const mutateAsync = useCallback(async (params: { id: number; taskId: number }) => {
-    mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: { id: number; taskId: number }) => {
+      mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('delete_subtask', mutate, mutateAsync);
 }
@@ -351,15 +392,21 @@ export function useListsQuery(_userId?: number) {
 }
 
 export function useCreateListMutation() {
-  const mutate = useCallback((listData: { title: string; color_theme?: string; icon?: string; created_by?: number }) => {
-    const newList = localTodoDb.createList(listData);
-    notifyDbChange('lists');
-    return newList;
-  }, []);
+  const mutate = useCallback(
+    (listData: { title: string; color_theme?: string; icon?: string; created_by?: number }) => {
+      const newList = localTodoDb.createList(listData);
+      notifyDbChange('lists');
+      return newList;
+    },
+    []
+  );
 
-  const mutateAsync = useCallback(async (listData: any) => {
-    return mutate(listData);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (listData: any) => {
+      return mutate(listData);
+    },
+    [mutate]
+  );
 
   return useMutationState('create_list', mutate, mutateAsync);
 }
@@ -371,9 +418,12 @@ export function useUpdateListMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (params: Partial<List> & { id: number }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: Partial<List> & { id: number }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_list', mutate, mutateAsync);
 }
@@ -384,9 +434,12 @@ export function useDeleteListMutation() {
     notifyDbChange('lists');
   }, []);
 
-  const mutateAsync = useCallback(async (listId: number) => {
-    mutate(listId);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (listId: number) => {
+      mutate(listId);
+    },
+    [mutate]
+  );
 
   return useMutationState('delete_list', mutate, mutateAsync);
 }
@@ -396,9 +449,12 @@ export function useShareListMutation() {
     notifyDbChange('lists');
   }, []);
 
-  const mutateAsync = useCallback(async (data: any) => {
-    mutate(data);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (data: any) => {
+      mutate(data);
+    },
+    [mutate]
+  );
 
   return useMutationState('share_list', mutate, mutateAsync);
 }
@@ -444,9 +500,12 @@ export function useAddUserMutation() {
     return newUser;
   }, []);
 
-  const mutateAsync = useCallback(async (userData: Partial<User>) => {
-    return mutate(userData);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (userData: Partial<User>) => {
+      return mutate(userData);
+    },
+    [mutate]
+  );
 
   return useMutationState('add_user', mutate, mutateAsync);
 }
@@ -458,9 +517,12 @@ export function useUpdateUserMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (params: Partial<User> & { id: number }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: Partial<User> & { id: number }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_user', mutate, mutateAsync);
 }
@@ -471,9 +533,12 @@ export function useDeleteUserMutation() {
     notifyDbChange('users');
   }, []);
 
-  const mutateAsync = useCallback(async (userId: number) => {
-    mutate(userId);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (userId: number) => {
+      mutate(userId);
+    },
+    [mutate]
+  );
 
   return useMutationState('delete_user', mutate, mutateAsync);
 }
@@ -485,9 +550,12 @@ export function useBatchImportUsersMutation() {
     return res;
   }, []);
 
-  const mutateAsync = useCallback(async (contacts: BatchImportContact[]) => {
-    return mutate(contacts);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (contacts: BatchImportContact[]) => {
+      return mutate(contacts);
+    },
+    [mutate]
+  );
 
   return useMutationState('batch_import_users', mutate, mutateAsync);
 }
@@ -529,9 +597,12 @@ export function useUpdateUserPreferencesMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (prefs: Partial<UserPreferences>) => {
-    return mutate(prefs);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (prefs: Partial<UserPreferences>) => {
+      return mutate(prefs);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_user_preferences', mutate, mutateAsync);
 }
@@ -563,9 +634,12 @@ export function useTogglePinViewMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (viewKey: string) => {
-    return mutate(viewKey);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (viewKey: string) => {
+      return mutate(viewKey);
+    },
+    [mutate]
+  );
 
   return useMutationState('toggle_pin_view', mutate, mutateAsync);
 }
@@ -577,9 +651,12 @@ export function usePinViewMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (viewKey: string) => {
-    return mutate(viewKey);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (viewKey: string) => {
+      return mutate(viewKey);
+    },
+    [mutate]
+  );
 
   return useMutationState('pin_view', mutate, mutateAsync);
 }
@@ -591,9 +668,12 @@ export function useUnpinViewMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (viewKey: string) => {
-    return mutate(viewKey);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (viewKey: string) => {
+      return mutate(viewKey);
+    },
+    [mutate]
+  );
 
   return useMutationState('unpin_view', mutate, mutateAsync);
 }
@@ -655,21 +735,27 @@ export function useCustomViewQuery(viewId?: number | null) {
 }
 
 export function useCreateCustomViewMutation() {
-  const mutate = useCallback((data: {
-    title: string;
-    color_theme?: string;
-    icon?: string;
-    filter_config?: any;
-    sort_config?: any;
-  }) => {
-    const newView = localTodoDb.createCustomView(data);
-    notifyDbChange('views');
-    return newView;
-  }, []);
+  const mutate = useCallback(
+    (data: {
+      title: string;
+      color_theme?: string;
+      icon?: string;
+      filter_config?: any;
+      sort_config?: any;
+    }) => {
+      const newView = localTodoDb.createCustomView(data);
+      notifyDbChange('views');
+      return newView;
+    },
+    []
+  );
 
-  const mutateAsync = useCallback(async (data: any) => {
-    return mutate(data);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (data: any) => {
+      return mutate(data);
+    },
+    [mutate]
+  );
 
   return useMutationState('create_custom_view', mutate, mutateAsync);
 }
@@ -681,9 +767,12 @@ export function useUpdateCustomViewMutation() {
     return updated;
   }, []);
 
-  const mutateAsync = useCallback(async (params: Partial<CustomView> & { id: number }) => {
-    return mutate(params);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (params: Partial<CustomView> & { id: number }) => {
+      return mutate(params);
+    },
+    [mutate]
+  );
 
   return useMutationState('update_custom_view', mutate, mutateAsync);
 }
@@ -694,9 +783,12 @@ export function useDeleteCustomViewMutation() {
     notifyDbChange('views');
   }, []);
 
-  const mutateAsync = useCallback(async (viewId: number) => {
-    mutate(viewId);
-  }, [mutate]);
+  const mutateAsync = useCallback(
+    async (viewId: number) => {
+      mutate(viewId);
+    },
+    [mutate]
+  );
 
   return useMutationState('delete_custom_view', mutate, mutateAsync);
 }

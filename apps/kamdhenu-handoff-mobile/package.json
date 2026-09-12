@@ -16,7 +16,9 @@
     "build:android:qa": "pnpm --filter @shared/todo build && pnpm run clean:android:qa && cd android && EXPO_PUBLIC_QA_MODE=1 SENTRY_DISABLE_AUTO_UPLOAD=true JAVA_TOOL_OPTIONS=\"--enable-native-access=ALL-UNNAMED\" ./gradlew assembleQa && node ../scripts/copy-qa-apk.mjs",
     "build:ios": "npx expo run:ios --configuration Release",
     "ios:ipa": "eas build --platform ios --local",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "@expo/metro-runtime": "~57.0.15",
@@ -27,19 +29,19 @@
     "@rn-primitives/progress": "^1.1.0",
     "@rn-primitives/slot": "^1.1.0",
     "@rn-primitives/types": "^1.1.0",
-    "@sentry/react-native": "^8.25.0",
+    "@sentry/react-native": "^7.11.0",
     "@shared/todo": "workspace:*",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "expo": "~57.0.19",
-    "expo-constants": "~57.0.17",
-    "expo-contacts": "~57.0.4",
-    "expo-file-system": "^57.0.6",
-    "expo-linear-gradient": "~57.0.1",
-    "expo-linking": "~57.0.9",
-    "expo-router": "~57.0.18",
-    "expo-splash-screen": "~57.0.8",
-    "expo-sqlite": "~57.0.2",
+    "expo": "~57.0.22",
+    "expo-constants": "~57.0.18",
+    "expo-contacts": "~57.0.5",
+    "expo-file-system": "^57.0.7",
+    "expo-linear-gradient": "~57.0.2",
+    "expo-linking": "~57.0.10",
+    "expo-router": "~57.0.21",
+    "expo-splash-screen": "~57.0.9",
+    "expo-sqlite": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "lucide-react-native": "^0.475.0",
     "nativewind": "^4.1.23",
@@ -63,6 +65,7 @@
     "@types/react": "~19.2.18",
     "@types/react-dom": "~19.2.5",
     "eas-cli": "^23.2.0",
+    "prettier": "^3.9.6",
     "typescript": "^6.0.3"
   }
 }

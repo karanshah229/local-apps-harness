@@ -34,7 +34,15 @@ import {
   X,
   AlertCircle,
 } from 'lucide-react-native';
-import { Task, Subtask, User, List, getCalendarDateInTimeZone, getUserTimeZone, isTaskOverdue } from '@shared/todo';
+import {
+  Task,
+  Subtask,
+  User,
+  List,
+  getCalendarDateInTimeZone,
+  getUserTimeZone,
+  isTaskOverdue,
+} from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { getTaskAutosaveLabel, useThrottledTaskAutosave } from '../hooks/useThrottledTaskAutosave';
@@ -72,7 +80,7 @@ export default function TaskDetailDrawer({
   onToggleSubtask,
   onUpdateSubtask,
   onDeleteSubtask,
-  isDarkMode
+  isDarkMode,
 }: TaskDetailDrawerProps) {
   const isDraft = !task || !task.id || task.id <= 0;
 
@@ -82,7 +90,9 @@ export default function TaskDetailDrawer({
   const [newStepTitle, setNewStepTitle] = useState('');
 
   // Draft-specific states
-  const [draftSubtasks, setDraftSubtasks] = useState<Array<{ id: number; title: string; is_completed: number }>>([]);
+  const [draftSubtasks, setDraftSubtasks] = useState<
+    Array<{ id: number; title: string; is_completed: number }>
+  >([]);
   const [draftListIds, setDraftListIds] = useState<number[]>([]);
   const [draftAssigneeId, setDraftAssigneeId] = useState<number | null>(null);
   const [draftDueDate, setDraftDueDate] = useState<string | null>(null);
@@ -112,14 +122,23 @@ export default function TaskDetailDrawer({
     if (task) {
       setTitleValue(task.title || '');
       setNotesValue(task.notes || '');
-      const rawListIds = Array.isArray(task.list_ids) && task.list_ids.length > 0
-        ? task.list_ids
-        : (Array.isArray(task.lists) && task.lists.length > 0
+      const rawListIds =
+        Array.isArray(task.list_ids) && task.list_ids.length > 0
+          ? task.list_ids
+          : Array.isArray(task.lists) && task.lists.length > 0
             ? task.lists.map((l: any) => l.id)
-            : (task.list_id ? [task.list_id] : []));
-      setDraftListIds(rawListIds.map((id: any) => Number(id)).filter((id: number) => !isNaN(id) && id > 0));
+            : task.list_id
+              ? [task.list_id]
+              : [];
+      setDraftListIds(
+        rawListIds.map((id: any) => Number(id)).filter((id: number) => !isNaN(id) && id > 0)
+      );
       setDraftAssigneeId(task.assigned_to_user_id ? Number(task.assigned_to_user_id) : null);
-      setDraftDueDate(task.due_date ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || getUserTimeZone()) : null);
+      setDraftDueDate(
+        task.due_date
+          ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || getUserTimeZone())
+          : null
+      );
       setDraftReminderTime(task.reminder_time || null);
       setDraftIsImportant(task.is_important ? 1 : 0);
       setDraftIsCompleted(task.is_completed ? 1 : 0);
@@ -131,11 +150,14 @@ export default function TaskDetailDrawer({
     }
   }, [task?.id, JSON.stringify(task?.list_ids || task?.lists || task?.list_id)]);
 
-  const saveExistingTask = useCallback(async (updates: Partial<Task> & { id: number }) => {
-    const result = await onUpdateTask(updates);
-    if (result === null || result === false) throw new Error('Task update failed');
-    return result;
-  }, [onUpdateTask]);
+  const saveExistingTask = useCallback(
+    async (updates: Partial<Task> & { id: number }) => {
+      const result = await onUpdateTask(updates);
+      if (result === null || result === false) throw new Error('Task update failed');
+      return result;
+    },
+    [onUpdateTask]
+  );
   const {
     status: autosaveStatus,
     isSlowSaving,
@@ -153,7 +175,7 @@ export default function TaskDetailDrawer({
 
   const allKnownLists = useMemo(() => {
     const listMap = new Map<number, List>();
-    lists.forEach((l) => listMap.set(Number(l.id), l));
+    lists.forEach(l => listMap.set(Number(l.id), l));
     if (task && Array.isArray(task.lists)) {
       task.lists.forEach((l: any) => listMap.set(Number(l.id), l));
     }
@@ -164,7 +186,8 @@ export default function TaskDetailDrawer({
     if (isDraft) return draftListIds;
     if (!task) return [];
     if (Array.isArray(task.list_ids) && task.list_ids.length > 0) return task.list_ids;
-    if (Array.isArray(task.lists) && task.lists.length > 0) return task.lists.map((l: any) => Number(l.id));
+    if (Array.isArray(task.lists) && task.lists.length > 0)
+      return task.lists.map((l: any) => Number(l.id));
     if (task.list_id) return [Number(task.list_id)];
     return [];
   }, [isDraft, draftListIds, task]);
@@ -175,10 +198,10 @@ export default function TaskDetailDrawer({
   const isDone = Boolean(isDraft ? draftIsCompleted : task?.is_completed);
   const isStarred = Boolean(isDraft ? draftIsImportant : task?.is_important);
   const isOverdue = isTaskOverdue(effectiveDueDate, isDone, task?.due_timezone);
-  const effectiveLists = allKnownLists.filter((l) => effectiveListIds.includes(Number(l.id)));
+  const effectiveLists = allKnownLists.filter(l => effectiveListIds.includes(Number(l.id)));
   const effectiveSubtasks = isDraft ? draftSubtasks : subtasks;
-  const completedStepsCount = effectiveSubtasks.filter((s) => Boolean(s.is_completed)).length;
-  const assignedUser = users.find((u) => u.id === effectiveAssigneeId);
+  const completedStepsCount = effectiveSubtasks.filter(s => Boolean(s.is_completed)).length;
+  const assignedUser = users.find(u => u.id === effectiveAssigneeId);
 
   const handleSaveDraft = async () => {
     if (!titleValue.trim()) {
@@ -195,7 +218,7 @@ export default function TaskDetailDrawer({
         reminder_time: draftReminderTime,
         assigned_to_user_id: draftAssigneeId,
         list_ids: draftListIds,
-        draft_subtasks: draftSubtasks.map((s) => s.title)
+        draft_subtasks: draftSubtasks.map(s => s.title),
       });
     }
     onClose();
@@ -214,7 +237,10 @@ export default function TaskDetailDrawer({
   const handleAddStep = () => {
     if (!newStepTitle.trim()) return;
     if (isDraft) {
-      setDraftSubtasks((prev) => [...prev, { id: Date.now(), title: newStepTitle.trim(), is_completed: 0 }]);
+      setDraftSubtasks(prev => [
+        ...prev,
+        { id: Date.now(), title: newStepTitle.trim(), is_completed: 0 },
+      ]);
     } else {
       onCreateSubtask(task!.id, newStepTitle.trim());
     }
@@ -223,8 +249,8 @@ export default function TaskDetailDrawer({
 
   const handleToggleStep = (step: any) => {
     if (isDraft) {
-      setDraftSubtasks((prev) =>
-        prev.map((s) => (s.id === step.id ? { ...s, is_completed: s.is_completed ? 0 : 1 } : s))
+      setDraftSubtasks(prev =>
+        prev.map(s => (s.id === step.id ? { ...s, is_completed: s.is_completed ? 0 : 1 } : s))
       );
     } else {
       onToggleSubtask(step);
@@ -233,9 +259,7 @@ export default function TaskDetailDrawer({
 
   const handleUpdateStepTitle = (stepId: number, title: string) => {
     if (isDraft) {
-      setDraftSubtasks((prev) =>
-        prev.map((s) => (s.id === stepId ? { ...s, title } : s))
-      );
+      setDraftSubtasks(prev => prev.map(s => (s.id === stepId ? { ...s, title } : s)));
     } else if (onUpdateSubtask) {
       onUpdateSubtask(stepId, title);
     }
@@ -243,7 +267,7 @@ export default function TaskDetailDrawer({
 
   const handleDeleteStep = (stepId: number) => {
     if (isDraft) {
-      setDraftSubtasks((prev) => prev.filter((s) => s.id !== stepId));
+      setDraftSubtasks(prev => prev.filter(s => s.id !== stepId));
     } else {
       onDeleteSubtask(stepId);
     }
@@ -261,7 +285,7 @@ export default function TaskDetailDrawer({
     if (!isDraft) queueSave({ is_important: nextValue });
   };
 
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
 
   const confirmDelete = () => {
     if (isDraft) {
@@ -300,7 +324,7 @@ export default function TaskDetailDrawer({
         const formatted = d.toLocaleDateString('en-US', {
           weekday: 'short',
           month: 'short',
-          day: 'numeric'
+          day: 'numeric',
         });
         if (diffDays === 0) return `Today (${formatted})`;
         if (diffDays === 1) return `Tomorrow (${formatted})`;
@@ -324,11 +348,11 @@ export default function TaskDetailDrawer({
       const timeStr = d.toLocaleTimeString('en-US', {
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
       });
       const dateStr = d.toLocaleDateString('en-US', {
         month: 'short',
-        day: 'numeric'
+        day: 'numeric',
       });
       return isToday ? `Today at ${timeStr}` : `${dateStr} at ${timeStr}`;
     } catch {
@@ -364,7 +388,9 @@ export default function TaskDetailDrawer({
   };
 
   // Reminder Presets
-  const setQuickReminder = (preset: 'laterToday' | 'tomorrowMorning' | 'tomorrowEvening' | 'nextWeek' | 'clear') => {
+  const setQuickReminder = (
+    preset: 'laterToday' | 'tomorrowMorning' | 'tomorrowEvening' | 'nextWeek' | 'clear'
+  ) => {
     let dtString: string | null = null;
     if (preset !== 'clear') {
       const d = new Date();
@@ -439,9 +465,9 @@ export default function TaskDetailDrawer({
 
   const handleToggleList = (listId: number) => {
     const numId = Number(listId);
-    const currentIds = (draftListIds || []).map((id) => Number(id));
+    const currentIds = (draftListIds || []).map(id => Number(id));
     const updatedIds = currentIds.includes(numId)
-      ? currentIds.filter((id) => id !== numId)
+      ? currentIds.filter(id => id !== numId)
       : [...currentIds, numId];
 
     setDraftListIds(updatedIds);
@@ -457,15 +483,15 @@ export default function TaskDetailDrawer({
     setAssigneeSearchQuery('');
   };
 
-// Safe dynamic lookup to prevent Metro bundling crash if unlinked
-const getNativeAndroidDateTimePicker = () => {
-  try {
-    const mod = require('@react-native-community/datetimepicker');
-    return mod?.DateTimePickerAndroid || null;
-  } catch {
-    return null;
-  }
-};
+  // Safe dynamic lookup to prevent Metro bundling crash if unlinked
+  const getNativeAndroidDateTimePicker = () => {
+    try {
+      const mod = require('@react-native-community/datetimepicker');
+      return mod?.DateTimePickerAndroid || null;
+    } catch {
+      return null;
+    }
+  };
 
   // Launch Default Android Material DatePicker Dialog
   const handleOpenDueDate = () => {
@@ -491,7 +517,7 @@ const getNativeAndroidDateTimePicker = () => {
           }
         },
         mode: 'date',
-        display: 'default'
+        display: 'default',
       });
     } else {
       setShowDatePickerModal(true);
@@ -523,7 +549,7 @@ const getNativeAndroidDateTimePicker = () => {
         },
         mode: 'time',
         is24Hour: false,
-        display: 'default'
+        display: 'default',
       });
     } else {
       setShowReminderPickerModal(true);
@@ -536,7 +562,9 @@ const getNativeAndroidDateTimePicker = () => {
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, gestureState) => {
           // Detect horizontal swipe from left to right
-          return gestureState.dx > 25 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5;
+          return (
+            gestureState.dx > 25 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.5
+          );
         },
         onPanResponderRelease: (_, gestureState) => {
           if (gestureState.dx > 70 || (gestureState.dx > 25 && gestureState.vx > 0.3)) {
@@ -546,9 +574,22 @@ const getNativeAndroidDateTimePicker = () => {
               void flushAutosave().finally(onClose);
             }
           }
-        }
+        },
       }),
-    [onClose, isDraft, titleValue, draftIsImportant, draftIsCompleted, draftDueDate, draftReminderTime, draftAssigneeId, draftListIds, draftSubtasks, notesValue, flushAutosave]
+    [
+      onClose,
+      isDraft,
+      titleValue,
+      draftIsImportant,
+      draftIsCompleted,
+      draftDueDate,
+      draftReminderTime,
+      draftAssigneeId,
+      draftListIds,
+      draftSubtasks,
+      notesValue,
+      flushAutosave,
+    ]
   );
 
   return (
@@ -559,15 +600,15 @@ const getNativeAndroidDateTimePicker = () => {
         {
           backgroundColor: colors.background,
           paddingTop: insets.top,
-          paddingBottom: Math.max(insets.bottom, 12)
-        }
+          paddingBottom: Math.max(insets.bottom, 12),
+        },
       ]}
     >
       {/* Top Header Bar */}
       <View
         style={[
           styles.headerBar,
-          { backgroundColor: colors.card, borderBottomColor: colors.border }
+          { backgroundColor: colors.card, borderBottomColor: colors.border },
         ]}
       >
         <TouchableOpacity
@@ -578,7 +619,10 @@ const getNativeAndroidDateTimePicker = () => {
               void flushAutosave().finally(onClose);
             }
           }}
-          style={[styles.backButton, { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }]}
+          style={[
+            styles.backButton,
+            { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border },
+          ]}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Back"
@@ -596,7 +640,9 @@ const getNativeAndroidDateTimePicker = () => {
             disabled={!titleValue.trim()}
             style={[
               styles.saveTopBtn,
-              { backgroundColor: titleValue.trim() ? '#0078d4' : isDarkMode ? '#3f3f46' : '#cbd5e1' }
+              {
+                backgroundColor: titleValue.trim() ? '#0078d4' : isDarkMode ? '#3f3f46' : '#cbd5e1',
+              },
             ]}
             activeOpacity={0.8}
             accessibilityLabel="Save Task"
@@ -636,17 +682,29 @@ const getNativeAndroidDateTimePicker = () => {
               borderRadius: 20,
               backgroundColor:
                 feedbackType === 'loading'
-                  ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
+                  ? isDarkMode
+                    ? 'rgba(0, 120, 212, 0.15)'
+                    : '#eff6ff'
                   : feedbackType === 'success'
-                  ? (isDarkMode ? 'rgba(16, 185, 129, 0.15)' : '#f0fdf4')
-                  : (isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fef2f2'),
+                    ? isDarkMode
+                      ? 'rgba(16, 185, 129, 0.15)'
+                      : '#f0fdf4'
+                    : isDarkMode
+                      ? 'rgba(239, 68, 68, 0.15)'
+                      : '#fef2f2',
               borderWidth: 1,
               borderColor:
                 feedbackType === 'loading'
-                  ? (isDarkMode ? '#1e3a8a' : '#bfdbfe')
+                  ? isDarkMode
+                    ? '#1e3a8a'
+                    : '#bfdbfe'
                   : feedbackType === 'success'
-                  ? (isDarkMode ? '#065f46' : '#bbf7d0')
-                  : (isDarkMode ? '#991b1b' : '#fecaca'),
+                    ? isDarkMode
+                      ? '#065f46'
+                      : '#bbf7d0'
+                    : isDarkMode
+                      ? '#991b1b'
+                      : '#fecaca',
             }}
           >
             {feedbackType === 'loading' && (
@@ -660,9 +718,7 @@ const getNativeAndroidDateTimePicker = () => {
             {feedbackType === 'success' && (
               <>
                 <Check size={14} color="#10b981" strokeWidth={3} />
-                <Text style={{ fontSize: 13, fontWeight: '700', color: '#10b981' }}>
-                  Saved
-                </Text>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: '#10b981' }}>Saved</Text>
               </>
             )}
             {feedbackType === 'error' && (
@@ -687,272 +743,76 @@ const getNativeAndroidDateTimePicker = () => {
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 120 }
+            { paddingBottom: Math.max(insets.bottom, 24) + 120 },
           ]}
           keyboardShouldPersistTaps="handled"
           automaticallyAdjustKeyboardInsets={true}
         >
-        {/* Task title card */}
-        <View
-          style={[
-            styles.card,
-            styles.titleCardRow,
-            { backgroundColor: colors.card, borderColor: colors.border }
-          ]}
-        >
-          {!isDraft && (
-            <TouchableOpacity
-              onPress={handleToggleComplete}
-              style={styles.checkTouch}
-              activeOpacity={0.7}
-            >
-              {isDone ? (
-                <View style={[styles.checkboxBox, styles.checkboxBoxDone]}>
-                  <Check size={14} color="#ffffff" strokeWidth={3} />
-                </View>
-              ) : (
-                <View style={[styles.checkboxBox, { borderColor: isDarkMode ? '#64748b' : '#94a3b8' }]} />
-              )}
-            </TouchableOpacity>
-          )}
-          <TextInput
-            value={titleValue}
-            onChangeText={handleTitleChange}
-            placeholder={isDraft ? "What needs to be done?" : "Task title..."}
-            placeholderTextColor={colors.textMuted}
-            autoFocus={isDraft}
-            onFocus={() => setIsTitleFocused(true)}
-            onBlur={() => {
-              setIsTitleFocused(false);
-              void flushAutosave();
-            }}
-            style={[
-              styles.titleInput,
-              { color: colors.text },
-              isTitleFocused && [
-                styles.titleInputFocused,
-                {
-                  borderColor: '#0078d4',
-                  backgroundColor: isDarkMode
-                    ? 'rgba(0, 120, 212, 0.12)'
-                    : 'rgba(0, 120, 212, 0.05)'
-                }
-              ],
-              isDone && [styles.titleInputDone, { color: colors.textMuted }]
-            ]}
-          />
-        </View>
-
-        {/* Lists Membership Card (Many-to-Many) */}
-        <TouchableOpacity
-          onPress={() => setShowListsModal(true)}
-          style={[
-            styles.card,
-            styles.cardRow,
-            { backgroundColor: colors.card, borderColor: colors.border }
-          ]}
-          activeOpacity={0.7}
-        >
+          {/* Task title card */}
           <View
             style={[
-              styles.pickerIconWrap,
-              { backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.18)' : 'rgba(0, 120, 212, 0.1)' }
+              styles.card,
+              styles.titleCardRow,
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
-            <ListTodo size={20} color="#0078d4" />
-          </View>
-
-          <View style={styles.pickerTextWrap}>
-            <Text style={styles.cardSectionLabel}>LISTS</Text>
-            <View style={styles.listChipsWrap}>
-              {effectiveLists.length > 0 ? (
-                effectiveLists.map((l) => (
-                  <View
-                    key={l.id}
-                    style={[
-                      styles.listChip,
-                      { backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.2)' : 'rgba(0, 120, 212, 0.1)', borderColor: 'rgba(0, 120, 212, 0.3)' }
-                    ]}
-                  >
-                    <View style={[styles.listChipDot, { backgroundColor: l.color_theme || '#0078d4' }]} />
-                    <Text style={[styles.listChipText, { color: '#0078d4' }]} numberOfLines={1}>
-                      {l.title}
-                    </Text>
+            {!isDraft && (
+              <TouchableOpacity
+                onPress={handleToggleComplete}
+                style={styles.checkTouch}
+                activeOpacity={0.7}
+              >
+                {isDone ? (
+                  <View style={[styles.checkboxBox, styles.checkboxBoxDone]}>
+                    <Check size={14} color="#ffffff" strokeWidth={3} />
                   </View>
-                ))
-              ) : (
-                <Text style={[styles.pickerValueText, { color: colors.textMuted }]}>
-                  No lists selected (Tap to assign)
-                </Text>
-              )}
-            </View>
-          </View>
-          <ChevronRight size={18} color={colors.textMuted} />
-        </TouchableOpacity>
-
-        {/* Assignee Card */}
-        <TouchableOpacity
-          onPress={() => setShowAssigneeModal(true)}
-          style={[
-            styles.card,
-            styles.cardRow,
-            { backgroundColor: colors.card, borderColor: colors.border }
-          ]}
-          activeOpacity={0.7}
-        >
-          {assignedUser ? (
-            <Image
-              source={{
-                uri:
-                  assignedUser.avatar ||
-                  `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(assignedUser.name)}`
-              }}
-              style={styles.assigneeAvatar}
-            />
-          ) : (
-            <View
-              style={[
-                styles.assigneePlaceholder,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }
-              ]}
-            >
-              <UserIcon size={18} color={colors.textMuted} />
-            </View>
-          )}
-
-          <View style={styles.assigneeInfo}>
-            <Text style={styles.cardSectionLabel}>ASSIGNEE</Text>
-            <Text
-              style={[
-                styles.assigneeNameText,
-                { color: assignedUser ? colors.text : colors.textMuted }
-              ]}
-              numberOfLines={1}
-            >
-              {assignedUser
-                ? `${assignedUser.name} (${assignedUser.phone})`
-                : 'Unassigned (Tap to assign contact...)'}
-            </Text>
-          </View>
-        </TouchableOpacity>
-
-        {/* Steps Checklist Card */}
-        <View
-          style={[
-            styles.card,
-            { backgroundColor: colors.card, borderColor: colors.border }
-          ]}
-        >
-          <View style={styles.stepsHeaderRow}>
-            <Text style={styles.cardSectionLabel}>
-              STEPS CHECKLIST ({completedStepsCount}/{effectiveSubtasks.length})
-            </Text>
-            {effectiveSubtasks.length > 0 && (
-              <View style={styles.percentBadge}>
-                <Text style={styles.percentText}>
-                  {Math.round((completedStepsCount / effectiveSubtasks.length) * 100)}% Done
-                </Text>
-              </View>
-            )}
-          </View>
-
-          {/* Subtasks List */}
-          <View style={styles.stepsList}>
-            {effectiveSubtasks.map((step) => {
-              const stepDone = Boolean(step.is_completed);
-              return (
-                <View
-                  key={step.id}
-                  style={[
-                    styles.stepRow,
-                    { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
-                  ]}
-                >
-                  <TouchableOpacity
-                    onPress={() => handleToggleStep(step)}
-                    style={styles.stepCheckTouch}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="Toggle step"
-                  >
-                    {stepDone ? (
-                      <CheckSquare size={20} color="#0078d4" />
-                    ) : (
-                      <Square size={20} color={colors.textMuted} />
-                    )}
-                  </TouchableOpacity>
-
-                  <TextInput
-                    value={step.title}
-                    onChangeText={(text) => handleUpdateStepTitle(step.id, text)}
-                    placeholder="Step name..."
-                    placeholderTextColor={colors.textMuted}
+                ) : (
+                  <View
                     style={[
-                      styles.stepTitle,
-                      { color: colors.text },
-                      stepDone && [styles.stepTitleDone, { color: colors.textMuted }]
+                      styles.checkboxBox,
+                      { borderColor: isDarkMode ? '#64748b' : '#94a3b8' },
                     ]}
                   />
-
-                  <TouchableOpacity
-                    onPress={() => handleDeleteStep(step.id)}
-                    style={styles.stepDeleteTouch}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    accessibilityLabel="Delete step"
-                  >
-                    <Trash2 size={16} color="#ef4444" />
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-
-          {/* Add Step Input */}
-          <View
-            style={[
-              styles.addStepRow,
-              {
-                backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
-                borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0'
-              }
-            ]}
-          >
-            <View
-              style={[
-                styles.addStepIconWrap,
-                { backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.2)' : 'rgba(0, 120, 212, 0.12)' }
-              ]}
-            >
-              <Plus size={15} color="#0078d4" />
-            </View>
-            <TextInput
-              placeholder="Add next step..."
-              placeholderTextColor={colors.textMuted}
-              value={newStepTitle}
-              onChangeText={setNewStepTitle}
-              onSubmitEditing={handleAddStep}
-              returnKeyType="done"
-              style={[styles.addStepInput, { color: colors.text }]}
-            />
-            {newStepTitle.trim().length > 0 && (
-              <TouchableOpacity onPress={handleAddStep} style={styles.addStepBtn} activeOpacity={0.8}>
-                <Text style={styles.addStepBtnText}>Add</Text>
+                )}
               </TouchableOpacity>
             )}
+            <TextInput
+              value={titleValue}
+              onChangeText={handleTitleChange}
+              placeholder={isDraft ? 'What needs to be done?' : 'Task title...'}
+              placeholderTextColor={colors.textMuted}
+              autoFocus={isDraft}
+              onFocus={() => setIsTitleFocused(true)}
+              onBlur={() => {
+                setIsTitleFocused(false);
+                void flushAutosave();
+              }}
+              style={[
+                styles.titleInput,
+                { color: colors.text },
+                isTitleFocused && [
+                  styles.titleInputFocused,
+                  {
+                    borderColor: '#0078d4',
+                    backgroundColor: isDarkMode
+                      ? 'rgba(0, 120, 212, 0.12)'
+                      : 'rgba(0, 120, 212, 0.05)',
+                  },
+                ],
+                isDone && [styles.titleInputDone, { color: colors.textMuted }],
+              ]}
+            />
           </View>
-        </View>
 
-        {/* Due Date & Reminder Pickers */}
-        <View style={styles.pickersContainer}>
-          {/* Due Date Card */}
+          {/* Lists Membership Card (Many-to-Many) */}
           <TouchableOpacity
-            onPress={handleOpenDueDate}
+            onPress={() => setShowListsModal(true)}
             style={[
               styles.card,
-              styles.pickerRow,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              styles.cardRow,
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
             <View
               style={[
@@ -960,123 +820,347 @@ const getNativeAndroidDateTimePicker = () => {
                 {
                   backgroundColor: isDarkMode
                     ? 'rgba(0, 120, 212, 0.18)'
-                    : 'rgba(0, 120, 212, 0.1)'
-                }
+                    : 'rgba(0, 120, 212, 0.1)',
+                },
               ]}
             >
-              <CalendarIcon size={22} color="#0078d4" />
+              <ListTodo size={20} color="#0078d4" />
             </View>
+
             <View style={styles.pickerTextWrap}>
-              <Text style={styles.cardSectionLabel}>DUE DATE</Text>
-              <Text
-                style={[
-                  styles.pickerValueText,
-                  { color: effectiveDueDate ? colors.text : colors.textMuted }
-                ]}
-              >
-                {formatDisplayDueDate(effectiveDueDate || null)}
-              </Text>
+              <Text style={styles.cardSectionLabel}>LISTS</Text>
+              <View style={styles.listChipsWrap}>
+                {effectiveLists.length > 0 ? (
+                  effectiveLists.map(l => (
+                    <View
+                      key={l.id}
+                      style={[
+                        styles.listChip,
+                        {
+                          backgroundColor: isDarkMode
+                            ? 'rgba(0, 120, 212, 0.2)'
+                            : 'rgba(0, 120, 212, 0.1)',
+                          borderColor: 'rgba(0, 120, 212, 0.3)',
+                        },
+                      ]}
+                    >
+                      <View
+                        style={[
+                          styles.listChipDot,
+                          { backgroundColor: l.color_theme || '#0078d4' },
+                        ]}
+                      />
+                      <Text style={[styles.listChipText, { color: '#0078d4' }]} numberOfLines={1}>
+                        {l.title}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <Text style={[styles.pickerValueText, { color: colors.textMuted }]}>
+                    No lists selected (Tap to assign)
+                  </Text>
+                )}
+              </View>
             </View>
             <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
 
-          {/* Reminder Time Card */}
+          {/* Assignee Card */}
           <TouchableOpacity
-            onPress={handleOpenReminderTime}
+            onPress={() => setShowAssigneeModal(true)}
             style={[
               styles.card,
-              styles.pickerRow,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              styles.cardRow,
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
             activeOpacity={0.7}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <View
-              style={[
-                styles.pickerIconWrap,
-                {
-                  backgroundColor: isDarkMode
-                    ? 'rgba(0, 120, 212, 0.18)'
-                    : 'rgba(0, 120, 212, 0.1)'
-                }
-              ]}
-            >
-              <Clock size={22} color="#0078d4" />
-            </View>
-            <View style={styles.pickerTextWrap}>
-              <Text style={styles.cardSectionLabel}>REMINDER TIME</Text>
-              <Text
+            {assignedUser ? (
+              <Image
+                source={{
+                  uri:
+                    assignedUser.avatar ||
+                    `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(assignedUser.name)}`,
+                }}
+                style={styles.assigneeAvatar}
+              />
+            ) : (
+              <View
                 style={[
-                  styles.pickerValueText,
-                  { color: effectiveReminderTime ? colors.text : colors.textMuted }
+                  styles.assigneePlaceholder,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' },
                 ]}
               >
-                {formatDisplayReminder(effectiveReminderTime || null)}
+                <UserIcon size={18} color={colors.textMuted} />
+              </View>
+            )}
+
+            <View style={styles.assigneeInfo}>
+              <Text style={styles.cardSectionLabel}>ASSIGNEE</Text>
+              <Text
+                style={[
+                  styles.assigneeNameText,
+                  { color: assignedUser ? colors.text : colors.textMuted },
+                ]}
+                numberOfLines={1}
+              >
+                {assignedUser
+                  ? `${assignedUser.name} (${assignedUser.phone})`
+                  : 'Unassigned (Tap to assign contact...)'}
               </Text>
             </View>
-            <ChevronRight size={18} color={colors.textMuted} />
           </TouchableOpacity>
-        </View>
 
-        {/* WhatsApp Direct Action Button (Only for existing saved tasks) */}
-        {!isDraft && (
-          <TouchableOpacity
-            onPress={() =>
-              onOpenWhatsAppModal({
-                type: 'single',
-                taskId: task.id,
-                recipientUserId: task.assigned_to_user_id
-              })
-            }
-            style={styles.whatsappActionBtn}
-            activeOpacity={0.8}
-          >
-            <WhatsAppIcon size={20} color="#ffffff" />
-            <Text style={styles.whatsappActionText}>Send WhatsApp Reminder</Text>
-          </TouchableOpacity>
-        )}
+          {/* Steps Checklist Card */}
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.stepsHeaderRow}>
+              <Text style={styles.cardSectionLabel}>
+                STEPS CHECKLIST ({completedStepsCount}/{effectiveSubtasks.length})
+              </Text>
+              {effectiveSubtasks.length > 0 && (
+                <View style={styles.percentBadge}>
+                  <Text style={styles.percentText}>
+                    {Math.round((completedStepsCount / effectiveSubtasks.length) * 100)}% Done
+                  </Text>
+                </View>
+              )}
+            </View>
 
-        {/* Notes Section */}
-        <View style={styles.notesSection}>
-          <View style={styles.notesSectionHeader}>
-            <Text style={[styles.notesSectionTitle, { color: colors.textMuted }]}>NOTES</Text>
+            {/* Subtasks List */}
+            <View style={styles.stepsList}>
+              {effectiveSubtasks.map(step => {
+                const stepDone = Boolean(step.is_completed);
+                return (
+                  <View
+                    key={step.id}
+                    style={[
+                      styles.stepRow,
+                      { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
+                    ]}
+                  >
+                    <TouchableOpacity
+                      onPress={() => handleToggleStep(step)}
+                      style={styles.stepCheckTouch}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Toggle step"
+                    >
+                      {stepDone ? (
+                        <CheckSquare size={20} color="#0078d4" />
+                      ) : (
+                        <Square size={20} color={colors.textMuted} />
+                      )}
+                    </TouchableOpacity>
+
+                    <TextInput
+                      value={step.title}
+                      onChangeText={text => handleUpdateStepTitle(step.id, text)}
+                      placeholder="Step name..."
+                      placeholderTextColor={colors.textMuted}
+                      style={[
+                        styles.stepTitle,
+                        { color: colors.text },
+                        stepDone && [styles.stepTitleDone, { color: colors.textMuted }],
+                      ]}
+                    />
+
+                    <TouchableOpacity
+                      onPress={() => handleDeleteStep(step.id)}
+                      style={styles.stepDeleteTouch}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityLabel="Delete step"
+                    >
+                      <Trash2 size={16} color="#ef4444" />
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+
+            {/* Add Step Input */}
+            <View
+              style={[
+                styles.addStepRow,
+                {
+                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                },
+              ]}
+            >
+              <View
+                style={[
+                  styles.addStepIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(0, 120, 212, 0.2)'
+                      : 'rgba(0, 120, 212, 0.12)',
+                  },
+                ]}
+              >
+                <Plus size={15} color="#0078d4" />
+              </View>
+              <TextInput
+                placeholder="Add next step..."
+                placeholderTextColor={colors.textMuted}
+                value={newStepTitle}
+                onChangeText={setNewStepTitle}
+                onSubmitEditing={handleAddStep}
+                returnKeyType="done"
+                style={[styles.addStepInput, { color: colors.text }]}
+              />
+              {newStepTitle.trim().length > 0 && (
+                <TouchableOpacity
+                  onPress={handleAddStep}
+                  style={styles.addStepBtn}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.addStepBtnText}>Add</Text>
+                </TouchableOpacity>
+              )}
+            </View>
           </View>
-          <TextInput
-            placeholder="Add detailed notes for this task..."
-            placeholderTextColor={colors.textMuted}
-            value={notesValue}
-            onChangeText={handleNotesChange}
-            onBlur={() => void flushAutosave()}
-            multiline
-            numberOfLines={4}
-            textAlignVertical="top"
-            style={[
-              styles.notesInputCard,
-              {
-                backgroundColor: colors.card,
-                borderColor: colors.border,
-                color: colors.text
+
+          {/* Due Date & Reminder Pickers */}
+          <View style={styles.pickersContainer}>
+            {/* Due Date Card */}
+            <TouchableOpacity
+              onPress={handleOpenDueDate}
+              style={[
+                styles.card,
+                styles.pickerRow,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View
+                style={[
+                  styles.pickerIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(0, 120, 212, 0.18)'
+                      : 'rgba(0, 120, 212, 0.1)',
+                  },
+                ]}
+              >
+                <CalendarIcon size={22} color="#0078d4" />
+              </View>
+              <View style={styles.pickerTextWrap}>
+                <Text style={styles.cardSectionLabel}>DUE DATE</Text>
+                <Text
+                  style={[
+                    styles.pickerValueText,
+                    { color: effectiveDueDate ? colors.text : colors.textMuted },
+                  ]}
+                >
+                  {formatDisplayDueDate(effectiveDueDate || null)}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+
+            {/* Reminder Time Card */}
+            <TouchableOpacity
+              onPress={handleOpenReminderTime}
+              style={[
+                styles.card,
+                styles.pickerRow,
+                { backgroundColor: colors.card, borderColor: colors.border },
+              ]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <View
+                style={[
+                  styles.pickerIconWrap,
+                  {
+                    backgroundColor: isDarkMode
+                      ? 'rgba(0, 120, 212, 0.18)'
+                      : 'rgba(0, 120, 212, 0.1)',
+                  },
+                ]}
+              >
+                <Clock size={22} color="#0078d4" />
+              </View>
+              <View style={styles.pickerTextWrap}>
+                <Text style={styles.cardSectionLabel}>REMINDER TIME</Text>
+                <Text
+                  style={[
+                    styles.pickerValueText,
+                    { color: effectiveReminderTime ? colors.text : colors.textMuted },
+                  ]}
+                >
+                  {formatDisplayReminder(effectiveReminderTime || null)}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
+
+          {/* WhatsApp Direct Action Button (Only for existing saved tasks) */}
+          {!isDraft && (
+            <TouchableOpacity
+              onPress={() =>
+                onOpenWhatsAppModal({
+                  type: 'single',
+                  taskId: task.id,
+                  recipientUserId: task.assigned_to_user_id,
+                })
               }
-            ]}
-          />
-        </View>
+              style={styles.whatsappActionBtn}
+              activeOpacity={0.8}
+            >
+              <WhatsAppIcon size={20} color="#ffffff" />
+              <Text style={styles.whatsappActionText}>Send WhatsApp Reminder</Text>
+            </TouchableOpacity>
+          )}
 
-        {/* Bottom Save Action for Draft Task */}
-        {isDraft && (
-          <TouchableOpacity
-            onPress={handleSaveDraft}
-            disabled={!titleValue.trim()}
-            style={[
-              styles.createTaskBottomBtn,
-              { backgroundColor: titleValue.trim() ? '#0078d4' : isDarkMode ? '#3f3f46' : '#cbd5e1' }
-            ]}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.createTaskBottomBtnText}>Create Task</Text>
-          </TouchableOpacity>
-        )}
-      </ScrollView>
-    </KeyboardAvoidingView>
+          {/* Notes Section */}
+          <View style={styles.notesSection}>
+            <View style={styles.notesSectionHeader}>
+              <Text style={[styles.notesSectionTitle, { color: colors.textMuted }]}>NOTES</Text>
+            </View>
+            <TextInput
+              placeholder="Add detailed notes for this task..."
+              placeholderTextColor={colors.textMuted}
+              value={notesValue}
+              onChangeText={handleNotesChange}
+              onBlur={() => void flushAutosave()}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              style={[
+                styles.notesInputCard,
+                {
+                  backgroundColor: colors.card,
+                  borderColor: colors.border,
+                  color: colors.text,
+                },
+              ]}
+            />
+          </View>
+
+          {/* Bottom Save Action for Draft Task */}
+          {isDraft && (
+            <TouchableOpacity
+              onPress={handleSaveDraft}
+              disabled={!titleValue.trim()}
+              style={[
+                styles.createTaskBottomBtn,
+                {
+                  backgroundColor: titleValue.trim()
+                    ? '#0078d4'
+                    : isDarkMode
+                      ? '#3f3f46'
+                      : '#cbd5e1',
+                },
+              ]}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.createTaskBottomBtnText}>Create Task</Text>
+            </TouchableOpacity>
+          )}
+        </ScrollView>
+      </KeyboardAvoidingView>
 
       {/* Lists Multi-Select Selection Modal */}
       <Modal
@@ -1094,15 +1178,13 @@ const getNativeAndroidDateTimePicker = () => {
             activeOpacity={1}
             style={[
               styles.modalCardLarge,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <View style={styles.modalHeaderRow}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <ListTodo size={20} color="#0078d4" />
-                <Text style={[styles.modalTitle, { color: colors.text }]}>
-                  Manage Lists
-                </Text>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Manage Lists</Text>
               </View>
               <TouchableOpacity
                 onPress={() => setShowListsModal(false)}
@@ -1112,7 +1194,10 @@ const getNativeAndroidDateTimePicker = () => {
               </TouchableOpacity>
             </View>
 
-            <ScrollView style={{ maxHeight: 320 }} contentContainerStyle={{ gap: 8, paddingBottom: 4 }}>
+            <ScrollView
+              style={{ maxHeight: 320 }}
+              contentContainerStyle={{ gap: 8, paddingBottom: 4 }}
+            >
               {lists.length === 0 ? (
                 <View style={styles.emptySearchWrap}>
                   <Text style={[styles.emptySearchText, { color: colors.textMuted }]}>
@@ -1120,7 +1205,7 @@ const getNativeAndroidDateTimePicker = () => {
                   </Text>
                 </View>
               ) : (
-                lists.map((l) => {
+                lists.map(l => {
                   const isSelected = effectiveListIds.includes(Number(l.id));
                   const themeColor = l.color_theme || '#0078d4';
 
@@ -1132,33 +1217,48 @@ const getNativeAndroidDateTimePicker = () => {
                         styles.modalListItemRow,
                         {
                           backgroundColor: isDarkMode ? '#27272a' : '#f8fafc',
-                          borderColor: isSelected ? '#0078d4' : colors.border
+                          borderColor: isSelected ? '#0078d4' : colors.border,
                         },
                         isSelected && {
                           borderWidth: 1.5,
-                          backgroundColor: isDarkMode ? 'rgba(0, 120, 212, 0.15)' : 'rgba(0, 120, 212, 0.08)'
-                        }
+                          backgroundColor: isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : 'rgba(0, 120, 212, 0.08)',
+                        },
                       ]}
                       activeOpacity={0.7}
                     >
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                      <View
+                        style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}
+                      >
                         <View
                           style={[
                             styles.checkboxBox,
                             isSelected
                               ? styles.checkboxBoxDone
-                              : { borderColor: isDarkMode ? '#64748b' : '#94a3b8' }
+                              : { borderColor: isDarkMode ? '#64748b' : '#94a3b8' },
                           ]}
                         >
                           {isSelected && <Check size={12} color="#ffffff" strokeWidth={3} />}
                         </View>
-                        <View style={[styles.listColorIndicator, { backgroundColor: themeColor }]} />
-                        <Text style={[styles.modalListItemText, { color: colors.text, flex: 1 }]} numberOfLines={1}>
+                        <View
+                          style={[styles.listColorIndicator, { backgroundColor: themeColor }]}
+                        />
+                        <Text
+                          style={[styles.modalListItemText, { color: colors.text, flex: 1 }]}
+                          numberOfLines={1}
+                        >
                           {l.title}
                         </Text>
                       </View>
                       {Boolean(l.pending_task_count) && (
-                        <Text style={{ fontSize: fontSizes.caption, color: colors.textMuted, fontWeight: '600' }}>
+                        <Text
+                          style={{
+                            fontSize: fontSizes.caption,
+                            color: colors.textMuted,
+                            fontWeight: '600',
+                          }}
+                        >
                           {l.pending_task_count} tasks
                         </Text>
                       )}
@@ -1201,13 +1301,11 @@ const getNativeAndroidDateTimePicker = () => {
             activeOpacity={1}
             style={[
               styles.modalCardLarge,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Assign Contact
-              </Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Assign Contact</Text>
               <TouchableOpacity
                 onPress={() => {
                   setShowAssigneeModal(false);
@@ -1231,7 +1329,7 @@ const getNativeAndroidDateTimePicker = () => {
                 height: 44,
                 marginBottom: 12,
                 gap: 8,
-                backgroundColor: isDarkMode ? '#18181b' : '#f8fafc'
+                backgroundColor: isDarkMode ? '#18181b' : '#f8fafc',
               }}
             >
               <Search size={16} color={colors.textMuted} />
@@ -1247,42 +1345,38 @@ const getNativeAndroidDateTimePicker = () => {
             <ScrollView style={{ maxHeight: 300 }} keyboardShouldPersistTaps="handled">
               <TouchableOpacity
                 onPress={() => handleSelectAssignee(null)}
-                style={[
-                  styles.assigneeOption,
-                  !effectiveAssigneeId && styles.assigneeOptionActive
-                ]}
+                style={[styles.assigneeOption, !effectiveAssigneeId && styles.assigneeOptionActive]}
               >
-                <Text style={{ color: colors.textMuted, fontWeight: '700' }}>
-                  🚫 Unassign Task
-                </Text>
+                <Text style={{ color: colors.textMuted, fontWeight: '700' }}>🚫 Unassign Task</Text>
               </TouchableOpacity>
 
               {(users || [])
-                .filter((u) => {
+                .filter(u => {
                   const q = (assigneeSearchQuery || '').toLowerCase().trim();
                   if (!q) return true;
                   return Boolean(
-                    u && (
-                      (u.name && typeof u.name === 'string' && u.name.toLowerCase().includes(q)) ||
-                      (u.phone && typeof u.phone === 'string' && u.phone.toLowerCase().includes(q)) ||
-                      (u.email && typeof u.email === 'string' && u.email.toLowerCase().includes(q))
-                    )
+                    u &&
+                    ((u.name && typeof u.name === 'string' && u.name.toLowerCase().includes(q)) ||
+                      (u.phone &&
+                        typeof u.phone === 'string' &&
+                        u.phone.toLowerCase().includes(q)) ||
+                      (u.email && typeof u.email === 'string' && u.email.toLowerCase().includes(q)))
                   );
                 })
-                .map((u) => (
+                .map(u => (
                   <TouchableOpacity
                     key={u.id}
                     onPress={() => handleSelectAssignee(u.id)}
                     style={[
                       styles.assigneeOption,
-                      effectiveAssigneeId === u.id && styles.assigneeOptionActive
+                      effectiveAssigneeId === u.id && styles.assigneeOptionActive,
                     ]}
                   >
                     <Image
                       source={{
                         uri:
                           u.avatar ||
-                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
+                          `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`,
                       }}
                       style={styles.assigneeOptionAvatar}
                     />
@@ -1316,13 +1410,11 @@ const getNativeAndroidDateTimePicker = () => {
           <View
             style={[
               styles.modalCardLarge,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Set Due Date
-              </Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Set Due Date</Text>
               <TouchableOpacity
                 onPress={() => setShowDatePickerModal(false)}
                 style={{ padding: 4 }}
@@ -1360,9 +1452,7 @@ const getNativeAndroidDateTimePicker = () => {
               <TouchableOpacity onPress={prevMonth} style={styles.calNavBtn}>
                 <ChevronLeft size={20} color={colors.text} />
               </TouchableOpacity>
-              <Text style={[styles.calMonthTitle, { color: colors.text }]}>
-                {monthName}
-              </Text>
+              <Text style={[styles.calMonthTitle, { color: colors.text }]}>{monthName}</Text>
               <TouchableOpacity onPress={nextMonth} style={styles.calNavBtn}>
                 <ChevronRight size={20} color={colors.text} />
               </TouchableOpacity>
@@ -1370,7 +1460,7 @@ const getNativeAndroidDateTimePicker = () => {
 
             {/* Day of Week Headers */}
             <View style={styles.weekDaysRow}>
-              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((wd) => (
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map(wd => (
                 <Text key={wd} style={styles.weekDayText}>
                   {wd}
                 </Text>
@@ -1392,16 +1482,13 @@ const getNativeAndroidDateTimePicker = () => {
                   <TouchableOpacity
                     key={`day-${dayNum}`}
                     onPress={() => handleSelectCalendarDay(dayNum)}
-                    style={[
-                      styles.dayCell,
-                      isSelected && styles.dayCellSelected
-                    ]}
+                    style={[styles.dayCell, isSelected && styles.dayCellSelected]}
                   >
                     <Text
                       style={[
                         styles.dayCellText,
                         { color: isSelected ? '#ffffff' : colors.text },
-                        isSelected && { fontWeight: '800' }
+                        isSelected && { fontWeight: '800' },
                       ]}
                     >
                       {dayNum}
@@ -1439,13 +1526,11 @@ const getNativeAndroidDateTimePicker = () => {
           <View
             style={[
               styles.modalCardLarge,
-              { backgroundColor: colors.card, borderColor: colors.border }
+              { backgroundColor: colors.card, borderColor: colors.border },
             ]}
           >
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Set Reminder Time
-              </Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Set Reminder Time</Text>
               <TouchableOpacity
                 onPress={() => setShowReminderPickerModal(false)}
                 style={{ padding: 4 }}
@@ -1458,7 +1543,10 @@ const getNativeAndroidDateTimePicker = () => {
             <View style={styles.reminderPresetsList}>
               <TouchableOpacity
                 onPress={() => setQuickReminder('laterToday')}
-                style={[styles.reminderPresetRow, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
+                style={[
+                  styles.reminderPresetRow,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
+                ]}
               >
                 <Clock size={16} color="#0078d4" />
                 <Text style={[styles.reminderPresetText, { color: colors.text }]}>
@@ -1468,7 +1556,10 @@ const getNativeAndroidDateTimePicker = () => {
 
               <TouchableOpacity
                 onPress={() => setQuickReminder('tomorrowMorning')}
-                style={[styles.reminderPresetRow, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
+                style={[
+                  styles.reminderPresetRow,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
+                ]}
               >
                 <Clock size={16} color="#0078d4" />
                 <Text style={[styles.reminderPresetText, { color: colors.text }]}>
@@ -1478,7 +1569,10 @@ const getNativeAndroidDateTimePicker = () => {
 
               <TouchableOpacity
                 onPress={() => setQuickReminder('tomorrowEvening')}
-                style={[styles.reminderPresetRow, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
+                style={[
+                  styles.reminderPresetRow,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
+                ]}
               >
                 <Clock size={16} color="#0078d4" />
                 <Text style={[styles.reminderPresetText, { color: colors.text }]}>
@@ -1488,7 +1582,10 @@ const getNativeAndroidDateTimePicker = () => {
 
               <TouchableOpacity
                 onPress={() => setQuickReminder('nextWeek')}
-                style={[styles.reminderPresetRow, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
+                style={[
+                  styles.reminderPresetRow,
+                  { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' },
+                ]}
               >
                 <Clock size={16} color="#0078d4" />
                 <Text style={[styles.reminderPresetText, { color: colors.text }]}>
@@ -1503,36 +1600,46 @@ const getNativeAndroidDateTimePicker = () => {
             </Text>
             <View style={styles.timeSelectorRow}>
               {/* Hours */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ maxHeight: 40 }}>
-                {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map((hr) => (
-                  <TouchableOpacity
-                    key={hr}
-                    onPress={() => setSelectedHour(hr)}
-                    style={[
-                      styles.timeChip,
-                      selectedHour === hr && styles.timeChipActive
-                    ]}
-                  >
-                    <Text style={[styles.timeChipText, selectedHour === hr && styles.timeChipTextActive]}>
-                      {hr}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ maxHeight: 40 }}
+              >
+                {['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12'].map(
+                  hr => (
+                    <TouchableOpacity
+                      key={hr}
+                      onPress={() => setSelectedHour(hr)}
+                      style={[styles.timeChip, selectedHour === hr && styles.timeChipActive]}
+                    >
+                      <Text
+                        style={[
+                          styles.timeChipText,
+                          selectedHour === hr && styles.timeChipTextActive,
+                        ]}
+                      >
+                        {hr}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                )}
               </ScrollView>
             </View>
 
             <View style={styles.timeSelectorRow}>
               {/* Minutes */}
-              {['00', '15', '30', '45'].map((min) => (
+              {['00', '15', '30', '45'].map(min => (
                 <TouchableOpacity
                   key={min}
                   onPress={() => setSelectedMinute(min)}
-                  style={[
-                    styles.timeChip,
-                    selectedMinute === min && styles.timeChipActive
-                  ]}
+                  style={[styles.timeChip, selectedMinute === min && styles.timeChipActive]}
                 >
-                  <Text style={[styles.timeChipText, selectedMinute === min && styles.timeChipTextActive]}>
+                  <Text
+                    style={[
+                      styles.timeChipText,
+                      selectedMinute === min && styles.timeChipTextActive,
+                    ]}
+                  >
                     :{min}
                   </Text>
                 </TouchableOpacity>
@@ -1544,13 +1651,17 @@ const getNativeAndroidDateTimePicker = () => {
                   onPress={() => setSelectedAmPm('AM')}
                   style={[styles.amPmBtn, selectedAmPm === 'AM' && styles.amPmBtnActive]}
                 >
-                  <Text style={[styles.amPmText, selectedAmPm === 'AM' && styles.amPmTextActive]}>AM</Text>
+                  <Text style={[styles.amPmText, selectedAmPm === 'AM' && styles.amPmTextActive]}>
+                    AM
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => setSelectedAmPm('PM')}
                   style={[styles.amPmBtn, selectedAmPm === 'PM' && styles.amPmBtnActive]}
                 >
-                  <Text style={[styles.amPmText, selectedAmPm === 'PM' && styles.amPmTextActive]}>PM</Text>
+                  <Text style={[styles.amPmText, selectedAmPm === 'PM' && styles.amPmTextActive]}>
+                    PM
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1565,10 +1676,7 @@ const getNativeAndroidDateTimePicker = () => {
                   <Text style={{ color: '#ef4444', fontWeight: '700' }}>Clear</Text>
                 </TouchableOpacity>
               )}
-              <TouchableOpacity
-                onPress={handleSaveCustomReminder}
-                style={styles.saveReminderBtn}
-              >
+              <TouchableOpacity onPress={handleSaveCustomReminder} style={styles.saveReminderBtn}>
                 <Text style={{ color: '#ffffff', fontWeight: '700' }}>
                   Set ({selectedHour}:{selectedMinute} {selectedAmPm})
                 </Text>
@@ -1583,7 +1691,7 @@ const getNativeAndroidDateTimePicker = () => {
 
 const styles = StyleSheet.create({
   safeArea: {
-    flex: 1
+    flex: 1,
   },
   headerBar: {
     height: 56,
@@ -1592,7 +1700,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 14,
     borderBottomWidth: 1,
-    position: 'relative'
+    position: 'relative',
   },
   backButton: {
     width: 38,
@@ -1601,12 +1709,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    zIndex: 1
+    zIndex: 1,
   },
   backText: {
     fontSize: fontSizes.small,
     fontWeight: '700',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   headerTitle: {
     fontSize: fontSizes.caption,
@@ -1616,7 +1724,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     position: 'absolute',
     left: 0,
-    right: 0
+    right: 0,
   },
   deleteIconButton: {
     width: 44,
@@ -1626,15 +1734,15 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 1
+    zIndex: 1,
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContent: {
     padding: 14,
     gap: 12,
-    paddingBottom: 40
+    paddingBottom: 40,
   },
   card: {
     borderRadius: 20,
@@ -1644,7 +1752,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 1
+    elevation: 1,
   },
   titleCardRow: {
     flexDirection: 'row',
@@ -1652,12 +1760,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 10,
     paddingVertical: 10,
-    minHeight: 56
+    minHeight: 56,
   },
   cardRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12
+    gap: 12,
   },
   checkTouch: {
     width: 44,
@@ -1665,7 +1773,7 @@ const styles = StyleSheet.create({
     minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   checkboxBox: {
     width: 22,
@@ -1674,11 +1782,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.8,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'transparent'
+    backgroundColor: 'transparent',
   },
   checkboxBoxDone: {
     backgroundColor: '#0078d4',
-    borderColor: '#0078d4'
+    borderColor: '#0078d4',
   },
   titleInput: {
     flex: 1,
@@ -1690,66 +1798,66 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1.5,
     borderColor: 'transparent',
-    includeFontPadding: false
+    includeFontPadding: false,
   },
   titleInputFocused: {
-    borderColor: '#0078d4'
+    borderColor: '#0078d4',
   },
   titleInputDone: {
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
   cardSectionLabel: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
     letterSpacing: 0.5,
-    marginBottom: 2
+    marginBottom: 2,
   },
   assigneeAvatar: {
     width: 38,
     height: 38,
-    borderRadius: 19
+    borderRadius: 19,
   },
   assigneePlaceholder: {
     width: 38,
     height: 38,
     borderRadius: 19,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   assigneeInfo: {
-    flex: 1
+    flex: 1,
   },
   assigneeNameText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   stepsHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 8
+    marginBottom: 8,
   },
   percentBadge: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8
+    borderRadius: 8,
   },
   percentText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   stepsList: {
-    gap: 6
+    gap: 6,
   },
   stepRow: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 14
+    borderRadius: 14,
   },
   stepCheckTouch: {
     width: 44,
@@ -1757,16 +1865,16 @@ const styles = StyleSheet.create({
     minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   stepTitle: {
     flex: 1,
     fontSize: fontSizes.small,
     fontWeight: '600',
-    paddingRight: 6
+    paddingRight: 6,
   },
   stepTitleDone: {
-    textDecorationLine: 'line-through'
+    textDecorationLine: 'line-through',
   },
   stepDeleteTouch: {
     width: 44,
@@ -1774,7 +1882,7 @@ const styles = StyleSheet.create({
     minWidth: 44,
     minHeight: 44,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   addStepRow: {
     flexDirection: 'row',
@@ -1784,34 +1892,34 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 14,
-    borderWidth: 1
+    borderWidth: 1,
   },
   addStepIconWrap: {
     width: 32,
     height: 32,
     borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   addStepInput: {
     flex: 1,
     fontSize: fontSizes.small,
     fontWeight: '600',
-    paddingVertical: 4
+    paddingVertical: 4,
   },
   addStepBtn: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 10
+    borderRadius: 10,
   },
   addStepBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   pickersContainer: {
-    gap: 12
+    gap: 12,
   },
   pickerRow: {
     flexDirection: 'row',
@@ -1819,7 +1927,7 @@ const styles = StyleSheet.create({
     gap: 14,
     minHeight: 68,
     padding: 14,
-    borderRadius: 20
+    borderRadius: 20,
   },
   pickerIconWrap: {
     width: 44,
@@ -1828,14 +1936,14 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   pickerTextWrap: {
-    flex: 1
+    flex: 1,
   },
   pickerValueText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   whatsappActionBtn: {
     backgroundColor: '#25D366',
@@ -1849,30 +1957,30 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 3
+    elevation: 3,
   },
   whatsappActionText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   notesSection: {
-    gap: 8
+    gap: 8,
   },
   notesSectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 4
+    paddingHorizontal: 4,
   },
   notesSectionTitle: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
-    letterSpacing: 0.8
+    letterSpacing: 0.8,
   },
   autosaveStatus: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   notesInputCard: {
     borderRadius: 20,
@@ -1885,21 +1993,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 1
+    elevation: 1,
   },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20
+    padding: 20,
   },
   modalCard: {
     width: '100%',
     maxWidth: 340,
     borderRadius: 24,
     padding: 20,
-    borderWidth: 1
+    borderWidth: 1,
   },
   modalCardLarge: {
     width: '100%',
@@ -1911,17 +2019,17 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.2,
     shadowRadius: 16,
-    elevation: 8
+    elevation: 8,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 14
+    marginBottom: 14,
   },
   modalTitle: {
     fontSize: fontSizes.body,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   modalListItemRow: {
     flexDirection: 'row',
@@ -1931,16 +2039,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 10
+    gap: 10,
   },
   modalListItemText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   listColorIndicator: {
     width: 8,
     height: 8,
-    borderRadius: 4
+    borderRadius: 4,
   },
   assigneeOption: {
     flexDirection: 'row',
@@ -1948,184 +2056,184 @@ const styles = StyleSheet.create({
     gap: 10,
     padding: 10,
     borderRadius: 12,
-    marginBottom: 4
+    marginBottom: 4,
   },
   assigneeOptionActive: {
-    backgroundColor: 'rgba(0, 120, 212, 0.12)'
+    backgroundColor: 'rgba(0, 120, 212, 0.12)',
   },
   assigneeOptionAvatar: {
     width: 32,
     height: 32,
-    borderRadius: 16
+    borderRadius: 16,
   },
   assigneeOptionName: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   presetButtonsRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 16
+    marginBottom: 16,
   },
   presetBtn: {
     flex: 1,
     paddingVertical: 8,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   presetBtnText: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   calendarMonthHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 10
+    marginBottom: 10,
   },
   calNavBtn: {
-    padding: 6
+    padding: 6,
   },
   calMonthTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   weekDaysRow: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    marginBottom: 6
+    marginBottom: 6,
   },
   weekDayText: {
     width: 34,
     textAlign: 'center',
     fontSize: fontSizes.caption,
     fontWeight: '700',
-    color: '#94a3b8'
+    color: '#94a3b8',
   },
   daysGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'flex-start'
+    justifyContent: 'flex-start',
   },
   dayCellEmpty: {
     width: '14.28%',
-    height: 34
+    height: 34,
   },
   dayCell: {
     width: '14.28%',
     height: 34,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 17
+    borderRadius: 17,
   },
   dayCellSelected: {
-    backgroundColor: '#0078d4'
+    backgroundColor: '#0078d4',
   },
   dayCellText: {
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   clearDateBtn: {
     marginTop: 14,
     paddingVertical: 8,
-    alignItems: 'center'
+    alignItems: 'center',
   },
   clearDateBtnText: {
     color: '#ef4444',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   reminderPresetsList: {
     gap: 8,
-    marginBottom: 14
+    marginBottom: 14,
   },
   reminderPresetRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
     padding: 12,
-    borderRadius: 12
+    borderRadius: 12,
   },
   reminderPresetText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   customTimeSectionTitle: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     letterSpacing: 0.5,
     marginBottom: 8,
-    marginTop: 4
+    marginTop: 4,
   },
   timeSelectorRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: 8
+    marginBottom: 8,
   },
   timeChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     backgroundColor: 'rgba(0,0,0,0.05)',
-    marginRight: 4
+    marginRight: 4,
   },
   timeChipActive: {
-    backgroundColor: '#0078d4'
+    backgroundColor: '#0078d4',
   },
   timeChipText: {
     fontSize: fontSizes.caption,
     fontWeight: '700',
-    color: '#64748b'
+    color: '#64748b',
   },
   timeChipTextActive: {
-    color: '#ffffff'
+    color: '#ffffff',
   },
   amPmWrap: {
     flexDirection: 'row',
     gap: 4,
-    marginLeft: 'auto'
+    marginLeft: 'auto',
   },
   amPmBtn: {
     paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 8,
-    backgroundColor: 'rgba(0,0,0,0.05)'
+    backgroundColor: 'rgba(0,0,0,0.05)',
   },
   amPmBtnActive: {
-    backgroundColor: '#0078d4'
+    backgroundColor: '#0078d4',
   },
   amPmText: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
-    color: '#64748b'
+    color: '#64748b',
   },
   amPmTextActive: {
-    color: '#ffffff'
+    color: '#ffffff',
   },
   reminderActionsRow: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: 12,
-    marginTop: 14
+    marginTop: 14,
   },
   clearReminderBtn: {
     paddingHorizontal: 12,
-    paddingVertical: 8
+    paddingVertical: 8,
   },
   saveReminderBtn: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderRadius: 12
+    borderRadius: 12,
   },
   listChipsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 6,
-    marginTop: 4
+    marginTop: 4,
   },
   listChip: {
     flexDirection: 'row',
@@ -2134,40 +2242,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 8,
-    borderWidth: 1
+    borderWidth: 1,
   },
   listChipDot: {
     width: 6,
     height: 6,
-    borderRadius: 3
+    borderRadius: 3,
   },
   listChipText: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   doneModalBtn: {
     backgroundColor: '#0078d4',
     paddingVertical: 12,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8
+    marginTop: 8,
   },
   doneModalBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.body,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   saveTopBtn: {
     paddingHorizontal: 16,
     paddingVertical: 7,
     borderRadius: 16,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   saveTopBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   createTaskBottomBtn: {
     backgroundColor: '#0078d4',
@@ -2180,22 +2288,22 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 6,
-    elevation: 3
+    elevation: 3,
   },
   createTaskBottomBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.body,
     fontWeight: '800',
-    letterSpacing: 0.3
+    letterSpacing: 0.3,
   },
   emptySearchWrap: {
     padding: 16,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptySearchText: {
     fontSize: fontSizes.small,
     textAlign: 'center',
-    lineHeight: 20
-  }
+    lineHeight: 20,
+  },
 });

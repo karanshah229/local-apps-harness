@@ -10,7 +10,7 @@ import {
   Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Platform
+  Platform,
 } from 'react-native';
 import {
   ArrowLeft,
@@ -26,7 +26,7 @@ import {
   CheckCircle2,
   AlertCircle,
   Search,
-  RefreshCw
+  RefreshCw,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -48,7 +48,12 @@ interface ContactsPageProps {
   activeUser: UserType | null;
   setActiveUser: (user: UserType) => void;
   onAddUser: (user: { name: string; email: string; phone: string }) => Promise<boolean>;
-  onUpdateUser: (user: { id: number; name: string; email: string; phone: string }) => Promise<boolean>;
+  onUpdateUser: (user: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+  }) => Promise<boolean>;
   onDeleteUser: (userId: number) => void;
   onBatchImportUsers: (contacts: BatchImportContact[]) => Promise<any>;
   isDarkMode: boolean;
@@ -62,7 +67,16 @@ const getInitials = (name?: string) => {
 };
 
 const getAvatarBg = (name?: string) => {
-  const avatarColors = ['#0078d4', '#10b981', '#742774', '#d83b01', '#0284c7', '#8b5cf6', '#ec4899', '#f59e0b'];
+  const avatarColors = [
+    '#0078d4',
+    '#10b981',
+    '#742774',
+    '#d83b01',
+    '#0284c7',
+    '#8b5cf6',
+    '#ec4899',
+    '#f59e0b',
+  ];
   let hash = 0;
   for (let i = 0; i < (name || '').length; i++) {
     hash = (name || '').charCodeAt(i) + ((hash << 5) - hash);
@@ -70,108 +84,110 @@ const getAvatarBg = (name?: string) => {
   return avatarColors[Math.abs(hash) % avatarColors.length];
 };
 
-const ContactCardRow = React.memo(({
-  user: u,
-  isActive,
-  colors,
-  isDarkMode,
-  onSetActive,
-  onEdit,
-  onDelete
-}: {
-  user: UserType;
-  isActive: boolean;
-  colors: any;
-  isDarkMode: boolean;
-  onSetActive: (u: UserType) => void;
-  onEdit: (u: UserType) => void;
-  onDelete: (u: UserType) => void;
-}) => {
-  const bg = getAvatarBg(u.name);
-  const initials = getInitials(u.name);
+const ContactCardRow = React.memo(
+  ({
+    user: u,
+    isActive,
+    colors,
+    isDarkMode,
+    onSetActive,
+    onEdit,
+    onDelete,
+  }: {
+    user: UserType;
+    isActive: boolean;
+    colors: any;
+    isDarkMode: boolean;
+    onSetActive: (u: UserType) => void;
+    onEdit: (u: UserType) => void;
+    onDelete: (u: UserType) => void;
+  }) => {
+    const bg = getAvatarBg(u.name);
+    const initials = getInitials(u.name);
 
-  return (
-    <View
-      style={[
-        styles.contactCard,
-        { backgroundColor: colors.card, borderColor: colors.border },
-        isActive && {
-          borderColor: '#0078d4',
-          backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
-          borderWidth: 1.5
-        }
-      ]}
-    >
-      {u.avatar && u.avatar.startsWith('http') ? (
-        <Image source={{ uri: u.avatar }} style={styles.contactAvatar} />
-      ) : (
-        <View style={[styles.avatarInitials, { backgroundColor: bg }]}>
-          <Text style={styles.avatarInitialsText}>{initials}</Text>
-        </View>
-      )}
+    return (
+      <View
+        style={[
+          styles.contactCard,
+          { backgroundColor: colors.card, borderColor: colors.border },
+          isActive && {
+            borderColor: '#0078d4',
+            backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
+            borderWidth: 1.5,
+          },
+        ]}
+      >
+        {u.avatar && u.avatar.startsWith('http') ? (
+          <Image source={{ uri: u.avatar }} style={styles.contactAvatar} />
+        ) : (
+          <View style={[styles.avatarInitials, { backgroundColor: bg }]}>
+            <Text style={styles.avatarInitialsText}>{initials}</Text>
+          </View>
+        )}
 
-      <View style={styles.contactInfo}>
-        <View style={styles.contactNameRow}>
-          <Text style={[styles.contactName, { color: colors.text }]} numberOfLines={1}>
-            {u.name}
-          </Text>
-          {isActive && (
-            <View style={styles.youBadge}>
-              <Text style={styles.youBadgeText}>YOU</Text>
+        <View style={styles.contactInfo}>
+          <View style={styles.contactNameRow}>
+            <Text style={[styles.contactName, { color: colors.text }]} numberOfLines={1}>
+              {u.name}
+            </Text>
+            {isActive && (
+              <View style={styles.youBadge}>
+                <Text style={styles.youBadgeText}>YOU</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.contactMetaRow}>
+            <Phone size={12} color="#25D366" />
+            <Text style={[styles.contactPhone, { color: colors.textMuted }]} numberOfLines={1}>
+              {u.phone}
+            </Text>
+          </View>
+
+          {Boolean(u.email) && (
+            <View style={styles.contactMetaRow}>
+              <Mail size={12} color={colors.textMuted} />
+              <Text style={[styles.contactEmail, { color: colors.textMuted }]} numberOfLines={1}>
+                {u.email}
+              </Text>
             </View>
           )}
         </View>
 
-        <View style={styles.contactMetaRow}>
-          <Phone size={12} color="#25D366" />
-          <Text style={[styles.contactPhone, { color: colors.textMuted }]} numberOfLines={1}>
-            {u.phone}
-          </Text>
-        </View>
+        <View style={styles.actionsWrap}>
+          {!isActive && (
+            <TouchableOpacity
+              onPress={() => onSetActive(u)}
+              style={[styles.switchBtn, { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }]}
+              activeOpacity={0.7}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Text style={[styles.switchBtnText, { color: colors.text }]}>Switch</Text>
+            </TouchableOpacity>
+          )}
 
-        {Boolean(u.email) && (
-          <View style={styles.contactMetaRow}>
-            <Mail size={12} color={colors.textMuted} />
-            <Text style={[styles.contactEmail, { color: colors.textMuted }]} numberOfLines={1}>
-              {u.email}
-            </Text>
-          </View>
-        )}
-      </View>
-
-      <View style={styles.actionsWrap}>
-        {!isActive && (
           <TouchableOpacity
-            onPress={() => onSetActive(u)}
-            style={[styles.switchBtn, { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }]}
+            onPress={() => onEdit(u)}
+            style={styles.iconBtn}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
           >
-            <Text style={[styles.switchBtnText, { color: colors.text }]}>Switch</Text>
+            <Edit3 size={18} color="#0078d4" />
           </TouchableOpacity>
-        )}
 
-        <TouchableOpacity
-          onPress={() => onEdit(u)}
-          style={styles.iconBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Edit3 size={18} color="#0078d4" />
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => onDelete(u)}
-          style={styles.iconBtn}
-          activeOpacity={0.7}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-        >
-          <Trash2 size={18} color="#ef4444" />
-        </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => onDelete(u)}
+            style={styles.iconBtn}
+            activeOpacity={0.7}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Trash2 size={18} color="#ef4444" />
+          </TouchableOpacity>
+        </View>
       </View>
-    </View>
-  );
-});
+    );
+  }
+);
 
 export default function ContactsPage({
   onBack,
@@ -182,7 +198,7 @@ export default function ContactsPage({
   onUpdateUser,
   onDeleteUser,
   onBatchImportUsers,
-  isDarkMode
+  isDarkMode,
 }: ContactsPageProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [isFormOpen, setIsFormOpen] = useState(false);
@@ -240,7 +256,7 @@ export default function ContactsPage({
           id: editingUserId,
           name: name.trim(),
           email: email.trim(),
-          phone: normalizedPhone
+          phone: normalizedPhone,
         });
         if (ok) {
           setSuccessMessage('Contact updated successfully.');
@@ -253,7 +269,7 @@ export default function ContactsPage({
         const ok = await onAddUser({
           name: name.trim(),
           email: email.trim(),
-          phone: normalizedPhone
+          phone: normalizedPhone,
         });
         if (ok) {
           setSuccessMessage('Contact added successfully.');
@@ -270,21 +286,24 @@ export default function ContactsPage({
     }
   };
 
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
 
-  const handleDelete = useCallback((u: UserType) => {
-    showConfirmDialog({
-      title: 'Delete Contact',
-      message: `Are you sure you want to delete "${u.name}"?`,
-      type: 'danger',
-      confirmLabel: 'Delete Contact',
-      onConfirm: () => {
-        onDeleteUser(u.id);
-        setSuccessMessage(`Deleted ${u.name}.`);
-        setTimeout(() => setSuccessMessage(''), 4000);
-      },
-    });
-  }, [onDeleteUser, showConfirmDialog]);
+  const handleDelete = useCallback(
+    (u: UserType) => {
+      showConfirmDialog({
+        title: 'Delete Contact',
+        message: `Are you sure you want to delete "${u.name}"?`,
+        type: 'danger',
+        confirmLabel: 'Delete Contact',
+        onConfirm: () => {
+          onDeleteUser(u.id);
+          setSuccessMessage(`Deleted ${u.name}.`);
+          setTimeout(() => setSuccessMessage(''), 4000);
+        },
+      });
+    },
+    [onDeleteUser, showConfirmDialog]
+  );
 
   const handleImportNativeContacts = async () => {
     setIsImporting(true);
@@ -316,11 +335,13 @@ export default function ContactsPage({
     const q = (searchQuery || '').trim();
     if (!q) return users || [];
     return (users || [])
-      .filter((u) => u && (
-        fuzzyMatch(u.name || '', q) ||
-        fuzzyMatch(u.phone || '', q) ||
-        fuzzyMatch(u.email || '', q)
-      ))
+      .filter(
+        u =>
+          u &&
+          (fuzzyMatch(u.name || '', q) ||
+            fuzzyMatch(u.phone || '', q) ||
+            fuzzyMatch(u.email || '', q))
+      )
       .sort((a, b) => {
         const scoreA = getMultiFieldSearchScore([a.name, a.phone, a.email], q);
         const scoreB = getMultiFieldSearchScore([b.name, b.phone, b.email], q);
@@ -331,269 +352,255 @@ export default function ContactsPage({
       });
   }, [users, searchQuery]);
 
-  const renderContactItem = useCallback(({ item: u }: { item: UserType }) => {
-    const isActive = activeUser?.id === u.id;
-    return (
-      <ContactCardRow
-        user={u}
-        isActive={isActive}
-        colors={colors}
-        isDarkMode={isDarkMode}
-        onSetActive={setActiveUser}
-        onEdit={handleStartEdit}
-        onDelete={handleDelete}
-      />
-    );
-  }, [activeUser?.id, colors, isDarkMode, setActiveUser, handleStartEdit, handleDelete]);
-
-  const renderHeaderComponent = useMemo(() => (
-    <View style={{ gap: 12, marginBottom: 12 }}>
-      {/* Feedback Banners */}
-      {Boolean(error) && (
-        <View
-          style={[
-            styles.feedbackBanner,
-            { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' }
-          ]}
-        >
-          <AlertCircle size={18} color="#ef4444" />
-          <Text style={[styles.feedbackText, { color: '#ef4444' }]}>{error}</Text>
-        </View>
-      )}
-
-      {Boolean(successMessage) && (
-        <View
-          style={[
-            styles.feedbackBanner,
-            { backgroundColor: 'rgba(16, 185, 129, 0.1)', borderColor: 'rgba(16, 185, 129, 0.2)' }
-          ]}
-        >
-          <CheckCircle2 size={18} color="#10b981" />
-          <Text style={[styles.feedbackText, { color: '#10b981' }]}>
-            {successMessage}
-          </Text>
-        </View>
-      )}
-
-      {/* Add / Edit Contact Form Card */}
-      {isFormOpen && (
-        <View
-          style={[
-            styles.formCard,
-            { backgroundColor: colors.card, borderColor: '#0078d4' }
-          ]}
-        >
-          <Text style={[styles.formTitle, { color: colors.text }]}>
-            {editingUserId ? 'Edit Contact' : 'Add New Contact'}
-          </Text>
-
-          <View style={styles.inputWrap}>
-            <User size={16} color={colors.textMuted} style={styles.inputIcon} />
-            <TextInput
-              placeholder="Full Name (e.g., Sarah Jenkins)"
-              placeholderTextColor={colors.textMuted}
-              value={name}
-              onChangeText={setName}
-              style={[styles.formInput, { color: colors.text, borderColor: colors.border }]}
-            />
-          </View>
-
-          <View style={styles.inputWrap}>
-            <Phone size={16} color="#25D366" style={styles.inputIcon} />
-            <TextInput
-              placeholder="Phone (e.g., +919876543210)"
-              placeholderTextColor={colors.textMuted}
-              value={phone}
-              onChangeText={setPhone}
-              keyboardType="phone-pad"
-              style={[styles.formInput, { color: colors.text, borderColor: colors.border }]}
-            />
-          </View>
-
-          <View style={styles.formActionsRow}>
-            <TouchableOpacity
-              onPress={handleCancelEdit}
-              style={[styles.cancelBtn, { borderColor: colors.border }]}
-            >
-              <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={handleSave}
-              disabled={isSaving}
-              style={styles.saveBtn}
-            >
-              {isSaving ? (
-                <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <Text style={styles.saveBtnText}>
-                  {editingUserId ? 'Update Contact' : 'Save Contact'}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
-
-      {/* Device Contacts Auto-Import Banner */}
-      <View
-        style={[
-          styles.importCard,
-          {
-            backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
-            borderColor: isDarkMode ? '#334155' : '#bfdbfe'
-          }
-        ]}
-      >
-        <View style={styles.importTopRow}>
-          <View style={styles.importTitleRow}>
-            <Smartphone size={20} color="#0078d4" />
-            <Text style={[styles.importTitle, { color: colors.text }]}>
-              Device Contacts Auto-Import
-            </Text>
-          </View>
-          <View style={styles.nativeBadge}>
-            <Text style={styles.nativeBadgeText}>EXPO READY</Text>
-          </View>
-        </View>
-        <Text style={[styles.importSubtitle, { color: colors.textMuted }]}>
-          Sync your phone address book directly into Kamdhenu Handoff for task assignments and WhatsApp sharing.
-        </Text>
-        <TouchableOpacity
-          onPress={handleImportNativeContacts}
-          disabled={isImporting}
-          style={styles.importBtn}
-          activeOpacity={0.85}
-        >
-          {isImporting ? (
-            <ActivityIndicator size="small" color="#ffffff" />
-          ) : (
-            <>
-              <DownloadCloud size={18} color="#ffffff" />
-              <Text style={styles.importBtnText}>
-                Import & Sync Device Contacts
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-      </View>
-
-      {/* Active User Switcher Card */}
-      {activeUser && (
-        <View
-          style={[
-            styles.activeUserCard,
-            { backgroundColor: colors.card, borderColor: colors.border }
-          ]}
-        >
-          <View style={[styles.avatarInitials, { backgroundColor: getAvatarBg(activeUser.name) }]}>
-            <Text style={styles.avatarInitialsText}>{getInitials(activeUser.name)}</Text>
-          </View>
-          <View style={{ flex: 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-              <Text style={[styles.activeUserName, { color: colors.text }]}>
-                {activeUser.name}
-              </Text>
-              <View style={styles.youBadge}>
-                <Text style={styles.youBadgeText}>ACTIVE PROFILE</Text>
-              </View>
-            </View>
-            <Text style={[styles.activeUserSub, { color: colors.textMuted }]}>
-              Tasks assigned to this profile show in "Assigned to me".
-            </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Search Input Bar */}
-      <View
-        style={[
-          styles.searchBar,
-          { backgroundColor: colors.card, borderColor: colors.border }
-        ]}
-      >
-        <Search size={18} color={colors.textMuted} />
-        <TextInput
-          placeholder="Search contacts by name, phone, or email..."
-          placeholderTextColor={colors.textMuted}
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          style={[styles.searchInput, { color: colors.text }]}
+  const renderContactItem = useCallback(
+    ({ item: u }: { item: UserType }) => {
+      const isActive = activeUser?.id === u.id;
+      return (
+        <ContactCardRow
+          user={u}
+          isActive={isActive}
+          colors={colors}
+          isDarkMode={isDarkMode}
+          onSetActive={setActiveUser}
+          onEdit={handleStartEdit}
+          onDelete={handleDelete}
         />
-      </View>
+      );
+    },
+    [activeUser?.id, colors, isDarkMode, setActiveUser, handleStartEdit, handleDelete]
+  );
 
-      {/* Directory Counter Header */}
-      <View style={styles.directoryHeaderRow}>
-        <Text style={styles.directoryHeaderText}>
-          DIRECTORY ({filteredUsers.length})
+  const renderHeaderComponent = useMemo(
+    () => (
+      <View style={{ gap: 12, marginBottom: 12 }}>
+        {/* Feedback Banners */}
+        {Boolean(error) && (
+          <View
+            style={[
+              styles.feedbackBanner,
+              { backgroundColor: 'rgba(239, 68, 68, 0.1)', borderColor: 'rgba(239, 68, 68, 0.2)' },
+            ]}
+          >
+            <AlertCircle size={18} color="#ef4444" />
+            <Text style={[styles.feedbackText, { color: '#ef4444' }]}>{error}</Text>
+          </View>
+        )}
+
+        {Boolean(successMessage) && (
+          <View
+            style={[
+              styles.feedbackBanner,
+              {
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                borderColor: 'rgba(16, 185, 129, 0.2)',
+              },
+            ]}
+          >
+            <CheckCircle2 size={18} color="#10b981" />
+            <Text style={[styles.feedbackText, { color: '#10b981' }]}>{successMessage}</Text>
+          </View>
+        )}
+
+        {/* Add / Edit Contact Form Card */}
+        {isFormOpen && (
+          <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: '#0078d4' }]}>
+            <Text style={[styles.formTitle, { color: colors.text }]}>
+              {editingUserId ? 'Edit Contact' : 'Add New Contact'}
+            </Text>
+
+            <View style={styles.inputWrap}>
+              <User size={16} color={colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                placeholder="Full Name (e.g., Sarah Jenkins)"
+                placeholderTextColor={colors.textMuted}
+                value={name}
+                onChangeText={setName}
+                style={[styles.formInput, { color: colors.text, borderColor: colors.border }]}
+              />
+            </View>
+
+            <View style={styles.inputWrap}>
+              <Phone size={16} color="#25D366" style={styles.inputIcon} />
+              <TextInput
+                placeholder="Phone (e.g., +919876543210)"
+                placeholderTextColor={colors.textMuted}
+                value={phone}
+                onChangeText={setPhone}
+                keyboardType="phone-pad"
+                style={[styles.formInput, { color: colors.text, borderColor: colors.border }]}
+              />
+            </View>
+
+            <View style={styles.formActionsRow}>
+              <TouchableOpacity
+                onPress={handleCancelEdit}
+                style={[styles.cancelBtn, { borderColor: colors.border }]}
+              >
+                <Text style={[styles.cancelBtnText, { color: colors.text }]}>Cancel</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity onPress={handleSave} disabled={isSaving} style={styles.saveBtn}>
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#ffffff" />
+                ) : (
+                  <Text style={styles.saveBtnText}>
+                    {editingUserId ? 'Update Contact' : 'Save Contact'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Device Contacts Auto-Import Banner */}
+        <View
+          style={[
+            styles.importCard,
+            {
+              backgroundColor: isDarkMode ? '#1e293b' : '#eff6ff',
+              borderColor: isDarkMode ? '#334155' : '#bfdbfe',
+            },
+          ]}
+        >
+          <View style={styles.importTopRow}>
+            <View style={styles.importTitleRow}>
+              <Smartphone size={20} color="#0078d4" />
+              <Text style={[styles.importTitle, { color: colors.text }]}>
+                Device Contacts Auto-Import
+              </Text>
+            </View>
+            <View style={styles.nativeBadge}>
+              <Text style={styles.nativeBadgeText}>EXPO READY</Text>
+            </View>
+          </View>
+          <Text style={[styles.importSubtitle, { color: colors.textMuted }]}>
+            Sync your phone address book directly into Kamdhenu Handoff for task assignments and
+            WhatsApp sharing.
+          </Text>
+          <TouchableOpacity
+            onPress={handleImportNativeContacts}
+            disabled={isImporting}
+            style={styles.importBtn}
+            activeOpacity={0.85}
+          >
+            {isImporting ? (
+              <ActivityIndicator size="small" color="#ffffff" />
+            ) : (
+              <>
+                <DownloadCloud size={18} color="#ffffff" />
+                <Text style={styles.importBtnText}>Import & Sync Device Contacts</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Active User Switcher Card */}
+        {activeUser && (
+          <View
+            style={[
+              styles.activeUserCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
+          >
+            <View
+              style={[styles.avatarInitials, { backgroundColor: getAvatarBg(activeUser.name) }]}
+            >
+              <Text style={styles.avatarInitialsText}>{getInitials(activeUser.name)}</Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Text style={[styles.activeUserName, { color: colors.text }]}>
+                  {activeUser.name}
+                </Text>
+                <View style={styles.youBadge}>
+                  <Text style={styles.youBadgeText}>ACTIVE PROFILE</Text>
+                </View>
+              </View>
+              <Text style={[styles.activeUserSub, { color: colors.textMuted }]}>
+                Tasks assigned to this profile show in "Assigned to me".
+              </Text>
+            </View>
+          </View>
+        )}
+
+        {/* Search Input Bar */}
+        <View
+          style={[styles.searchBar, { backgroundColor: colors.card, borderColor: colors.border }]}
+        >
+          <Search size={18} color={colors.textMuted} />
+          <TextInput
+            placeholder="Search contacts by name, phone, or email..."
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={[styles.searchInput, { color: colors.text }]}
+          />
+        </View>
+
+        {/* Directory Counter Header */}
+        <View style={styles.directoryHeaderRow}>
+          <Text style={styles.directoryHeaderText}>DIRECTORY ({filteredUsers.length})</Text>
+        </View>
+      </View>
+    ),
+    [
+      error,
+      successMessage,
+      isFormOpen,
+      editingUserId,
+      colors,
+      name,
+      phone,
+      email,
+      isSaving,
+      isDarkMode,
+      isImporting,
+      activeUser,
+      searchQuery,
+      filteredUsers.length,
+      handleCancelEdit,
+      handleSave,
+      handleImportNativeContacts,
+    ]
+  );
+
+  const renderEmptyComponent = useMemo(
+    () => (
+      <View
+        style={[styles.emptyWrap, { backgroundColor: colors.card, borderColor: colors.border }]}
+      >
+        <View
+          style={[styles.emptyIconWrap, { backgroundColor: isDarkMode ? '#27272a' : '#e2e8f0' }]}
+        >
+          <Users size={32} color={colors.textMuted} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: colors.text }]}>No contacts found</Text>
+        <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
+          {searchQuery
+            ? `No contacts match "${searchQuery}".`
+            : 'Import device contacts above or tap Add to add your first contact.'}
         </Text>
       </View>
-    </View>
-  ), [
-    error,
-    successMessage,
-    isFormOpen,
-    editingUserId,
-    colors,
-    name,
-    phone,
-    email,
-    isSaving,
-    isDarkMode,
-    isImporting,
-    activeUser,
-    searchQuery,
-    filteredUsers.length,
-    handleCancelEdit,
-    handleSave,
-    handleImportNativeContacts
-  ]);
-
-  const renderEmptyComponent = useMemo(() => (
-    <View
-      style={[
-        styles.emptyWrap,
-        { backgroundColor: colors.card, borderColor: colors.border }
-      ]}
-    >
-      <View
-        style={[
-          styles.emptyIconWrap,
-          { backgroundColor: isDarkMode ? '#27272a' : '#e2e8f0' }
-        ]}
-      >
-        <Users size={32} color={colors.textMuted} />
-      </View>
-      <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        No contacts found
-      </Text>
-      <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
-        {searchQuery
-          ? `No contacts match "${searchQuery}".`
-          : 'Import device contacts above or tap Add to add your first contact.'}
-      </Text>
-    </View>
-  ), [colors, isDarkMode, searchQuery]);
+    ),
+    [colors, isDarkMode, searchQuery]
+  );
 
   return (
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 14) + 6 }
+        { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 14) + 6 },
       ]}
     >
       {/* Header Banner */}
       <View
-        style={[
-          styles.header,
-          { borderBottomColor: colors.border, backgroundColor: colors.card }
-        ]}
+        style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}
       >
         <TouchableOpacity
           onPress={onBack}
           style={[
             styles.backButton,
-            { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+            { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border },
           ]}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
@@ -603,9 +610,7 @@ export default function ContactsPage({
         </TouchableOpacity>
 
         <View style={styles.headerTextWrap}>
-          <Text style={[styles.headerTitle, { color: colors.text }]}>
-            Contacts Directory
-          </Text>
+          <Text style={[styles.headerTitle, { color: colors.text }]}>Contacts Directory</Text>
           <Text style={[styles.headerSubtitle, { color: colors.textMuted }]}>
             {users.length} saved contact{users.length === 1 ? '' : 's'}
           </Text>
@@ -617,7 +622,7 @@ export default function ContactsPage({
             disabled={isImporting}
             style={[
               styles.refreshHeaderBtn,
-              { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }
+              { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border },
             ]}
             activeOpacity={0.7}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -649,13 +654,10 @@ export default function ContactsPage({
       </View>
 
       {/* Virtualized Contact List */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <FlatList
           data={filteredUsers}
-          keyExtractor={(item) => String(item.id)}
+          keyExtractor={item => String(item.id)}
           renderItem={renderContactItem}
           refreshing={isImporting}
           onRefresh={handleImportNativeContacts}
@@ -663,7 +665,7 @@ export default function ContactsPage({
           ListEmptyComponent={renderEmptyComponent}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 40 }
+            { paddingBottom: Math.max(insets.bottom, 24) + 40 },
           ]}
           initialNumToRender={20}
           maxToRenderPerBatch={20}
@@ -680,7 +682,7 @@ export default function ContactsPage({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   header: {
     height: 56,
@@ -688,7 +690,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    gap: 12
+    gap: 12,
   },
   backButton: {
     width: 38,
@@ -696,17 +698,17 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1
+    borderWidth: 1,
   },
   headerTextWrap: {
-    flex: 1
+    flex: 1,
   },
   headerTitle: {
     fontSize: fontSizes.medium,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   headerSubtitle: {
-    fontSize: fontSizes.caption
+    fontSize: fontSizes.caption,
   },
   refreshHeaderBtn: {
     width: 36,
@@ -723,16 +725,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#0078d4',
     paddingHorizontal: 12,
     paddingVertical: 8,
-    borderRadius: 12
+    borderRadius: 12,
   },
   addContactHeaderBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   scrollContent: {
     padding: 16,
-    gap: 8
+    gap: 8,
   },
   feedbackBanner: {
     flexDirection: 'row',
@@ -740,31 +742,31 @@ const styles = StyleSheet.create({
     gap: 8,
     padding: 12,
     borderRadius: 14,
-    borderWidth: 1
+    borderWidth: 1,
   },
   feedbackText: {
     fontSize: fontSizes.small,
     fontWeight: '600',
-    flex: 1
+    flex: 1,
   },
   formCard: {
     padding: 14,
     borderRadius: 18,
     borderWidth: 1.5,
-    gap: 10
+    gap: 10,
   },
   formTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   inputWrap: {
-    position: 'relative'
+    position: 'relative',
   },
   inputIcon: {
     position: 'absolute',
     left: 12,
     top: 14,
-    zIndex: 1
+    zIndex: 1,
   },
   formInput: {
     height: 44,
@@ -773,24 +775,24 @@ const styles = StyleSheet.create({
     paddingLeft: 38,
     paddingRight: 12,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   formActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
     gap: 8,
-    marginTop: 4
+    marginTop: 4,
   },
   cancelBtn: {
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 10,
-    borderWidth: 1
+    borderWidth: 1,
   },
   cancelBtnText: {
     fontSize: fontSizes.caption,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   saveBtn: {
     backgroundColor: '#0078d4',
@@ -798,47 +800,47 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   saveBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   importCard: {
     padding: 14,
     borderRadius: 18,
     borderWidth: 1,
-    gap: 8
+    gap: 8,
   },
   importTopRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   importTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8
+    gap: 8,
   },
   importTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   nativeBadge: {
     backgroundColor: 'rgba(0, 120, 212, 0.15)',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 8
+    borderRadius: 8,
   },
   nativeBadgeText: {
     color: '#0078d4',
     fontSize: fontSizes.caption,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   importSubtitle: {
     fontSize: fontSizes.caption,
-    lineHeight: 16
+    lineHeight: 16,
   },
   importBtn: {
     backgroundColor: '#0078d4',
@@ -848,12 +850,12 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 42,
     borderRadius: 12,
-    marginTop: 4
+    marginTop: 4,
   },
   importBtnText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   activeUserCard: {
     flexDirection: 'row',
@@ -861,15 +863,15 @@ const styles = StyleSheet.create({
     gap: 12,
     padding: 12,
     borderRadius: 16,
-    borderWidth: 1
+    borderWidth: 1,
   },
   activeUserName: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   activeUserSub: {
     fontSize: fontSizes.caption,
-    marginTop: 2
+    marginTop: 2,
   },
   searchBar: {
     flexDirection: 'row',
@@ -878,22 +880,22 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 14,
     borderWidth: 1,
-    paddingHorizontal: 12
+    paddingHorizontal: 12,
   },
   searchInput: {
     flex: 1,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   directoryHeaderRow: {
     marginTop: 4,
-    marginBottom: 2
+    marginBottom: 2,
   },
   directoryHeaderText: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#94a3b8',
-    letterSpacing: 0.8
+    letterSpacing: 0.8,
   },
   contactCard: {
     flexDirection: 'row',
@@ -901,65 +903,65 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 16,
     borderWidth: 1,
-    gap: 12
+    gap: 12,
   },
   contactAvatar: {
     width: 44,
     height: 44,
-    borderRadius: 14
+    borderRadius: 14,
   },
   avatarInitials: {
     width: 44,
     height: 44,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   avatarInitialsText: {
     color: '#ffffff',
     fontSize: 16,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   contactInfo: {
     flex: 1,
-    gap: 2
+    gap: 2,
   },
   contactNameRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   contactName: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   youBadge: {
     backgroundColor: 'rgba(0, 120, 212, 0.15)',
     paddingHorizontal: 6,
     paddingVertical: 2,
-    borderRadius: 6
+    borderRadius: 6,
   },
   youBadgeText: {
     color: '#0078d4',
     fontSize: fontSizes.caption,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   contactMetaRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   contactPhone: {
     fontSize: fontSizes.caption,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   contactEmail: {
-    fontSize: fontSizes.caption
+    fontSize: fontSizes.caption,
   },
   actionsWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4
+    gap: 4,
   },
   switchBtn: {
     paddingHorizontal: 10,
@@ -967,24 +969,24 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     minHeight: 36,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   switchBtnText: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   iconBtn: {
     width: 44,
     height: 44,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptyWrap: {
     padding: 24,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptyIconWrap: {
     width: 56,
@@ -992,15 +994,15 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8
+    marginBottom: 8,
   },
   emptyTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   emptySubtitle: {
     fontSize: fontSizes.caption,
     textAlign: 'center',
-    marginTop: 4
-  }
+    marginTop: 4,
+  },
 });

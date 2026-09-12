@@ -87,32 +87,27 @@ export function FilterBottomSheet({
   const selectedListName =
     filterListId === 'all'
       ? 'All Lists'
-      : lists.find((l) => l.id === filterListId)?.title || 'Selected List';
+      : lists.find(l => l.id === filterListId)?.title || 'Selected List';
 
   const selectedAssigneeName =
     filterAssigneeId === 'all'
       ? 'All Assignees'
       : filterAssigneeId === 'unassigned'
-      ? 'Unassigned Only'
-      : users.find((u) => u.id === filterAssigneeId)?.name || 'Selected User';
+        ? 'Unassigned Only'
+        : users.find(u => u.id === filterAssigneeId)?.name || 'Selected User';
 
-  const filteredSubLists = lists.filter((l) =>
+  const filteredSubLists = lists.filter(l =>
     l.title.toLowerCase().includes(subPickerSearch.toLowerCase().trim())
   );
 
   const filteredSubUsers = users.filter(
-    (u) =>
+    u =>
       u.name.toLowerCase().includes(subPickerSearch.toLowerCase().trim()) ||
       (u.phone && u.phone.includes(subPickerSearch.trim()))
   );
 
   return (
-    <Modal
-      visible={visible}
-      transparent={true}
-      animationType="fade"
-      onRequestClose={handleClose}
-    >
+    <Modal visible={visible} transparent={true} animationType="fade" onRequestClose={handleClose}>
       <TouchableWithoutFeedback onPress={handleClose}>
         <View
           style={{
@@ -122,7 +117,7 @@ export function FilterBottomSheet({
             alignItems: 'center',
           }}
         >
-          <TouchableWithoutFeedback onPress={(e) => e.stopPropagation()}>
+          <TouchableWithoutFeedback onPress={e => e.stopPropagation()}>
             <View
               style={{
                 width: '100%',
@@ -174,8 +169,8 @@ export function FilterBottomSheet({
                       {activeSubPicker === 'list'
                         ? 'Select List'
                         : activeSubPicker === 'assignee'
-                        ? 'Select Assignee'
-                        : 'Filter Tasks'}
+                          ? 'Select Assignee'
+                          : 'Filter Tasks'}
                     </Text>
                     {activeFiltersCount > 0 && !activeSubPicker && (
                       <View
@@ -202,8 +197,8 @@ export function FilterBottomSheet({
                     {activeSubPicker === 'list'
                       ? 'Filter tasks by a specific list'
                       : activeSubPicker === 'assignee'
-                      ? 'Filter tasks by assigned contact'
-                      : 'Narrow down tasks in current view'}
+                        ? 'Filter tasks by assigned contact'
+                        : 'Narrow down tasks in current view'}
                   </Text>
                 </View>
 
@@ -311,15 +306,15 @@ export function FilterBottomSheet({
                                 ? 'rgba(0,120,212,0.18)'
                                 : '#eff6ff'
                               : isDarkMode
-                              ? '#27272a'
-                              : '#f8fafc',
+                                ? '#27272a'
+                                : '#f8fafc',
                           borderWidth: 1,
                           borderColor:
                             filterListId === 'all'
                               ? themePrimary
                               : isDarkMode
-                              ? '#3f3f46'
-                              : '#e2e8f0',
+                                ? '#3f3f46'
+                                : '#e2e8f0',
                         }}
                       >
                         <Text
@@ -330,8 +325,8 @@ export function FilterBottomSheet({
                               filterListId === 'all'
                                 ? themePrimary
                                 : isDarkMode
-                                ? '#ffffff'
-                                : '#0f172a',
+                                  ? '#ffffff'
+                                  : '#0f172a',
                           }}
                         >
                           All Lists
@@ -341,7 +336,7 @@ export function FilterBottomSheet({
                         )}
                       </TouchableOpacity>
 
-                      {filteredSubLists.map((l) => {
+                      {filteredSubLists.map(l => {
                         const isSelected = filterListId === l.id;
                         return (
                           <TouchableOpacity
@@ -363,14 +358,14 @@ export function FilterBottomSheet({
                                   ? 'rgba(0,120,212,0.18)'
                                   : '#eff6ff'
                                 : isDarkMode
-                                ? '#27272a'
-                                : '#f8fafc',
+                                  ? '#27272a'
+                                  : '#f8fafc',
                               borderWidth: 1,
                               borderColor: isSelected
                                 ? themePrimary
                                 : isDarkMode
-                                ? '#3f3f46'
-                                : '#e2e8f0',
+                                  ? '#3f3f46'
+                                  : '#e2e8f0',
                             }}
                           >
                             <Text
@@ -380,16 +375,14 @@ export function FilterBottomSheet({
                                 color: isSelected
                                   ? themePrimary
                                   : isDarkMode
-                                  ? '#ffffff'
-                                  : '#0f172a',
+                                    ? '#ffffff'
+                                    : '#0f172a',
                               }}
                               numberOfLines={1}
                             >
                               {l.title}
                             </Text>
-                            {isSelected && (
-                              <Check size={16} color={themePrimary} strokeWidth={3} />
-                            )}
+                            {isSelected && <Check size={16} color={themePrimary} strokeWidth={3} />}
                           </TouchableOpacity>
                         );
                       })}
@@ -457,15 +450,15 @@ export function FilterBottomSheet({
                                 ? 'rgba(0,120,212,0.18)'
                                 : '#eff6ff'
                               : isDarkMode
-                              ? '#27272a'
-                              : '#f8fafc',
+                                ? '#27272a'
+                                : '#f8fafc',
                           borderWidth: 1,
                           borderColor:
                             filterAssigneeId === 'all'
                               ? themePrimary
                               : isDarkMode
-                              ? '#3f3f46'
-                              : '#e2e8f0',
+                                ? '#3f3f46'
+                                : '#e2e8f0',
                         }}
                       >
                         <Text
@@ -476,8 +469,8 @@ export function FilterBottomSheet({
                               filterAssigneeId === 'all'
                                 ? themePrimary
                                 : isDarkMode
-                                ? '#ffffff'
-                                : '#0f172a',
+                                  ? '#ffffff'
+                                  : '#0f172a',
                           }}
                         >
                           All Assignees
@@ -507,15 +500,15 @@ export function FilterBottomSheet({
                                 ? 'rgba(0,120,212,0.18)'
                                 : '#eff6ff'
                               : isDarkMode
-                              ? '#27272a'
-                              : '#f8fafc',
+                                ? '#27272a'
+                                : '#f8fafc',
                           borderWidth: 1,
                           borderColor:
                             filterAssigneeId === 'unassigned'
                               ? themePrimary
                               : isDarkMode
-                              ? '#3f3f46'
-                              : '#e2e8f0',
+                                ? '#3f3f46'
+                                : '#e2e8f0',
                         }}
                       >
                         <Text
@@ -526,8 +519,8 @@ export function FilterBottomSheet({
                               filterAssigneeId === 'unassigned'
                                 ? themePrimary
                                 : isDarkMode
-                                ? '#ffffff'
-                                : '#0f172a',
+                                  ? '#ffffff'
+                                  : '#0f172a',
                           }}
                         >
                           Unassigned Only
@@ -538,7 +531,7 @@ export function FilterBottomSheet({
                       </TouchableOpacity>
 
                       {/* Individual Users */}
-                      {filteredSubUsers.map((u) => {
+                      {filteredSubUsers.map(u => {
                         const isSelected = filterAssigneeId === u.id;
                         return (
                           <TouchableOpacity
@@ -560,14 +553,14 @@ export function FilterBottomSheet({
                                   ? 'rgba(0,120,212,0.18)'
                                   : '#eff6ff'
                                 : isDarkMode
-                                ? '#27272a'
-                                : '#f8fafc',
+                                  ? '#27272a'
+                                  : '#f8fafc',
                               borderWidth: 1,
                               borderColor: isSelected
                                 ? themePrimary
                                 : isDarkMode
-                                ? '#3f3f46'
-                                : '#e2e8f0',
+                                  ? '#3f3f46'
+                                  : '#e2e8f0',
                             }}
                           >
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -593,8 +586,8 @@ export function FilterBottomSheet({
                                     color: isSelected
                                       ? themePrimary
                                       : isDarkMode
-                                      ? '#ffffff'
-                                      : '#0f172a',
+                                        ? '#ffffff'
+                                        : '#0f172a',
                                   }}
                                   numberOfLines={1}
                                 >
@@ -612,9 +605,7 @@ export function FilterBottomSheet({
                                 ) : null}
                               </View>
                             </View>
-                            {isSelected && (
-                              <Check size={16} color={themePrimary} strokeWidth={3} />
-                            )}
+                            {isSelected && <Check size={16} color={themePrimary} strokeWidth={3} />}
                           </TouchableOpacity>
                         );
                       })}
@@ -646,7 +637,7 @@ export function FilterBottomSheet({
                           { id: 'all', label: 'All' },
                           { id: 'pending', label: 'Pending' },
                           { id: 'completed', label: 'Completed' },
-                        ].map((s) => {
+                        ].map(s => {
                           const isSelected = filterStatus === s.id;
                           return (
                             <TouchableOpacity
@@ -662,14 +653,14 @@ export function FilterBottomSheet({
                                 backgroundColor: isSelected
                                   ? themePrimary
                                   : isDarkMode
-                                  ? '#27272a'
-                                  : '#f1f5f9',
+                                    ? '#27272a'
+                                    : '#f1f5f9',
                                 borderWidth: 1,
                                 borderColor: isSelected
                                   ? themePrimary
                                   : isDarkMode
-                                  ? '#3f3f46'
-                                  : '#e2e8f0',
+                                    ? '#3f3f46'
+                                    : '#e2e8f0',
                               }}
                             >
                               <Text
@@ -679,8 +670,8 @@ export function FilterBottomSheet({
                                   color: isSelected
                                     ? '#ffffff'
                                     : isDarkMode
-                                    ? '#d4d4d8'
-                                    : '#334155',
+                                      ? '#d4d4d8'
+                                      : '#334155',
                                 }}
                               >
                                 {s.label}
@@ -711,7 +702,7 @@ export function FilterBottomSheet({
                             { id: 'all', label: 'All' },
                             { id: 'important', label: '★ Starred' },
                             { id: 'normal', label: 'Normal' },
-                          ].map((imp) => {
+                          ].map(imp => {
                             const isSelected = filterImportance === imp.id;
                             return (
                               <TouchableOpacity
@@ -727,14 +718,14 @@ export function FilterBottomSheet({
                                   backgroundColor: isSelected
                                     ? '#f59e0b'
                                     : isDarkMode
-                                    ? '#27272a'
-                                    : '#f1f5f9',
+                                      ? '#27272a'
+                                      : '#f1f5f9',
                                   borderWidth: 1,
                                   borderColor: isSelected
                                     ? '#f59e0b'
                                     : isDarkMode
-                                    ? '#3f3f46'
-                                    : '#e2e8f0',
+                                      ? '#3f3f46'
+                                      : '#e2e8f0',
                                 }}
                               >
                                 <Text
@@ -744,8 +735,8 @@ export function FilterBottomSheet({
                                     color: isSelected
                                       ? '#ffffff'
                                       : isDarkMode
-                                      ? '#d4d4d8'
-                                      : '#334155',
+                                        ? '#d4d4d8'
+                                        : '#334155',
                                   }}
                                 >
                                   {imp.label}
@@ -785,7 +776,7 @@ export function FilterBottomSheet({
                           { id: 'overdue', label: 'Overdue' },
                           { id: 'has_due', label: 'Has Date' },
                           { id: 'no_due', label: 'No Date' },
-                        ].map((d) => {
+                        ].map(d => {
                           const isSelected = filterDue === d.id;
                           return (
                             <TouchableOpacity
@@ -801,14 +792,14 @@ export function FilterBottomSheet({
                                 backgroundColor: isSelected
                                   ? '#0284c7'
                                   : isDarkMode
-                                  ? '#27272a'
-                                  : '#f1f5f9',
+                                    ? '#27272a'
+                                    : '#f1f5f9',
                                 borderWidth: 1,
                                 borderColor: isSelected
                                   ? '#0284c7'
                                   : isDarkMode
-                                  ? '#3f3f46'
-                                  : '#e2e8f0',
+                                    ? '#3f3f46'
+                                    : '#e2e8f0',
                               }}
                             >
                               <Text
@@ -818,8 +809,8 @@ export function FilterBottomSheet({
                                   color: isSelected
                                     ? '#ffffff'
                                     : isDarkMode
-                                    ? '#d4d4d8'
-                                    : '#334155',
+                                      ? '#d4d4d8'
+                                      : '#334155',
                                 }}
                               >
                                 {d.label}
@@ -865,11 +856,19 @@ export function FilterBottomSheet({
                               filterListId !== 'all'
                                 ? '#a855f7'
                                 : isDarkMode
-                                ? '#3f3f46'
-                                : '#e2e8f0',
+                                  ? '#3f3f46'
+                                  : '#e2e8f0',
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              flex: 1,
+                              marginRight: 8,
+                            }}
+                          >
                             <ListTodo size={18} color="#a855f7" />
                             <Text
                               style={{
@@ -890,8 +889,8 @@ export function FilterBottomSheet({
                                   filterListId !== 'all'
                                     ? '#a855f7'
                                     : isDarkMode
-                                    ? '#a1a1aa'
-                                    : '#64748b',
+                                      ? '#a1a1aa'
+                                      : '#64748b',
                               }}
                               numberOfLines={1}
                             >
@@ -938,11 +937,19 @@ export function FilterBottomSheet({
                               filterAssigneeId !== 'all'
                                 ? '#10b981'
                                 : isDarkMode
-                                ? '#3f3f46'
-                                : '#e2e8f0',
+                                  ? '#3f3f46'
+                                  : '#e2e8f0',
                           }}
                         >
-                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, marginRight: 8 }}>
+                          <View
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 10,
+                              flex: 1,
+                              marginRight: 8,
+                            }}
+                          >
                             <UserIcon size={18} color="#10b981" />
                             <Text
                               style={{
@@ -963,8 +970,8 @@ export function FilterBottomSheet({
                                   filterAssigneeId !== 'all'
                                     ? '#10b981'
                                     : isDarkMode
-                                    ? '#a1a1aa'
-                                    : '#64748b',
+                                      ? '#a1a1aa'
+                                      : '#64748b',
                               }}
                               numberOfLines={1}
                             >

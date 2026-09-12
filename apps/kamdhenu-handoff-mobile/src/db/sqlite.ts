@@ -26,7 +26,10 @@ function normalizeDueDate(dueDate?: string | null, dueTimezone?: string | null) 
   if (raw.includes('T')) {
     const parsed = new Date(raw);
     if (!Number.isNaN(parsed.getTime())) {
-      return { dueDate: zonedDateTimeToUtcIso(getCalendarDateInTimeZone(parsed, timeZone), timeZone), dueTimezone: timeZone };
+      return {
+        dueDate: zonedDateTimeToUtcIso(getCalendarDateInTimeZone(parsed, timeZone), timeZone),
+        dueTimezone: timeZone,
+      };
     }
   }
   return { dueDate: zonedDateTimeToUtcIso(raw.slice(0, 10), timeZone), dueTimezone: timeZone };
@@ -156,7 +159,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   `);
 
   // Ensure default primary Self user exists
-  const primaryUser = db.getFirstSync<{ id: number; name: string }>('SELECT id, name FROM users WHERE id = 1');
+  const primaryUser = db.getFirstSync<{ id: number; name: string }>(
+    'SELECT id, name FROM users WHERE id = 1'
+  );
   if (!primaryUser) {
     db.runSync(
       `INSERT OR IGNORE INTO users (id, name, email, phone, active) VALUES (1, 'Self', 'self@local.todo', '', 1)`
@@ -165,7 +170,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     db.runSync(`UPDATE users SET name = 'Self' WHERE id = 1`);
   }
   try {
-    db.runSync(`UPDATE users SET phone = '' WHERE id = 1 AND (phone LIKE '%999999999%' OR phone = '+919999999999')`);
+    db.runSync(
+      `UPDATE users SET phone = '' WHERE id = 1 AND (phone LIKE '%999999999%' OR phone = '+919999999999')`
+    );
   } catch {}
 
   // Ensure WhatsApp Group pseudo-user exists for foreign key constraints
@@ -194,7 +201,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
     const timeZone = getUserTimeZone();
     for (const task of legacyTasks) {
       db.runSync('UPDATE tasks SET due_date = ?, due_timezone = ? WHERE id = ?', [
-        zonedDateTimeToUtcIso(task.due_date, timeZone), timeZone, task.id,
+        zonedDateTimeToUtcIso(task.due_date, timeZone),
+        timeZone,
+        task.id,
       ]);
     }
   } catch {}
@@ -233,31 +242,49 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
 
   // Ensure pinned_views column exists on user_preferences table
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN pinned_views TEXT DEFAULT '["important","assigned-to-me"]'`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN pinned_views TEXT DEFAULT '["important","assigned-to-me"]'`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN has_chosen_whatsapp_format BOOLEAN DEFAULT 0`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN has_chosen_whatsapp_format BOOLEAN DEFAULT 0`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_style TEXT DEFAULT 'executive'`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_style TEXT DEFAULT 'executive'`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_notes BOOLEAN DEFAULT 1`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_notes BOOLEAN DEFAULT 1`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_assignee BOOLEAN DEFAULT 1`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_assignee BOOLEAN DEFAULT 1`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_important BOOLEAN DEFAULT 0`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_important BOOLEAN DEFAULT 0`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_steps BOOLEAN DEFAULT 1`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_steps BOOLEAN DEFAULT 1`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_due_date BOOLEAN DEFAULT 1`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_due_date BOOLEAN DEFAULT 1`
+    );
   } catch {}
   try {
-    db.runSync(`ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_list_name BOOLEAN DEFAULT 1`);
+    db.runSync(
+      `ALTER TABLE user_preferences ADD COLUMN default_whatsapp_include_list_name BOOLEAN DEFAULT 1`
+    );
   } catch {}
 
   // Create custom_views table
@@ -289,7 +316,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   // Ensure columns exist on custom_views
   try {
     const cvCols = db.getAllSync<{ name: string }>('PRAGMA table_info(custom_views)');
-    const cvColNames = new Set(cvCols.map((c) => c.name));
+    const cvColNames = new Set(cvCols.map(c => c.name));
     if (!cvColNames.has('default_whatsapp_contact_id')) {
       db.runSync('ALTER TABLE custom_views ADD COLUMN default_whatsapp_contact_id INTEGER');
     }
@@ -360,7 +387,9 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
   } catch {}
 
   // Ensure default user_preferences row exists
-  const prefs = db.getFirstSync<{ user_id: number }>('SELECT user_id FROM user_preferences WHERE user_id = 1');
+  const prefs = db.getFirstSync<{ user_id: number }>(
+    'SELECT user_id FROM user_preferences WHERE user_id = 1'
+  );
   if (!prefs) {
     db.runSync(
       `INSERT OR IGNORE INTO user_preferences (user_id, remember_last_view, last_view_type, last_view_id, sort_preferences) VALUES (1, 1, 'tab', 'all-tasks', '{}')`
@@ -374,7 +403,7 @@ function initDatabaseSchema(db: SQLite.SQLiteDatabase): void {
 function attachTaskLists(db: SQLite.SQLiteDatabase, tasks: Task[]): Task[] {
   if (!tasks || tasks.length === 0) return tasks;
 
-  const taskIds = tasks.map((t) => t.id);
+  const taskIds = tasks.map(t => t.id);
   const placeholders = taskIds.map(() => '?').join(',');
 
   const rows = db.getAllSync<{
@@ -394,7 +423,10 @@ function attachTaskLists(db: SQLite.SQLiteDatabase, tasks: Task[]): Task[] {
     taskIds
   );
 
-  const listsByTaskId: Record<number, Array<{ id: number; title: string; color_theme?: string; icon?: string }>> = {};
+  const listsByTaskId: Record<
+    number,
+    Array<{ id: number; title: string; color_theme?: string; icon?: string }>
+  > = {};
   for (const row of rows) {
     if (!listsByTaskId[row.task_id]) {
       listsByTaskId[row.task_id] = [];
@@ -410,10 +442,12 @@ function attachTaskLists(db: SQLite.SQLiteDatabase, tasks: Task[]): Task[] {
   for (const t of tasks) {
     let assignedLists = listsByTaskId[t.id] || [];
     if (assignedLists.length === 0 && t.list_id) {
-      const fallbackList = db.getFirstSync<{ id: number; title: string; color_theme: string; icon: string }>(
-        'SELECT id, title, color_theme, icon FROM lists WHERE id = ? AND active = 1',
-        [t.list_id]
-      );
+      const fallbackList = db.getFirstSync<{
+        id: number;
+        title: string;
+        color_theme: string;
+        icon: string;
+      }>('SELECT id, title, color_theme, icon FROM lists WHERE id = ? AND active = 1', [t.list_id]);
       if (fallbackList) {
         assignedLists = [fallbackList];
         try {
@@ -425,7 +459,7 @@ function attachTaskLists(db: SQLite.SQLiteDatabase, tasks: Task[]): Task[] {
       }
     }
     t.lists = assignedLists;
-    t.list_ids = assignedLists.map((l) => Number(l.id));
+    t.list_ids = assignedLists.map(l => Number(l.id));
     if (assignedLists.length > 0) {
       t.list_title = assignedLists[0].title;
       t.list_color = assignedLists[0].color_theme;
@@ -522,7 +556,7 @@ export const localTodoDb = {
 
     return {
       'all-tasks': row?.all_tasks_count || 0,
-      'important': row?.important_count || 0,
+      important: row?.important_count || 0,
       'assigned-to-me': row?.assigned_count || 0,
     };
   },
@@ -559,7 +593,8 @@ export const localTodoDb = {
       draft_subtasks,
     } = taskData;
 
-    let targetListIds: number[] = Array.isArray(list_ids) && list_ids.length > 0 ? list_ids : (list_id ? [list_id] : []);
+    let targetListIds: number[] =
+      Array.isArray(list_ids) && list_ids.length > 0 ? list_ids : list_id ? [list_id] : [];
     let primaryListId: number | null = null;
     const validListIds: number[] = [];
 
@@ -567,7 +602,10 @@ export const localTodoDb = {
       for (const lid of targetListIds) {
         const numLid = Number(lid);
         if (!isNaN(numLid) && numLid > 0) {
-          const l = db.getFirstSync<{ id: number }>('SELECT id FROM lists WHERE id = ? AND active = 1', [numLid]);
+          const l = db.getFirstSync<{ id: number }>(
+            'SELECT id FROM lists WHERE id = ? AND active = 1',
+            [numLid]
+          );
           if (l) {
             validListIds.push(numLid);
             if (!primaryListId) primaryListId = numLid;
@@ -576,10 +614,12 @@ export const localTodoDb = {
       }
     }
 
-
     let validAssigneeId: number | null = null;
     if (assigned_to_user_id) {
-      const u = db.getFirstSync<{ id: number }>('SELECT id FROM users WHERE id = ? AND active = 1', [assigned_to_user_id]);
+      const u = db.getFirstSync<{ id: number }>(
+        'SELECT id FROM users WHERE id = ? AND active = 1',
+        [assigned_to_user_id]
+      );
       if (u) validAssigneeId = u.id;
     }
 
@@ -607,10 +647,10 @@ export const localTodoDb = {
     const taskId = insertResult.lastInsertRowId;
 
     for (const lid of validListIds) {
-      db.runSync(
-        `INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)`,
-        [taskId, lid]
-      );
+      db.runSync(`INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)`, [
+        taskId,
+        lid,
+      ]);
     }
 
     if (Array.isArray(draft_subtasks) && draft_subtasks.length > 0) {
@@ -677,9 +717,8 @@ export const localTodoDb = {
     let taskId = 0;
 
     await db.withTransactionAsync(async () => {
-      const targetListIds = Array.isArray(list_ids) && list_ids.length > 0
-        ? list_ids
-        : (list_id ? [list_id] : []);
+      const targetListIds =
+        Array.isArray(list_ids) && list_ids.length > 0 ? list_ids : list_id ? [list_id] : [];
       let primaryListId: number | null = null;
       const validListIds: number[] = [];
 
@@ -748,10 +787,9 @@ export const localTodoDb = {
 
       if (validAssigneeId) {
         for (const lid of validListIds) {
-          const currentList = await db.getFirstAsync<{ default_whatsapp_contact_id: number | null }>(
-            'SELECT default_whatsapp_contact_id FROM lists WHERE id = ? AND active = 1',
-            [lid]
-          );
+          const currentList = await db.getFirstAsync<{
+            default_whatsapp_contact_id: number | null;
+          }>('SELECT default_whatsapp_contact_id FROM lists WHERE id = ? AND active = 1', [lid]);
           if (currentList && !currentList.default_whatsapp_contact_id) {
             await db.runAsync(
               'UPDATE lists SET default_whatsapp_contact_id = ? WHERE id = ? AND active = 1',
@@ -813,7 +851,10 @@ export const localTodoDb = {
     if (data.assigned_to_user_id !== undefined) {
       let validUserId = data.assigned_to_user_id;
       if (validUserId) {
-        const u = db.getFirstSync<{ id: number }>('SELECT id FROM users WHERE id = ? AND active = 1', [validUserId]);
+        const u = db.getFirstSync<{ id: number }>(
+          'SELECT id FROM users WHERE id = ? AND active = 1',
+          [validUserId]
+        );
         if (!u) validUserId = null;
       }
       updates.push('assigned_to_user_id = ?');
@@ -826,9 +867,15 @@ export const localTodoDb = {
       for (const lid of data.list_ids) {
         const numLid = Number(lid);
         if (!isNaN(numLid) && numLid > 0) {
-          const l = db.getFirstSync<{ id: number }>('SELECT id FROM lists WHERE id = ? AND active = 1', [numLid]);
+          const l = db.getFirstSync<{ id: number }>(
+            'SELECT id FROM lists WHERE id = ? AND active = 1',
+            [numLid]
+          );
           if (l) {
-            db.runSync('INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)', [id, numLid]);
+            db.runSync(
+              'INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)',
+              [id, numLid]
+            );
             validLids.push(numLid);
           }
         }
@@ -838,13 +885,19 @@ export const localTodoDb = {
     } else if (data.list_id !== undefined) {
       let validListId = data.list_id;
       if (validListId) {
-        const l = db.getFirstSync<{ id: number }>('SELECT id FROM lists WHERE id = ? AND active = 1', [validListId]);
+        const l = db.getFirstSync<{ id: number }>(
+          'SELECT id FROM lists WHERE id = ? AND active = 1',
+          [validListId]
+        );
         if (!l) validListId = null;
       }
       updates.push('list_id = ?');
       params.push(validListId || null);
       if (validListId) {
-        db.runSync('INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)', [id, validListId]);
+        db.runSync(
+          'INSERT OR REPLACE INTO task_lists (task_id, list_id, active) VALUES (?, ?, 1)',
+          [id, validListId]
+        );
       }
     }
 
@@ -888,7 +941,9 @@ export const localTodoDb = {
       [taskId, title.trim(), nextPos]
     );
 
-    return db.getFirstSync<Subtask>('SELECT * FROM subtasks WHERE id = ? AND active = 1', [result.lastInsertRowId])!;
+    return db.getFirstSync<Subtask>('SELECT * FROM subtasks WHERE id = ? AND active = 1', [
+      result.lastInsertRowId,
+    ])!;
   },
 
   updateSubtask(id: number, taskId: number, data: Partial<Subtask>): Subtask {
@@ -941,7 +996,14 @@ export const localTodoDb = {
   // --------------------------------------------------
   getLists(): List[] {
     const db = getDatabase();
-    const lists = db.getAllSync<List & { default_whatsapp_contact_name?: string; default_whatsapp_contact_phone?: string; share_count?: number; pending_task_count?: number }>(`
+    const lists = db.getAllSync<
+      List & {
+        default_whatsapp_contact_name?: string;
+        default_whatsapp_contact_phone?: string;
+        share_count?: number;
+        pending_task_count?: number;
+      }
+    >(`
       SELECT l.*, u.name as owner_name,
         wcu.name as default_whatsapp_contact_name,
         wcu.phone as default_whatsapp_contact_phone,
@@ -980,9 +1042,22 @@ export const localTodoDb = {
     const db = getDatabase();
     let themeToUse = data.color_theme;
     if (!themeToUse) {
-      const countRow = db.getFirstSync<{ count: number }>('SELECT COUNT(*) as count FROM lists WHERE active = 1');
+      const countRow = db.getFirstSync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM lists WHERE active = 1'
+      );
       const count = countRow?.count ?? 0;
-      const rotation = ['green', 'pink', 'amber', 'indigo', 'cyan', 'red', 'lime', 'fuchsia', 'teal', 'dark'];
+      const rotation = [
+        'green',
+        'pink',
+        'amber',
+        'indigo',
+        'cyan',
+        'red',
+        'lime',
+        'fuchsia',
+        'teal',
+        'dark',
+      ];
       themeToUse = rotation[count % rotation.length];
     }
 
@@ -1011,7 +1086,14 @@ export const localTodoDb = {
       )
       VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 1)
       `,
-      [title.trim(), themeToUse, icon, created_by || 1, default_whatsapp_contact_id || null, default_whatsapp_share_scope || null]
+      [
+        title.trim(),
+        themeToUse,
+        icon,
+        created_by || 1,
+        default_whatsapp_contact_id || null,
+        default_whatsapp_share_scope || null,
+      ]
     );
 
     const newList = db.getFirstSync<List>(
@@ -1155,12 +1237,20 @@ export const localTodoDb = {
     `);
   },
 
-  createUser(data: { name: string; email?: string; phone?: string; avatar?: string; is_group?: number | boolean }): User {
+  createUser(data: {
+    name: string;
+    email?: string;
+    phone?: string;
+    avatar?: string;
+    is_group?: number | boolean;
+  }): User {
     const db = getDatabase();
     const { name, avatar, is_group } = data;
     const isGroupVal = is_group ? 1 : 0;
     const rawPhone = data.phone || '';
-    const normalizedPhone = isGroupVal ? (rawPhone.trim() || '') : (normalizeToE164(rawPhone) || rawPhone.trim());
+    const normalizedPhone = isGroupVal
+      ? rawPhone.trim() || ''
+      : normalizeToE164(rawPhone) || rawPhone.trim();
     let email = data.email?.trim().toLowerCase();
 
     if (!email) {
@@ -1175,7 +1265,9 @@ export const localTodoDb = {
       [name.trim(), email, normalizedPhone, avatar || null, isGroupVal]
     );
 
-    return db.getFirstSync<User>('SELECT * FROM users WHERE id = ? AND active = 1', [result.lastInsertRowId])!;
+    return db.getFirstSync<User>('SELECT * FROM users WHERE id = ? AND active = 1', [
+      result.lastInsertRowId,
+    ])!;
   },
 
   updateUser(id: number, data: Partial<User>): User {
@@ -1241,7 +1333,8 @@ export const localTodoDb = {
       }
 
       const name = rawName || rawPhone || 'Contact';
-      const normalizedPhone = normalizeToE164(rawPhone) || (rawPhone ? rawPhone.replace(/\s+/g, '') : '') || 'N/A';
+      const normalizedPhone =
+        normalizeToE164(rawPhone) || (rawPhone ? rawPhone.replace(/\s+/g, '') : '') || 'N/A';
       const cleanPhoneKey = normalizedPhone.replace(/\D/g, '') || String(Date.now());
 
       let existingUser: { id: number; phone: string; email: string } | null = null;
@@ -1263,8 +1356,10 @@ export const localTodoDb = {
       }
 
       if (existingUser) {
-        const nextPhone = (existingUser.phone && existingUser.phone !== 'N/A') ? existingUser.phone : normalizedPhone;
-        const nextEmail = (rawEmail && !rawEmail.includes('@local.todo')) ? rawEmail : existingUser.email;
+        const nextPhone =
+          existingUser.phone && existingUser.phone !== 'N/A' ? existingUser.phone : normalizedPhone;
+        const nextEmail =
+          rawEmail && !rawEmail.includes('@local.todo') ? rawEmail : existingUser.email;
         db.runSync(
           'UPDATE users SET name = ?, email = ?, phone = ?, avatar = COALESCE(?, avatar), active = 1 WHERE id = ?',
           [name, nextEmail, nextPhone, u.avatar || null, existingUser.id]
@@ -1300,16 +1395,16 @@ export const localTodoDb = {
   // --------------------------------------------------
   getUserPreferences(): UserPreferences {
     const db = getDatabase();
-    let prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }>(
-      'SELECT * FROM user_preferences WHERE user_id = 1'
-    );
+    let prefs = db.getFirstSync<
+      UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }
+    >('SELECT * FROM user_preferences WHERE user_id = 1');
     if (!prefs) {
       db.runSync(
         `INSERT OR IGNORE INTO user_preferences (user_id, remember_last_view, last_view_type, last_view_id, sort_preferences, pinned_views) VALUES (1, 1, 'tab', 'all-tasks', '{}', '["important","assigned-to-me"]')`
       );
-      prefs = db.getFirstSync<UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }>(
-        'SELECT * FROM user_preferences WHERE user_id = 1'
-      );
+      prefs = db.getFirstSync<
+        UserPreferences & { sort_preferences?: string | any; pinned_views?: string | any }
+      >('SELECT * FROM user_preferences WHERE user_id = 1');
     }
     if (prefs && typeof prefs.sort_preferences === 'string') {
       try {
@@ -1329,75 +1424,121 @@ export const localTodoDb = {
       if (prefs) prefs.pinned_views = ['important', 'assigned-to-me'];
     }
 
-    return prefs || {
-      user_id: 1,
-      remember_last_view: 1,
-      last_view_type: 'tab',
-      last_view_id: 'all-tasks',
-      sort_preferences: {},
-      pinned_views: ['important', 'assigned-to-me'],
-      has_chosen_whatsapp_format: 0,
-      default_whatsapp_style: 'executive',
-      default_whatsapp_include_notes: 1,
-      default_whatsapp_include_assignee: 1,
-      default_whatsapp_include_important: 0,
-      default_whatsapp_include_steps: 1,
-      default_whatsapp_include_due_date: 1,
-      default_whatsapp_include_list_name: 1,
-    };
+    return (
+      prefs || {
+        user_id: 1,
+        remember_last_view: 1,
+        last_view_type: 'tab',
+        last_view_id: 'all-tasks',
+        sort_preferences: {},
+        pinned_views: ['important', 'assigned-to-me'],
+        has_chosen_whatsapp_format: 0,
+        default_whatsapp_style: 'executive',
+        default_whatsapp_include_notes: 1,
+        default_whatsapp_include_assignee: 1,
+        default_whatsapp_include_important: 0,
+        default_whatsapp_include_steps: 1,
+        default_whatsapp_include_due_date: 1,
+        default_whatsapp_include_list_name: 1,
+      }
+    );
   },
 
   updateUserPreferences(data: Partial<UserPreferences>): UserPreferences {
     const db = getDatabase();
     const existing = this.getUserPreferences();
 
-    const nextRemember = data.remember_last_view !== undefined
-      ? (data.remember_last_view ? 1 : 0)
-      : (existing.remember_last_view ? 1 : 0);
-    const nextType = data.last_view_type !== undefined ? data.last_view_type : existing.last_view_type;
+    const nextRemember =
+      data.remember_last_view !== undefined
+        ? data.remember_last_view
+          ? 1
+          : 0
+        : existing.remember_last_view
+          ? 1
+          : 0;
+    const nextType =
+      data.last_view_type !== undefined ? data.last_view_type : existing.last_view_type;
     const nextId = data.last_view_id !== undefined ? data.last_view_id : existing.last_view_id;
     let nextSort = existing.sort_preferences;
     if (data.sort_preferences !== undefined) {
-      nextSort = typeof data.sort_preferences === 'string'
-        ? data.sort_preferences
-        : JSON.stringify(data.sort_preferences);
+      nextSort =
+        typeof data.sort_preferences === 'string'
+          ? data.sort_preferences
+          : JSON.stringify(data.sort_preferences);
     } else {
       nextSort = JSON.stringify(existing.sort_preferences || {});
     }
 
     let nextPinned = existing.pinned_views;
     if (data.pinned_views !== undefined) {
-      nextPinned = typeof data.pinned_views === 'string'
-        ? data.pinned_views
-        : JSON.stringify(data.pinned_views);
+      nextPinned =
+        typeof data.pinned_views === 'string'
+          ? data.pinned_views
+          : JSON.stringify(data.pinned_views);
     } else {
       nextPinned = JSON.stringify(existing.pinned_views || ['important', 'assigned-to-me']);
     }
 
-    const nextHasFormat = data.has_chosen_whatsapp_format !== undefined
-      ? (data.has_chosen_whatsapp_format ? 1 : 0)
-      : (existing.has_chosen_whatsapp_format ? 1 : 0);
-    const nextDefStyle = data.default_whatsapp_style !== undefined
-      ? (data.default_whatsapp_style as string)
-      : (existing.default_whatsapp_style || 'executive');
-    const nextDefIncludeNotes = data.default_whatsapp_include_notes !== undefined
-      ? (data.default_whatsapp_include_notes ? 1 : 0)
-      : (existing.default_whatsapp_include_notes !== 0 ? 1 : 0);
-    const nextDefIncludeAssignee = data.default_whatsapp_include_assignee !== undefined
-      ? (data.default_whatsapp_include_assignee ? 1 : 0)
-      : (existing.default_whatsapp_include_assignee !== 0 ? 1 : 0);
-    const nextDefIncludeImportant = data.default_whatsapp_include_important !== undefined
-      ? (data.default_whatsapp_include_important ? 1 : 0)
-      : (existing.default_whatsapp_include_important ? 1 : 0);
-    const nextDefIncludeSteps = data.default_whatsapp_include_steps !== undefined
-      ? (data.default_whatsapp_include_steps ? 1 : 0)
-      : (existing.default_whatsapp_include_steps !== 0 ? 1 : 0);
-    const nextDefIncludeDueDate = data.default_whatsapp_include_due_date !== undefined
-      ? (data.default_whatsapp_include_due_date ? 1 : 0)
-      : (existing.default_whatsapp_include_due_date !== 0 ? 1 : 0);
-    const nextDefIncludeListName = data.default_whatsapp_include_list_name !== undefined
-      ? (data.default_whatsapp_include_list_name ? 1 : 0)
-      : (existing.default_whatsapp_include_list_name !== 0 ? 1 : 0);
+    const nextHasFormat =
+      data.has_chosen_whatsapp_format !== undefined
+        ? data.has_chosen_whatsapp_format
+          ? 1
+          : 0
+        : existing.has_chosen_whatsapp_format
+          ? 1
+          : 0;
+    const nextDefStyle =
+      data.default_whatsapp_style !== undefined
+        ? (data.default_whatsapp_style as string)
+        : existing.default_whatsapp_style || 'executive';
+    const nextDefIncludeNotes =
+      data.default_whatsapp_include_notes !== undefined
+        ? data.default_whatsapp_include_notes
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_notes !== 0
+          ? 1
+          : 0;
+    const nextDefIncludeAssignee =
+      data.default_whatsapp_include_assignee !== undefined
+        ? data.default_whatsapp_include_assignee
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_assignee !== 0
+          ? 1
+          : 0;
+    const nextDefIncludeImportant =
+      data.default_whatsapp_include_important !== undefined
+        ? data.default_whatsapp_include_important
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_important
+          ? 1
+          : 0;
+    const nextDefIncludeSteps =
+      data.default_whatsapp_include_steps !== undefined
+        ? data.default_whatsapp_include_steps
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_steps !== 0
+          ? 1
+          : 0;
+    const nextDefIncludeDueDate =
+      data.default_whatsapp_include_due_date !== undefined
+        ? data.default_whatsapp_include_due_date
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_due_date !== 0
+          ? 1
+          : 0;
+    const nextDefIncludeListName =
+      data.default_whatsapp_include_list_name !== undefined
+        ? data.default_whatsapp_include_list_name
+          ? 1
+          : 0
+        : existing.default_whatsapp_include_list_name !== 0
+          ? 1
+          : 0;
 
     db.runSync(
       `
@@ -1405,7 +1546,21 @@ export const localTodoDb = {
       SET remember_last_view = ?, last_view_type = ?, last_view_id = ?, sort_preferences = ?, pinned_views = ?, has_chosen_whatsapp_format = ?, default_whatsapp_style = ?, default_whatsapp_include_notes = ?, default_whatsapp_include_assignee = ?, default_whatsapp_include_important = ?, default_whatsapp_include_steps = ?, default_whatsapp_include_due_date = ?, default_whatsapp_include_list_name = ?, updated_at = CURRENT_TIMESTAMP
       WHERE user_id = 1
       `,
-      [nextRemember, nextType, nextId, nextSort, nextPinned, nextHasFormat, nextDefStyle, nextDefIncludeNotes, nextDefIncludeAssignee, nextDefIncludeImportant, nextDefIncludeSteps, nextDefIncludeDueDate, nextDefIncludeListName]
+      [
+        nextRemember,
+        nextType,
+        nextId,
+        nextSort,
+        nextPinned,
+        nextHasFormat,
+        nextDefStyle,
+        nextDefIncludeNotes,
+        nextDefIncludeAssignee,
+        nextDefIncludeImportant,
+        nextDefIncludeSteps,
+        nextDefIncludeDueDate,
+        nextDefIncludeListName,
+      ]
     );
 
     return this.getUserPreferences();
@@ -1433,7 +1588,7 @@ export const localTodoDb = {
 
   unpinView(viewKey: string): string[] {
     const current = this.getPinnedViews();
-    const updated = current.filter((k) => k !== viewKey);
+    const updated = current.filter(k => k !== viewKey);
     this.updatePinnedViews(updated);
     return updated;
   },
@@ -1465,10 +1620,27 @@ export const localTodoDb = {
     try {
       db.runSync(
         `INSERT INTO whatsapp_logs (task_id, recipient_phone, recipient_name, message, status) VALUES (?, ?, ?, ?, ?)`,
-        [data.taskId || null, data.phone || null, data.recipientName || null, data.message || null, data.status || 'sent']
+        [
+          data.taskId || null,
+          data.phone || null,
+          data.recipientName || null,
+          data.message || null,
+          data.status || 'sent',
+        ]
       );
     } catch (e: any) {
-      logError({ event: 'whatsapp_history_log_failed', outcome: 'failure', data: { hasTaskId: Boolean(data.taskId), hasRecipient: Boolean(data.phone || data.recipientName), status: data.status } }, e);
+      logError(
+        {
+          event: 'whatsapp_history_log_failed',
+          outcome: 'failure',
+          data: {
+            hasTaskId: Boolean(data.taskId),
+            hasRecipient: Boolean(data.phone || data.recipientName),
+            status: data.status,
+          },
+        },
+        e
+      );
     }
   },
 
@@ -1477,17 +1649,23 @@ export const localTodoDb = {
   // --------------------------------------------------
   getCustomViews(): CustomView[] {
     const db = getDatabase();
-    const views = db.getAllSync<CustomView>('SELECT * FROM custom_views WHERE active = 1 ORDER BY position ASC, id ASC');
-    return views.map((v) => {
+    const views = db.getAllSync<CustomView>(
+      'SELECT * FROM custom_views WHERE active = 1 ORDER BY position ASC, id ASC'
+    );
+    return views.map(v => {
       let filterConfig: ViewFilterConfig = {};
       let sortConfig: ViewSortConfig = { field: 'smart', direction: 'asc' };
       if (typeof v.filter_config === 'string') {
-        try { filterConfig = JSON.parse(v.filter_config || '{}'); } catch {}
+        try {
+          filterConfig = JSON.parse(v.filter_config || '{}');
+        } catch {}
       } else if (v.filter_config) {
         filterConfig = v.filter_config;
       }
       if (typeof v.sort_config === 'string') {
-        try { sortConfig = JSON.parse(v.sort_config || '{}'); } catch {}
+        try {
+          sortConfig = JSON.parse(v.sort_config || '{}');
+        } catch {}
       } else if (v.sort_config) {
         sortConfig = v.sort_config;
       }
@@ -1504,17 +1682,24 @@ export const localTodoDb = {
   getCustomViewById(id: number): CustomView | null {
     if (!id || id <= 0) return null;
     const db = getDatabase();
-    const v = db.getFirstSync<CustomView>('SELECT * FROM custom_views WHERE id = ? AND active = 1', [id]);
+    const v = db.getFirstSync<CustomView>(
+      'SELECT * FROM custom_views WHERE id = ? AND active = 1',
+      [id]
+    );
     if (!v) return null;
     let filterConfig: ViewFilterConfig = {};
     let sortConfig: ViewSortConfig = { field: 'smart', direction: 'asc' };
     if (typeof v.filter_config === 'string') {
-      try { filterConfig = JSON.parse(v.filter_config || '{}'); } catch {}
+      try {
+        filterConfig = JSON.parse(v.filter_config || '{}');
+      } catch {}
     } else if (v.filter_config) {
       filterConfig = v.filter_config;
     }
     if (typeof v.sort_config === 'string') {
-      try { sortConfig = JSON.parse(v.sort_config || '{}'); } catch {}
+      try {
+        sortConfig = JSON.parse(v.sort_config || '{}');
+      } catch {}
     } else if (v.sort_config) {
       sortConfig = v.sort_config;
     }
@@ -1540,12 +1725,20 @@ export const localTodoDb = {
     const title = data.title.trim();
     const theme = data.color_theme || 'teal';
     const icon = data.icon || 'view';
-    const filterStr = typeof data.filter_config === 'object' ? JSON.stringify(data.filter_config) : (data.filter_config || '{}');
-    const sortStr = typeof data.sort_config === 'object' ? JSON.stringify(data.sort_config) : (data.sort_config || '{"field":"smart","direction":"asc"}');
+    const filterStr =
+      typeof data.filter_config === 'object'
+        ? JSON.stringify(data.filter_config)
+        : data.filter_config || '{}';
+    const sortStr =
+      typeof data.sort_config === 'object'
+        ? JSON.stringify(data.sort_config)
+        : data.sort_config || '{"field":"smart","direction":"asc"}';
     const contactId = data.default_whatsapp_contact_id ?? null;
     const shareScope = data.default_whatsapp_share_scope ?? null;
 
-    const maxPos = db.getFirstSync<{ max_pos: number }>('SELECT MAX(position) as max_pos FROM custom_views WHERE active = 1');
+    const maxPos = db.getFirstSync<{ max_pos: number }>(
+      'SELECT MAX(position) as max_pos FROM custom_views WHERE active = 1'
+    );
     const position = (maxPos?.max_pos ?? 0) + 1;
 
     const result = db.runSync(
@@ -1578,11 +1771,17 @@ export const localTodoDb = {
     }
     if (data.filter_config !== undefined) {
       updates.push('filter_config = ?');
-      params.push(typeof data.filter_config === 'object' ? JSON.stringify(data.filter_config) : data.filter_config);
+      params.push(
+        typeof data.filter_config === 'object'
+          ? JSON.stringify(data.filter_config)
+          : data.filter_config
+      );
     }
     if (data.sort_config !== undefined) {
       updates.push('sort_config = ?');
-      params.push(typeof data.sort_config === 'object' ? JSON.stringify(data.sort_config) : data.sort_config);
+      params.push(
+        typeof data.sort_config === 'object' ? JSON.stringify(data.sort_config) : data.sort_config
+      );
     }
     if (data.default_whatsapp_contact_id !== undefined) {
       updates.push('default_whatsapp_contact_id = ?');
@@ -1636,7 +1835,9 @@ export const localTodoDb = {
 
   deleteCustomView(id: number): void {
     const db = getDatabase();
-    db.runSync('UPDATE custom_views SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [id]);
+    db.runSync('UPDATE custom_views SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?', [
+      id,
+    ]);
     this.unpinView(`custom_view:${id}`);
   },
 
@@ -1675,7 +1876,8 @@ export const localTodoDb = {
     }
 
     if (filter.listId && filter.listId !== 'all') {
-      query += ' AND (t.id IN (SELECT task_id FROM task_lists WHERE list_id = ? AND active = 1) OR (t.list_id = ? AND EXISTS(SELECT 1 FROM lists WHERE id = ? AND active = 1)))';
+      query +=
+        ' AND (t.id IN (SELECT task_id FROM task_lists WHERE list_id = ? AND active = 1) OR (t.list_id = ? AND EXISTS(SELECT 1 FROM lists WHERE id = ? AND active = 1)))';
       params.push(filter.listId, filter.listId, filter.listId);
     }
 

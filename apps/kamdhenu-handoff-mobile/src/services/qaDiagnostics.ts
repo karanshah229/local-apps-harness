@@ -22,11 +22,14 @@ export async function emitQaBreadcrumbProbe() {
 
 export async function captureQaHandledError() {
   assertQaBuild();
-  logError({
-    event: 'qa_handled_error_probe',
-    outcome: 'failure',
-    data: { probe: 'handled_error', safeMarker: 'QA_HANDLED_ERROR_PROBE' },
-  }, new Error('QaHandledError'));
+  logError(
+    {
+      event: 'qa_handled_error_probe',
+      outcome: 'failure',
+      data: { probe: 'handled_error', safeMarker: 'QA_HANDLED_ERROR_PROBE' },
+    },
+    new Error('QaHandledError')
+  );
   await flushLocalAndSentry();
 }
 

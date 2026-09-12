@@ -1,12 +1,4 @@
-import React from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  ScrollView,
-  StyleSheet,
-  Switch,
-} from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet, Switch } from 'react-native';
 import {
   ArrowLeft,
   Moon,
@@ -37,7 +29,7 @@ export default function SettingsPage({
   onBack,
   isDarkMode,
   themeMode,
-  onSetThemeMode
+  onSetThemeMode,
 }: SettingsPageProps) {
   const insets = useSafeAreaInsets();
   const colors = isDarkMode ? darkColors : lightColors;
@@ -56,7 +48,7 @@ export default function SettingsPage({
       description: 'Crisp & bright',
       icon: Sun,
       iconBg: isDarkMode ? '#332912' : '#fef3c7',
-      iconColor: '#d97706'
+      iconColor: '#d97706',
     },
     {
       id: 'dark',
@@ -64,7 +56,7 @@ export default function SettingsPage({
       description: 'Easy on eyes',
       icon: Moon,
       iconBg: isDarkMode ? '#1e293b' : '#e0f2fe',
-      iconColor: '#0284c7'
+      iconColor: '#0284c7',
     },
     {
       id: 'system',
@@ -72,8 +64,8 @@ export default function SettingsPage({
       description: 'Follows OS',
       icon: Smartphone,
       iconBg: isDarkMode ? '#27272a' : '#f1f5f9',
-      iconColor: isDarkMode ? '#a1a1aa' : '#64748b'
-    }
+      iconColor: isDarkMode ? '#a1a1aa' : '#64748b',
+    },
   ];
 
   const { data: prefs } = useUserPreferencesQuery(1);
@@ -95,14 +87,19 @@ export default function SettingsPage({
     <View
       style={[
         styles.container,
-        { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 14) + 6 }
+        { backgroundColor: colors.background, paddingTop: Math.max(insets.top, 14) + 6 },
       ]}
     >
       {/* Header Banner */}
-      <View style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}>
+      <View
+        style={[styles.header, { borderBottomColor: colors.border, backgroundColor: colors.card }]}
+      >
         <TouchableOpacity
           onPress={onBack}
-          style={[styles.backButton, { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border }]}
+          style={[
+            styles.backButton,
+            { backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderColor: colors.border },
+          ]}
           activeOpacity={0.7}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           accessibilityLabel="Back"
@@ -120,7 +117,10 @@ export default function SettingsPage({
       {/* Scrollable Content */}
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: Math.max(insets.bottom, 24) + 24 },
+        ]}
         showsVerticalScrollIndicator={false}
       >
         {/* Appearance & Theme Section */}
@@ -132,7 +132,7 @@ export default function SettingsPage({
 
           {/* 3-Button Theme Layout */}
           <View style={styles.themeGrid}>
-            {THEME_OPTIONS.map((opt) => {
+            {THEME_OPTIONS.map(opt => {
               const IconComp = opt.icon;
               const isSelected = themeMode === opt.id;
 
@@ -148,11 +148,11 @@ export default function SettingsPage({
                           ? 'rgba(0, 120, 212, 0.18)'
                           : 'rgba(0, 120, 212, 0.08)'
                         : isDarkMode
-                        ? '#18181b'
-                        : '#ffffff',
-                      borderColor: isSelected ? '#0078d4' : colors.border
+                          ? '#18181b'
+                          : '#ffffff',
+                      borderColor: isSelected ? '#0078d4' : colors.border,
                     },
-                    isSelected && styles.themeTileActive
+                    isSelected && styles.themeTileActive,
                   ]}
                   activeOpacity={0.8}
                 >
@@ -161,20 +161,12 @@ export default function SettingsPage({
                   </View>
 
                   <Text
-                    style={[
-                      styles.themeTileTitle,
-                      { color: isSelected ? '#0078d4' : colors.text }
-                    ]}
+                    style={[styles.themeTileTitle, { color: isSelected ? '#0078d4' : colors.text }]}
                   >
                     {opt.title}
                   </Text>
 
-                  <Text
-                    style={[
-                      styles.themeTileSubtitle,
-                      { color: colors.textMuted }
-                    ]}
-                  >
+                  <Text style={[styles.themeTileSubtitle, { color: colors.textMuted }]}>
                     {opt.description}
                   </Text>
 
@@ -199,13 +191,14 @@ export default function SettingsPage({
             <Text style={styles.sectionTitle}>PREFERENCES</Text>
           </View>
 
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border }
-            ]}
-          >
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+              }}
+            >
               <View style={{ flex: 1, marginRight: 12 }}>
                 <Text style={[styles.settingTitle, { color: colors.text }]}>
                   Remember Last View
@@ -232,12 +225,20 @@ export default function SettingsPage({
           </View>
           <TouchableOpacity
             onPress={handleShareDiagnostics}
-            style={[styles.card, styles.actionCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+            style={[
+              styles.card,
+              styles.actionCard,
+              { backgroundColor: colors.card, borderColor: colors.border },
+            ]}
             activeOpacity={0.75}
           >
             <View style={{ flex: 1, marginRight: 12 }}>
-              <Text style={[styles.settingTitle, { color: colors.text }]}>Share diagnostic report</Text>
-              <Text style={[styles.settingSubtitle, { color: colors.textMuted }]}>Share recent app logs to help investigate an issue</Text>
+              <Text style={[styles.settingTitle, { color: colors.text }]}>
+                Share diagnostic report
+              </Text>
+              <Text style={[styles.settingSubtitle, { color: colors.textMuted }]}>
+                Share recent app logs to help investigate an issue
+              </Text>
             </View>
             <Share2 size={20} color="#0078d4" />
           </TouchableOpacity>
@@ -252,19 +253,18 @@ export default function SettingsPage({
             <Text style={styles.sectionTitle}>ABOUT</Text>
           </View>
 
-          <View
-            style={[
-              styles.card,
-              { backgroundColor: colors.card, borderColor: colors.border }
-            ]}
-          >
+          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.infoRow}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Application</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{BUILD_IDENTITY.appName}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {BUILD_IDENTITY.appName}
+              </Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Version</Text>
-              <Text style={[styles.infoValue, { color: colors.text }]}>{BUILD_IDENTITY.release}</Text>
+              <Text style={[styles.infoValue, { color: colors.text }]}>
+                {BUILD_IDENTITY.release}
+              </Text>
             </View>
             <View style={[styles.infoRow, { borderTopColor: colors.border }]}>
               <Text style={[styles.infoLabel, { color: colors.textMuted }]}>Platform</Text>
@@ -279,7 +279,7 @@ export default function SettingsPage({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   header: {
     flexDirection: 'row',
@@ -287,7 +287,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    gap: 12
+    gap: 12,
   },
   backButton: {
     width: 38,
@@ -295,40 +295,40 @@ const styles = StyleSheet.create({
     borderRadius: 19,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1
+    borderWidth: 1,
   },
   headerTextWrap: {
-    flex: 1
+    flex: 1,
   },
   headerTitle: {
     fontSize: fontSizes.title,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   headerSubtitle: {
     fontSize: fontSizes.caption,
-    marginTop: 1
+    marginTop: 1,
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContent: {
     padding: 16,
-    gap: 20
+    gap: 20,
   },
   section: {
-    gap: 10
+    gap: 10,
   },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingLeft: 4
+    paddingLeft: 4,
   },
   sectionTitle: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
-    letterSpacing: 0.8
+    letterSpacing: 0.8,
   },
   card: {
     borderRadius: 20,
@@ -338,24 +338,24 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 3,
-    elevation: 1
+    elevation: 1,
   },
   actionCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   settingLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
-    paddingRight: 8
+    paddingRight: 8,
   },
   settingIconWrap: {
     width: 44,
@@ -364,31 +364,31 @@ const styles = StyleSheet.create({
     minHeight: 44,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   settingTitle: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   settingSubtitle: {
     fontSize: fontSizes.caption,
-    marginTop: 2
+    marginTop: 2,
   },
   themeGrid: {
     flexDirection: 'row',
     gap: 10,
-    marginTop: 2
+    marginTop: 2,
   },
   themeTile: {
     flex: 1,
     padding: 14,
     borderRadius: 16,
     borderWidth: 1.5,
-    alignItems: 'flex-start'
+    alignItems: 'flex-start',
   },
   themeTileActive: {
     borderWidth: 2,
-    borderColor: '#0078d4'
+    borderColor: '#0078d4',
   },
   themeTileIcon: {
     width: 32,
@@ -396,32 +396,32 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8
+    marginBottom: 8,
   },
   themeTileTitle: {
     fontSize: fontSizes.body,
     fontWeight: '800',
-    marginBottom: 2
+    marginBottom: 2,
   },
   themeTileSubtitle: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    marginBottom: 6
+    marginBottom: 6,
   },
   activePill: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 4
+    marginTop: 4,
   },
   activePillText: {
     fontSize: fontSizes.caption,
     fontWeight: '700',
-    color: '#0078d4'
+    color: '#0078d4',
   },
   inactivePlaceholder: {
     height: 18,
-    marginTop: 4
+    marginTop: 4,
   },
   infoRow: {
     flexDirection: 'row',
@@ -429,15 +429,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: 'transparent'
+    borderTopColor: 'transparent',
   },
   infoLabel: {
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   infoValue: {
     fontSize: fontSizes.small,
     fontWeight: '700',
-    maxWidth: 200
-  }
+    maxWidth: 200,
+  },
 });

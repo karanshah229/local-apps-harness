@@ -2,9 +2,7 @@ const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 const fs = require('fs');
 
-const {
-  getSentryExpoConfig
-} = require("@sentry/react-native/metro");
+const { getSentryExpoConfig } = require('@sentry/react-native/metro');
 
 const projectRoot = __dirname;
 const monorepoRoot = path.resolve(projectRoot, '../..');

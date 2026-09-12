@@ -168,19 +168,22 @@ export function useThrottledTaskAutosave({
     }
   };
 
-  const queueSave = useCallback((updates: Partial<Task>) => {
-    if (!enabled || !taskId) return;
+  const queueSave = useCallback(
+    (updates: Partial<Task>) => {
+      if (!enabled || !taskId) return;
 
-    queuedTaskIdRef.current = taskId;
-    pendingUpdatesRef.current = {
-      ...(failedUpdatesRef.current || {}),
-      ...(pendingUpdatesRef.current || {}),
-      ...updates,
-    };
-    failedUpdatesRef.current = null;
-    updateStatus('saving');
-    scheduleRef.current();
-  }, [enabled, taskId]);
+      queuedTaskIdRef.current = taskId;
+      pendingUpdatesRef.current = {
+        ...(failedUpdatesRef.current || {}),
+        ...(pendingUpdatesRef.current || {}),
+        ...updates,
+      };
+      failedUpdatesRef.current = null;
+      updateStatus('saving');
+      scheduleRef.current();
+    },
+    [enabled, taskId]
+  );
 
   const flush = useCallback(async () => {
     if (!enabled || !taskId) return;

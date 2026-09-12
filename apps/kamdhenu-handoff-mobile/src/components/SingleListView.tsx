@@ -127,138 +127,188 @@ interface TaskItemProps {
   onToggleImportant: (task: Task) => void;
 }
 
-const TaskItem = React.memo(({
-  task,
-  isDarkMode,
-  isMultiSelectMode,
-  isCheckedForBatch,
-  themePrimary,
-  onPress,
-  onLongPress,
-  onToggleComplete,
-  onToggleImportant,
-}: TaskItemProps) => {
-  return (
-    <TouchableOpacity
-      onPress={() => onPress(task)}
-      onLongPress={() => onLongPress(task)}
-      delayLongPress={280}
-      activeOpacity={0.7}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 15,
-        minHeight: 58,
-        borderRadius: 18,
-        backgroundColor: isCheckedForBatch
-          ? (isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.1))
-          : (isDarkMode ? '#18181b' : '#ffffff'),
-        borderWidth: 1,
-        borderColor: isCheckedForBatch
-          ? themePrimary
-          : (isDarkMode ? '#27272a' : '#e2e8f0'),
-        marginBottom: 8,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
-        <TouchableOpacity
-          onPress={() => isMultiSelectMode ? onPress(task) : onToggleComplete(task)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={{
-            width: 24,
-            height: 24,
-            borderRadius: 7,
-            borderWidth: 2,
-            borderColor: isCheckedForBatch ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
-            backgroundColor: isCheckedForBatch ? themePrimary : 'transparent',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {isCheckedForBatch && <Check size={14} color="#ffffff" strokeWidth={3} />}
-        </TouchableOpacity>
-
-        <View style={{ flex: 1 }}>
-          <Text
+const TaskItem = React.memo(
+  ({
+    task,
+    isDarkMode,
+    isMultiSelectMode,
+    isCheckedForBatch,
+    themePrimary,
+    onPress,
+    onLongPress,
+    onToggleComplete,
+    onToggleImportant,
+  }: TaskItemProps) => {
+    return (
+      <TouchableOpacity
+        onPress={() => onPress(task)}
+        onLongPress={() => onLongPress(task)}
+        delayLongPress={280}
+        activeOpacity={0.7}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 15,
+          minHeight: 58,
+          borderRadius: 18,
+          backgroundColor: isCheckedForBatch
+            ? isDarkMode
+              ? hexToRgba(themePrimary, 0.2)
+              : hexToRgba(themePrimary, 0.1)
+            : isDarkMode
+              ? '#18181b'
+              : '#ffffff',
+          borderWidth: 1,
+          borderColor: isCheckedForBatch ? themePrimary : isDarkMode ? '#27272a' : '#e2e8f0',
+          marginBottom: 8,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => (isMultiSelectMode ? onPress(task) : onToggleComplete(task))}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
             style={{
-              fontSize: 15,
-              fontWeight: '700',
-              color: isDarkMode ? '#f4f4f5' : '#0f172a',
+              width: 24,
+              height: 24,
+              borderRadius: 7,
+              borderWidth: 2,
+              borderColor: isCheckedForBatch ? themePrimary : isDarkMode ? '#52525b' : '#94a3b8',
+              backgroundColor: isCheckedForBatch ? themePrimary : 'transparent',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-            numberOfLines={1}
           >
-            {task.title}
-          </Text>
+            {isCheckedForBatch && <Check size={14} color="#ffffff" strokeWidth={3} />}
+          </TouchableOpacity>
 
-          {(task.due_date || (task.subtask_count && task.subtask_count > 0) || task.assignee_name) && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4, flexWrap: 'wrap' }}>
-              {task.due_date && (() => {
-                const dueInfo = formatDueDateDisplay(task.due_date, task.is_completed, task.due_timezone);
-                if (!dueInfo) return null;
-                const isOverdue = dueInfo.isOverdue;
-                return (
+          <View style={{ flex: 1 }}>
+            <Text
+              style={{
+                fontSize: 15,
+                fontWeight: '700',
+                color: isDarkMode ? '#f4f4f5' : '#0f172a',
+              }}
+              numberOfLines={1}
+            >
+              {task.title}
+            </Text>
+
+            {(task.due_date ||
+              (task.subtask_count && task.subtask_count > 0) ||
+              task.assignee_name) && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  marginTop: 4,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {task.due_date &&
+                  (() => {
+                    const dueInfo = formatDueDateDisplay(
+                      task.due_date,
+                      task.is_completed,
+                      task.due_timezone
+                    );
+                    if (!dueInfo) return null;
+                    const isOverdue = dueInfo.isOverdue;
+                    return (
+                      <View
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          backgroundColor: isOverdue
+                            ? 'rgba(239, 68, 68, 0.15)'
+                            : isDarkMode
+                              ? '#27272a'
+                              : '#f1f5f9',
+                          paddingHorizontal: 7,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                          borderWidth: isOverdue ? 1 : 0,
+                          borderColor: isOverdue ? 'rgba(239, 68, 68, 0.4)' : 'transparent',
+                        }}
+                      >
+                        <Calendar size={11} color={isOverdue ? '#ef4444' : themePrimary} />
+                        <Text
+                          style={{
+                            fontSize: 10,
+                            fontWeight: '700',
+                            color: isOverdue ? '#ef4444' : isDarkMode ? '#d4d4d8' : '#334155',
+                          }}
+                        >
+                          {dueInfo.label}
+                        </Text>
+                      </View>
+                    );
+                  })()}
+                {Boolean(task.subtask_count && task.subtask_count > 0) && (
                   <View
                     style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      backgroundColor: isOverdue
-                        ? 'rgba(239, 68, 68, 0.15)'
-                        : isDarkMode ? '#27272a' : '#f1f5f9',
+                      backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
                       paddingHorizontal: 7,
                       paddingVertical: 2,
                       borderRadius: 6,
-                      borderWidth: isOverdue ? 1 : 0,
-                      borderColor: isOverdue ? 'rgba(239, 68, 68, 0.4)' : 'transparent',
                     }}
                   >
-                    <Calendar size={11} color={isOverdue ? '#ef4444' : themePrimary} />
                     <Text
                       style={{
                         fontSize: 10,
                         fontWeight: '700',
-                        color: isOverdue ? '#ef4444' : (isDarkMode ? '#d4d4d8' : '#334155'),
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
                       }}
                     >
-                      {dueInfo.label}
+                      {task.subtask_completed_count || 0}/{task.subtask_count} steps
                     </Text>
                   </View>
-                );
-              })()}
-              {Boolean(task.subtask_count && task.subtask_count > 0) && (
-                <View style={{ backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                    {task.subtask_completed_count || 0}/{task.subtask_count} steps
-                  </Text>
-                </View>
-              )}
-              {Boolean(task.assignee_name) && (
-                <View style={{ backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', paddingHorizontal: 7, paddingVertical: 2, borderRadius: 6, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                  <Text style={{ fontSize: 10, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
-                    {task.assignee_name?.split(' ')[0]}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
+                )}
+                {Boolean(task.assignee_name) && (
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                      paddingHorizontal: 7,
+                      paddingVertical: 2,
+                      borderRadius: 6,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 10,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                      }}
+                    >
+                      {task.assignee_name?.split(' ')[0]}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+          </View>
         </View>
-      </View>
 
-      <TouchableOpacity
-        onPress={() => onToggleImportant(task)}
-        hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-        style={{ padding: 6 }}
-      >
-        <Star
-          size={20}
-          color={task.is_important ? '#f59e0b' : (isDarkMode ? '#52525b' : '#94a3b8')}
-          fill={task.is_important ? '#f59e0b' : 'none'}
-        />
+        <TouchableOpacity
+          onPress={() => onToggleImportant(task)}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          style={{ padding: 6 }}
+        >
+          <Star
+            size={20}
+            color={task.is_important ? '#f59e0b' : isDarkMode ? '#52525b' : '#94a3b8'}
+            fill={task.is_important ? '#f59e0b' : 'none'}
+          />
+        </TouchableOpacity>
       </TouchableOpacity>
-    </TouchableOpacity>
-  );
-});
+    );
+  }
+);
 
 interface CompletedTaskItemProps {
   task: Task;
@@ -271,78 +321,86 @@ interface CompletedTaskItemProps {
   onToggleComplete: (task: Task) => void;
 }
 
-const CompletedTaskItem = React.memo(({
-  task,
-  isDarkMode,
-  themePrimary,
-  isMultiSelectMode,
-  isCheckedForBatch,
-  onPress,
-  onLongPress,
-  onToggleComplete,
-}: CompletedTaskItemProps) => {
-  return (
-    <TouchableOpacity
-      onPress={() => onPress(task)}
-      onLongPress={() => onLongPress && onLongPress(task)}
-      delayLongPress={280}
-      activeOpacity={0.7}
-      style={{
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: 14,
-        minHeight: 52,
-        borderRadius: 16,
-        backgroundColor: isCheckedForBatch
-          ? (isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.1))
-          : (isDarkMode ? 'rgba(39, 39, 42, 0.4)' : '#f1f5f9'),
-        borderWidth: 1,
-        borderColor: isCheckedForBatch
-          ? themePrimary
-          : 'transparent',
-        opacity: isCheckedForBatch ? 1 : 0.75,
-        marginBottom: 6,
-      }}
-    >
-      <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
-        <TouchableOpacity
-          onPress={() => isMultiSelectMode ? onPress(task) : onToggleComplete(task)}
-          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          style={{
-            width: 22,
-            height: 22,
-            borderRadius: 6,
-            borderWidth: 2,
-            borderColor: isCheckedForBatch ? themePrimary : (isDarkMode ? '#52525b' : '#94a3b8'),
-            backgroundColor: isCheckedForBatch ? themePrimary : (isMultiSelectMode ? 'transparent' : themePrimary),
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {isCheckedForBatch ? (
-            <Check size={13} color="#ffffff" strokeWidth={3} />
-          ) : !isMultiSelectMode ? (
-            <Check size={13} color="#ffffff" strokeWidth={3} />
-          ) : null}
-        </TouchableOpacity>
+const CompletedTaskItem = React.memo(
+  ({
+    task,
+    isDarkMode,
+    themePrimary,
+    isMultiSelectMode,
+    isCheckedForBatch,
+    onPress,
+    onLongPress,
+    onToggleComplete,
+  }: CompletedTaskItemProps) => {
+    return (
+      <TouchableOpacity
+        onPress={() => onPress(task)}
+        onLongPress={() => onLongPress && onLongPress(task)}
+        delayLongPress={280}
+        activeOpacity={0.7}
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: 14,
+          minHeight: 52,
+          borderRadius: 16,
+          backgroundColor: isCheckedForBatch
+            ? isDarkMode
+              ? hexToRgba(themePrimary, 0.2)
+              : hexToRgba(themePrimary, 0.1)
+            : isDarkMode
+              ? 'rgba(39, 39, 42, 0.4)'
+              : '#f1f5f9',
+          borderWidth: 1,
+          borderColor: isCheckedForBatch ? themePrimary : 'transparent',
+          opacity: isCheckedForBatch ? 1 : 0.75,
+          marginBottom: 6,
+        }}
+      >
+        <View style={{ flexDirection: 'row', alignItems: 'center', flex: 1, gap: 12 }}>
+          <TouchableOpacity
+            onPress={() => (isMultiSelectMode ? onPress(task) : onToggleComplete(task))}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 6,
+              borderWidth: 2,
+              borderColor: isCheckedForBatch ? themePrimary : isDarkMode ? '#52525b' : '#94a3b8',
+              backgroundColor: isCheckedForBatch
+                ? themePrimary
+                : isMultiSelectMode
+                  ? 'transparent'
+                  : themePrimary,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isCheckedForBatch ? (
+              <Check size={13} color="#ffffff" strokeWidth={3} />
+            ) : !isMultiSelectMode ? (
+              <Check size={13} color="#ffffff" strokeWidth={3} />
+            ) : null}
+          </TouchableOpacity>
 
-        <Text
-          style={{
-            fontSize: 14,
-            fontWeight: '600',
-            color: isDarkMode ? '#a1a1aa' : '#64748b',
-            textDecorationLine: 'line-through',
-            flex: 1,
-          }}
-          numberOfLines={1}
-        >
-          {task.title}
-        </Text>
-      </View>
-    </TouchableOpacity>
-  );
-});
+          <Text
+            style={{
+              fontSize: 14,
+              fontWeight: '600',
+              color: isDarkMode ? '#a1a1aa' : '#64748b',
+              textDecorationLine: 'line-through',
+              flex: 1,
+            }}
+            numberOfLines={1}
+          >
+            {task.title}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }
+);
 
 interface SingleListViewProps {
   listId: number;
@@ -352,21 +410,23 @@ interface SingleListViewProps {
 export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const router = useRouter();
 
-  const isDarkMode = useUiStore((s) => s.isDarkMode);
-  const isMultiSelectMode = useUiStore((s) => s.isMultiSelectMode);
-  const selectedTaskIds = useUiStore((s) => s.selectedTaskIds);
-  const startMultiSelectWithTask = useUiStore((s) => s.startMultiSelectWithTask);
-  const toggleSelectTaskForBatch = useUiStore((s) => s.toggleSelectTaskForBatch);
-  const selectAllTasks = useUiStore((s) => s.selectAllTasks);
-  const clearSelectedBatchTasks = useUiStore((s) => s.clearSelectedBatchTasks);
-  const setSelectedTaskId = useUiStore((s) => s.setSelectedTaskId);
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
-  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
+  const isDarkMode = useUiStore(s => s.isDarkMode);
+  const isMultiSelectMode = useUiStore(s => s.isMultiSelectMode);
+  const selectedTaskIds = useUiStore(s => s.selectedTaskIds);
+  const startMultiSelectWithTask = useUiStore(s => s.startMultiSelectWithTask);
+  const toggleSelectTaskForBatch = useUiStore(s => s.toggleSelectTaskForBatch);
+  const selectAllTasks = useUiStore(s => s.selectAllTasks);
+  const clearSelectedBatchTasks = useUiStore(s => s.clearSelectedBatchTasks);
+  const setSelectedTaskId = useUiStore(s => s.setSelectedTaskId);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
+  const showAlertDialog = useUiStore(s => s.showAlertDialog);
 
   // A selection must not leak into another list while this route remains mounted.
-  useFocusEffect(useCallback(() => {
-    clearSelectedBatchTasks();
-  }, [clearSelectedBatchTasks]));
+  useFocusEffect(
+    useCallback(() => {
+      clearSelectedBatchTasks();
+    }, [clearSelectedBatchTasks])
+  );
   useEffect(() => {
     clearSelectedBatchTasks();
   }, [listId, clearSelectedBatchTasks]);
@@ -402,12 +462,19 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const [showLongPressShareModal, setShowLongPressShareModal] = useState(false);
   const [shareScope, setShareScope] = useState<'pending' | 'all' | 'current_view'>('pending');
   const [longPressRecipient, setLongPressRecipient] = useState<User | null>(null);
-  const pendingContactRef = useRef<{ id?: number; name?: string; phone?: string; is_group?: number | boolean } | null>(null);
+  const pendingContactRef = useRef<{
+    id?: number;
+    name?: string;
+    phone?: string;
+    is_group?: number | boolean;
+  } | null>(null);
 
   // Filter States
   const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'completed'>('all');
   const [filterImportance, setFilterImportance] = useState<'all' | 'important' | 'normal'>('all');
-  const [filterDue, setFilterDue] = useState<'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due'>('all');
+  const [filterDue, setFilterDue] = useState<
+    'all' | 'today' | 'tomorrow' | 'overdue' | 'has_due' | 'no_due'
+  >('all');
   const [filterAssigneeId, setFilterAssigneeId] = useState<number | 'unassigned' | 'all'>('all');
 
   const listsQuery = useListsQuery(1);
@@ -418,18 +485,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const users = usersQuery.data || [];
   const tasks = tasksQuery.data || [];
 
-  const selfUser = useMemo(() => users.find((u) => u.id === 1) || SELF_USER, [users]);
-  const existingGroups = useMemo(() => users.filter((u) => Boolean(u.is_group)), [users]);
+  const selfUser = useMemo(() => users.find(u => u.id === 1) || SELF_USER, [users]);
+  const existingGroups = useMemo(() => users.filter(u => Boolean(u.is_group)), [users]);
 
   const [refreshing, setRefreshing] = useState(false);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     try {
-      await Promise.all([
-        tasksQuery.refetch(),
-        listsQuery.refetch(),
-        usersQuery.refetch(),
-      ]);
+      await Promise.all([tasksQuery.refetch(), listsQuery.refetch(), usersQuery.refetch()]);
     } catch (error) {
       logError({ event: 'single_list_refresh_failed', outcome: 'failure' }, error);
       showAlertDialog('Refresh failed', 'Unable to refresh this list right now.');
@@ -451,18 +514,21 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   const togglePinViewMutation = useTogglePinViewMutation();
   const { openTask, TaskLoadingIndicator } = useTaskNavigation();
 
-  const handleCreateGroup = useCallback(async (groupName: string) => {
-    try {
-      const created = await addUserMutation.mutateAsync({
-        name: groupName,
-        phone: '',
-        is_group: 1,
-      });
-      return created;
-    } catch {
-      return null;
-    }
-  }, [addUserMutation]);
+  const handleCreateGroup = useCallback(
+    async (groupName: string) => {
+      try {
+        const created = await addUserMutation.mutateAsync({
+          name: groupName,
+          phone: '',
+          is_group: 1,
+        });
+        return created;
+      } catch {
+        return null;
+      }
+    },
+    [addUserMutation]
+  );
 
   // Pre-fetch all tasks and subtasks when tasks load in this list
   useEffect(() => {
@@ -489,46 +555,52 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     return () => subscription.remove();
   }, [isMultiSelectMode, selectedTaskIds.length, clearSelectedBatchTasks, onBack]);
 
-  const sortPreferences = useUiStore((s) => s.sortPreferences);
-  const setViewSort = useUiStore((s) => s.setViewSort);
+  const sortPreferences = useUiStore(s => s.sortPreferences);
+  const setViewSort = useUiStore(s => s.setViewSort);
   const viewKey = `list_${listId}`;
-  const currentSort = useMemo(() => sortPreferences[viewKey] || DEFAULT_SORT_CONFIG, [sortPreferences, viewKey]);
+  const currentSort = useMemo(
+    () => sortPreferences[viewKey] || DEFAULT_SORT_CONFIG,
+    [sortPreferences, viewKey]
+  );
 
-  const handleSelectSort = useCallback((config: ViewSortConfig) => {
-    logClientEvent({
-      event: 'sort_changed',
-      outcome: 'succeeded',
-      data: { viewKey, field: config.field, direction: config.direction },
-    });
-    setViewSort(viewKey, config);
-    const updated = { ...sortPreferences, [viewKey]: config };
-    updatePrefs.mutate({ sort_preferences: updated });
-  }, [viewKey, sortPreferences, setViewSort, updatePrefs]);
+  const handleSelectSort = useCallback(
+    (config: ViewSortConfig) => {
+      logClientEvent({
+        event: 'sort_changed',
+        outcome: 'succeeded',
+        data: { viewKey, field: config.field, direction: config.direction },
+      });
+      setViewSort(viewKey, config);
+      const updated = { ...sortPreferences, [viewKey]: config };
+      updatePrefs.mutate({ sort_preferences: updated });
+    },
+    [viewKey, sortPreferences, setViewSort, updatePrefs]
+  );
 
   const [showFormatPickerModal, setShowFormatPickerModal] = useState(false);
-  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
-  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
-  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
-  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
-  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
-  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
-  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
-  const hasChosenWhatsAppFormat = useUiStore((s) => s.hasChosenWhatsAppFormat);
-  const setHasChosenWhatsAppFormat = useUiStore((s) => s.setHasChosenWhatsAppFormat);
+  const defaultWhatsAppStyle = useUiStore(s => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore(s => s.defaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore(s => s.defaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore(s => s.defaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore(s => s.defaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore(s => s.defaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore(s => s.defaultWhatsAppIncludeListName);
+  const hasChosenWhatsAppFormat = useUiStore(s => s.hasChosenWhatsAppFormat);
+  const setHasChosenWhatsAppFormat = useUiStore(s => s.setHasChosenWhatsAppFormat);
 
-  const activeList = useMemo(() => lists.find((l) => l.id === listId), [lists, listId]);
+  const activeList = useMemo(() => lists.find(l => l.id === listId), [lists, listId]);
   const isListPinned = Boolean(activeList && pinnedViews.includes(`list:${activeList.id}`));
 
   const defaultContact = useMemo(() => {
     if (!activeList?.default_whatsapp_contact_id) return null;
-    return users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
+    return users.find(u => u.id === activeList.default_whatsapp_contact_id) || null;
   }, [users, activeList?.default_whatsapp_contact_id]);
 
   const filteredContacts = useMemo(() => {
     const q = contactPickerSearch.trim();
     if (!q) return users;
     return users
-      .filter((u) => fuzzyMatch(u.name || '', q) || fuzzyMatch(u.phone || '', q))
+      .filter(u => fuzzyMatch(u.name || '', q) || fuzzyMatch(u.phone || '', q))
       .sort((a, b) => {
         const scoreA = getMultiFieldSearchScore([a.name, a.phone], q);
         const scoreB = getMultiFieldSearchScore([b.name, b.phone], q);
@@ -547,53 +619,78 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     return getThemeGradient(listTheme, isDarkMode);
   }, [listTheme, isDarkMode]);
 
-  const handleToggleComplete = useCallback((task: Task) => {
-    if (isMultiSelectMode) {
-      if (selectedTaskIds.includes(task.id)) {
-        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+  const handleToggleComplete = useCallback(
+    (task: Task) => {
+      if (isMultiSelectMode) {
+        if (selectedTaskIds.includes(task.id)) {
+          logClientEvent({
+            event: 'task_deselected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        } else {
+          logClientEvent({
+            event: 'task_selected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        }
+        toggleSelectTaskForBatch(task.id);
       } else {
-        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+        const nextCompleted = task.is_completed ? 0 : 1;
+        logClientEvent({
+          event: 'task_completed_toggled',
+          outcome: 'succeeded',
+          data: { taskId: task.id, isCompleted: nextCompleted === 1 },
+        });
+        updateTaskMutation.mutate({
+          id: task.id,
+          is_completed: nextCompleted,
+        });
       }
-      toggleSelectTaskForBatch(task.id);
-    } else {
-      const nextCompleted = task.is_completed ? 0 : 1;
+    },
+    [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation, selectedTaskIds]
+  );
+
+  const handleToggleImportant = useCallback(
+    (task: Task) => {
+      const nextImportant = task.is_important ? 0 : 1;
       logClientEvent({
-        event: 'task_completed_toggled',
+        event: 'task_important_toggled',
         outcome: 'succeeded',
-        data: { taskId: task.id, isCompleted: nextCompleted === 1 },
+        data: { taskId: task.id, isImportant: nextImportant === 1 },
       });
       updateTaskMutation.mutate({
         id: task.id,
-        is_completed: nextCompleted,
+        is_important: nextImportant,
       });
-    }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, updateTaskMutation, selectedTaskIds]);
+    },
+    [updateTaskMutation]
+  );
 
-  const handleToggleImportant = useCallback((task: Task) => {
-    const nextImportant = task.is_important ? 0 : 1;
-    logClientEvent({
-      event: 'task_important_toggled',
-      outcome: 'succeeded',
-      data: { taskId: task.id, isImportant: nextImportant === 1 },
-    });
-    updateTaskMutation.mutate({
-      id: task.id,
-      is_important: nextImportant,
-    });
-  }, [updateTaskMutation]);
-
-  const handleTaskPress = useCallback((task: Task) => {
-    if (isMultiSelectMode) {
-      if (selectedTaskIds.includes(task.id)) {
-        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
+  const handleTaskPress = useCallback(
+    (task: Task) => {
+      if (isMultiSelectMode) {
+        if (selectedTaskIds.includes(task.id)) {
+          logClientEvent({
+            event: 'task_deselected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        } else {
+          logClientEvent({
+            event: 'task_selected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        }
+        toggleSelectTaskForBatch(task.id);
       } else {
-        logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+        openTask(task.id, listTheme);
       }
-      toggleSelectTaskForBatch(task.id);
-    } else {
-      openTask(task.id, listTheme);
-    }
-  }, [isMultiSelectMode, toggleSelectTaskForBatch, openTask, listTheme, selectedTaskIds]);
+    },
+    [isMultiSelectMode, toggleSelectTaskForBatch, openTask, listTheme, selectedTaskIds]
+  );
 
   const handleOpenNewTask = useCallback(() => {
     const themeParam = listTheme ? `&themeColor=${encodeURIComponent(listTheme)}` : '';
@@ -646,17 +743,20 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     setShowEditTitleModal(false);
   }, [activeList, editListTitle, updateListMutation]);
 
-  const openWhatsAppWithMessage = useCallback((phone: string | null | undefined, message: string) => {
-    const deepLink = generateWhatsAppDeepLink(phone || '', message);
-    Linking.canOpenURL(deepLink).then((supported) => {
-      if (supported) {
-        Linking.openURL(deepLink);
-      } else {
-        const webLink = generateWhatsAppWebLink(phone || '', message);
-        Linking.openURL(webLink);
-      }
-    });
-  }, []);
+  const openWhatsAppWithMessage = useCallback(
+    (phone: string | null | undefined, message: string) => {
+      const deepLink = generateWhatsAppDeepLink(phone || '', message);
+      Linking.canOpenURL(deepLink).then(supported => {
+        if (supported) {
+          Linking.openURL(deepLink);
+        } else {
+          const webLink = generateWhatsAppWebLink(phone || '', message);
+          Linking.openURL(webLink);
+        }
+      });
+    },
+    []
+  );
 
   const activeFiltersCount = useMemo(() => {
     let count = 0;
@@ -668,7 +768,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
   }, [filterStatus, filterImportance, filterDue, filterAssigneeId]);
 
   const handleResetFilters = useCallback(() => {
-    logClientEvent({ event: 'filters_reset', outcome: 'succeeded', data: { view: 'list', listId } });
+    logClientEvent({
+      event: 'filters_reset',
+      outcome: 'succeeded',
+      data: { view: 'list', listId },
+    });
     setSearchQuery('');
     setFilterStatus('all');
     setFilterImportance('all');
@@ -683,7 +787,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     const todayStr = getCalendarDateInTimeZone(new Date(), timeZone);
     const tomorrowStr = addCalendarDays(todayStr, 1);
 
-    return tasks.filter((task) => {
+    return tasks.filter(task => {
       if (searchQuery.trim()) {
         const titleMatch = fuzzyMatch(task.title || '', searchQuery);
         const notesMatch = fuzzyMatch(task.notes || '', searchQuery);
@@ -698,15 +802,22 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       if (filterImportance === 'important' && !task.is_important) return false;
       if (filterImportance === 'normal' && task.is_important) return false;
 
-      const taskDate = task.due_date ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || timeZone) : null;
+      const taskDate = task.due_date
+        ? getCalendarDateInTimeZone(task.due_date, task.due_timezone || timeZone)
+        : null;
       if (filterDue === 'today' && taskDate !== todayStr) return false;
       if (filterDue === 'tomorrow' && taskDate !== tomorrowStr) return false;
-      if (filterDue === 'overdue' && !isTaskOverdue(task.due_date, task.is_completed, task.due_timezone)) return false;
+      if (
+        filterDue === 'overdue' &&
+        !isTaskOverdue(task.due_date, task.is_completed, task.due_timezone)
+      )
+        return false;
       if (filterDue === 'has_due' && !task.due_date) return false;
       if (filterDue === 'no_due' && task.due_date) return false;
 
       if (filterAssigneeId === 'unassigned' && task.assigned_to_user_id) return false;
-      if (typeof filterAssigneeId === 'number' && task.assigned_to_user_id !== filterAssigneeId) return false;
+      if (typeof filterAssigneeId === 'number' && task.assigned_to_user_id !== filterAssigneeId)
+        return false;
 
       return true;
     });
@@ -729,8 +840,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     });
   }, [filteredTasks, currentSort, searchQuery]);
 
-  const pendingTasks = useMemo(() => sortedTasks.filter((t) => !t.is_completed), [sortedTasks]);
-  const completedTasks = useMemo(() => sortedTasks.filter((t) => t.is_completed), [sortedTasks]);
+  const pendingTasks = useMemo(() => sortedTasks.filter(t => !t.is_completed), [sortedTasks]);
+  const completedTasks = useMemo(() => sortedTasks.filter(t => t.is_completed), [sortedTasks]);
 
   useEffect(() => {
     if (activeList?.default_whatsapp_share_scope) {
@@ -749,7 +860,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
       let targetTasks: Task[] = [];
       if (chosenScope === 'pending') {
-        targetTasks = tasks.filter((t) => !t.is_completed);
+        targetTasks = tasks.filter(t => !t.is_completed);
       } else if (chosenScope === 'all') {
         targetTasks = tasks;
       } else {
@@ -757,32 +868,57 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       }
 
       if (targetTasks.length === 0) {
-        const msg = chosenScope === 'pending'
-          ? 'There are no pending tasks to share in this list.'
-          : 'There are no tasks matching the selected option.';
+        const msg =
+          chosenScope === 'pending'
+            ? 'There are no pending tasks to share in this list.'
+            : 'There are no tasks matching the selected option.';
         showAlertDialog('No Tasks to Share', msg);
         return;
       }
 
-      const styleToUse = overrideStyle || (activeList as any).whatsapp_message_style || defaultWhatsAppStyle || 'executive';
-      const notesToUse = overrideNotes !== undefined
-        ? (typeof overrideNotes === 'object' ? overrideNotes.includeNotes : overrideNotes)
-        : ((activeList as any).whatsapp_include_notes != null ? (activeList as any).whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes);
-      const assigneeToUse = typeof overrideNotes === 'object' && overrideNotes.includeAssignee !== undefined
-        ? overrideNotes.includeAssignee
-        : ((activeList as any).whatsapp_include_assignee != null ? (activeList as any).whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee);
-      const importantToUse = typeof overrideNotes === 'object' && overrideNotes.includeImportant !== undefined
-        ? overrideNotes.includeImportant
-        : ((activeList as any).whatsapp_include_important != null ? (activeList as any).whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant);
-      const stepsToUse = typeof overrideNotes === 'object' && overrideNotes.includeSteps !== undefined
-        ? overrideNotes.includeSteps
-        : ((activeList as any).whatsapp_include_steps != null ? (activeList as any).whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps);
-      const dueDateToUse = typeof overrideNotes === 'object' && overrideNotes.includeDueDate !== undefined
-        ? overrideNotes.includeDueDate
-        : ((activeList as any).whatsapp_include_due_date != null ? (activeList as any).whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate);
-      const listNameToUse = typeof overrideNotes === 'object' && overrideNotes.includeListName !== undefined
-        ? overrideNotes.includeListName
-        : ((activeList as any).whatsapp_include_list_name != null ? (activeList as any).whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName);
+      const styleToUse =
+        overrideStyle ||
+        (activeList as any).whatsapp_message_style ||
+        defaultWhatsAppStyle ||
+        'executive';
+      const notesToUse =
+        overrideNotes !== undefined
+          ? typeof overrideNotes === 'object'
+            ? overrideNotes.includeNotes
+            : overrideNotes
+          : (activeList as any).whatsapp_include_notes != null
+            ? (activeList as any).whatsapp_include_notes !== 0
+            : defaultWhatsAppIncludeNotes;
+      const assigneeToUse =
+        typeof overrideNotes === 'object' && overrideNotes.includeAssignee !== undefined
+          ? overrideNotes.includeAssignee
+          : (activeList as any).whatsapp_include_assignee != null
+            ? (activeList as any).whatsapp_include_assignee !== 0
+            : defaultWhatsAppIncludeAssignee;
+      const importantToUse =
+        typeof overrideNotes === 'object' && overrideNotes.includeImportant !== undefined
+          ? overrideNotes.includeImportant
+          : (activeList as any).whatsapp_include_important != null
+            ? (activeList as any).whatsapp_include_important !== 0
+            : defaultWhatsAppIncludeImportant;
+      const stepsToUse =
+        typeof overrideNotes === 'object' && overrideNotes.includeSteps !== undefined
+          ? overrideNotes.includeSteps
+          : (activeList as any).whatsapp_include_steps != null
+            ? (activeList as any).whatsapp_include_steps !== 0
+            : defaultWhatsAppIncludeSteps;
+      const dueDateToUse =
+        typeof overrideNotes === 'object' && overrideNotes.includeDueDate !== undefined
+          ? overrideNotes.includeDueDate
+          : (activeList as any).whatsapp_include_due_date != null
+            ? (activeList as any).whatsapp_include_due_date !== 0
+            : defaultWhatsAppIncludeDueDate;
+      const listNameToUse =
+        typeof overrideNotes === 'object' && overrideNotes.includeListName !== undefined
+          ? overrideNotes.includeListName
+          : (activeList as any).whatsapp_include_list_name != null
+            ? (activeList as any).whatsapp_include_list_name !== 0
+            : defaultWhatsAppIncludeListName;
 
       const message = formatWholeListMessage(activeList, targetTasks, {
         scope: chosenScope,
@@ -796,7 +932,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       });
       openWhatsAppWithMessage(contact.phone || '', message);
     },
-    [activeList, tasks, filteredTasks, defaultWhatsAppStyle, openWhatsAppWithMessage, showAlertDialog]
+    [
+      activeList,
+      tasks,
+      filteredTasks,
+      defaultWhatsAppStyle,
+      openWhatsAppWithMessage,
+      showAlertDialog,
+    ]
   );
 
   const handleWhatsAppList = useCallback(() => {
@@ -814,7 +957,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     } else if (activeList.default_whatsapp_contact_id === 1) {
       defaultContact = SELF_USER;
     } else if (activeList.default_whatsapp_contact_id) {
-      defaultContact = users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
+      defaultContact = users.find(u => u.id === activeList.default_whatsapp_contact_id) || null;
     }
 
     if (!defaultContact) {
@@ -843,7 +986,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       defaultContact,
       activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view'
     );
-  }, [activeList, tasks.length, users, hasChosenWhatsAppFormat, executeShareWithContactAndScope, showAlertDialog]);
+  }, [
+    activeList,
+    tasks.length,
+    users,
+    hasChosenWhatsAppFormat,
+    executeShareWithContactAndScope,
+    showAlertDialog,
+  ]);
 
   const handleSelectDefaultContact = useCallback(
     (user: User | null) => {
@@ -875,7 +1025,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         }
       }
     },
-    [activeList, isSharingFromPicker, hasChosenWhatsAppFormat, updateListMutation, executeShareWithContactAndScope]
+    [
+      activeList,
+      isSharingFromPicker,
+      hasChosenWhatsAppFormat,
+      updateListMutation,
+      executeShareWithContactAndScope,
+    ]
   );
 
   const handleChooseTasksToSendScope = useCallback(
@@ -919,12 +1075,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       setHasChosenWhatsAppFormat(true);
       updatePrefs.mutate({ has_chosen_whatsapp_format: 1 });
     },
-    [
-      activeList,
-      updateListMutation,
-      setHasChosenWhatsAppFormat,
-      updatePrefs,
-    ]
+    [activeList, updateListMutation, setHasChosenWhatsAppFormat, updatePrefs]
   );
 
   const handleCloseFormatPicker = useCallback(() => {
@@ -941,7 +1092,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         (activeList?.default_whatsapp_share_scope as any) || shareScope || 'pending'
       );
     }
-  }, [hasChosenWhatsAppFormat, setHasChosenWhatsAppFormat, updatePrefs, activeList?.default_whatsapp_share_scope, shareScope, executeShareWithContactAndScope]);
+  }, [
+    hasChosenWhatsAppFormat,
+    setHasChosenWhatsAppFormat,
+    updatePrefs,
+    activeList?.default_whatsapp_share_scope,
+    shareScope,
+    executeShareWithContactAndScope,
+  ]);
 
   const handleSelectShareScope = useCallback(
     (scope: 'pending' | 'all' | 'current_view') => {
@@ -958,7 +1116,8 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleLongPressWhatsApp = useCallback(() => {
     if (!activeList) return;
-    const initialScope = (activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
+    const initialScope =
+      (activeList.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
     setShareScope(initialScope);
 
     let recipient: User | null = null;
@@ -967,7 +1126,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     } else if (activeList.default_whatsapp_contact_id === 1) {
       recipient = SELF_USER;
     } else if (activeList.default_whatsapp_contact_id) {
-      recipient = users.find((u) => u.id === activeList.default_whatsapp_contact_id) || null;
+      recipient = users.find(u => u.id === activeList.default_whatsapp_contact_id) || null;
     } else if (activeList.default_whatsapp_contact_phone) {
       recipient = {
         id: 0,
@@ -977,11 +1136,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       };
     } else {
       const assignedUserIds = tasks
-        .map((t) => t.assigned_to_user_id)
+        .map(t => t.assigned_to_user_id)
         .filter((id): id is number => typeof id === 'number' && id > 0);
       const uniqueAssignees = Array.from(new Set(assignedUserIds));
       if (tasks.length > 0 && uniqueAssignees.length === 1) {
-        recipient = users.find((u) => u.id === uniqueAssignees[0]) || null;
+        recipient = users.find(u => u.id === uniqueAssignees[0]) || null;
       }
     }
     setLongPressRecipient(recipient);
@@ -990,34 +1149,57 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const deleteTaskMutation = useDeleteTaskMutation();
 
-  const handleTaskLongPress = useCallback((task: Task) => {
-    if (!isMultiSelectMode) {
-      logClientEvent({ event: 'multiselect_started', outcome: 'started', data: { initialTaskId: task.id } });
-      logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
-      startMultiSelectWithTask(task.id);
-    } else {
-      if (selectedTaskIds.includes(task.id)) {
-        logClientEvent({ event: 'task_deselected', outcome: 'succeeded', data: { taskId: task.id } });
-      } else {
+  const handleTaskLongPress = useCallback(
+    (task: Task) => {
+      if (!isMultiSelectMode) {
+        logClientEvent({
+          event: 'multiselect_started',
+          outcome: 'started',
+          data: { initialTaskId: task.id },
+        });
         logClientEvent({ event: 'task_selected', outcome: 'succeeded', data: { taskId: task.id } });
+        startMultiSelectWithTask(task.id);
+      } else {
+        if (selectedTaskIds.includes(task.id)) {
+          logClientEvent({
+            event: 'task_deselected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        } else {
+          logClientEvent({
+            event: 'task_selected',
+            outcome: 'succeeded',
+            data: { taskId: task.id },
+          });
+        }
+        toggleSelectTaskForBatch(task.id);
       }
-      toggleSelectTaskForBatch(task.id);
-    }
-  }, [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch, selectedTaskIds]);
+    },
+    [isMultiSelectMode, startMultiSelectWithTask, toggleSelectTaskForBatch, selectedTaskIds]
+  );
 
   // Bulk Actions
   const handleBulkShare = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
-    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
     if (selectedTasks.length === 0) return;
-    logClientEvent({ event: 'bulk_share_started', outcome: 'started', data: { count: selectedTaskIds.length } });
+    logClientEvent({
+      event: 'bulk_share_started',
+      outcome: 'started',
+      data: { count: selectedTaskIds.length },
+    });
 
     const message = formatBatchTasksMessage(selectedTasks);
     const defaultUser = activeList?.default_whatsapp_contact_id
-      ? users.find((u) => u.id === activeList.default_whatsapp_contact_id)
+      ? users.find(u => u.id === activeList.default_whatsapp_contact_id)
       : null;
-    const firstWithPhone = selectedTasks.find((t) => t.assignee_phone);
-    const phone = defaultUser?.phone || activeList?.default_whatsapp_contact_phone || firstWithPhone?.assignee_phone || '';
+    const firstWithPhone = selectedTasks.find(t => t.assignee_phone);
+    const phone =
+      defaultUser?.phone ||
+      activeList?.default_whatsapp_contact_phone ||
+      firstWithPhone?.assignee_phone ||
+      '';
     const waLink = generateWhatsAppWebLink(phone, message);
     Linking.openURL(waLink).catch(() => {
       showAlertDialog('Error', 'Unable to open WhatsApp on this device');
@@ -1026,10 +1208,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleBulkComplete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
-    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
-    const allCompleted = selectedTasks.every((t) => t.is_completed);
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
+    const allCompleted = selectedTasks.every(t => t.is_completed);
     const newStatus = allCompleted ? 0 : 1;
-    logClientEvent({ event: 'bulk_complete_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
+    logClientEvent({
+      event: 'bulk_complete_started',
+      outcome: 'started',
+      data: { count: selectedTaskIds.length, targetStatus: newStatus },
+    });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_completed: newStatus });
@@ -1039,10 +1225,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
   const handleBulkImportant = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
-    const selectedTasks = tasks.filter((t) => selectedTaskIds.includes(t.id));
-    const allImportant = selectedTasks.every((t) => t.is_important);
+    const selectedTasks = tasks.filter(t => selectedTaskIds.includes(t.id));
+    const allImportant = selectedTasks.every(t => t.is_important);
     const newStatus = allImportant ? 0 : 1;
-    logClientEvent({ event: 'bulk_important_started', outcome: 'started', data: { count: selectedTaskIds.length, targetStatus: newStatus } });
+    logClientEvent({
+      event: 'bulk_important_started',
+      outcome: 'started',
+      data: { count: selectedTaskIds.length, targetStatus: newStatus },
+    });
 
     for (const taskId of selectedTaskIds) {
       updateTaskMutation.mutate({ id: taskId, is_important: newStatus });
@@ -1050,23 +1240,37 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
     clearSelectedBatchTasks();
   }, [selectedTaskIds, tasks, updateTaskMutation, clearSelectedBatchTasks]);
 
-  const handleBulkDueDate = useCallback((dueDate: string | null, dueTimezone?: string | null) => {
-    if (selectedTaskIds.length === 0) return;
-    logClientEvent({ event: 'bulk_due_date_started', outcome: 'started', data: { count: selectedTaskIds.length, dueDate } });
-    for (const taskId of selectedTaskIds) {
-      updateTaskMutation.mutate({ id: taskId, due_date: dueDate, due_timezone: dueTimezone });
-    }
-    clearSelectedBatchTasks();
-  }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
+  const handleBulkDueDate = useCallback(
+    (dueDate: string | null, dueTimezone?: string | null) => {
+      if (selectedTaskIds.length === 0) return;
+      logClientEvent({
+        event: 'bulk_due_date_started',
+        outcome: 'started',
+        data: { count: selectedTaskIds.length, dueDate },
+      });
+      for (const taskId of selectedTaskIds) {
+        updateTaskMutation.mutate({ id: taskId, due_date: dueDate, due_timezone: dueTimezone });
+      }
+      clearSelectedBatchTasks();
+    },
+    [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]
+  );
 
-  const handleBulkAssignee = useCallback((userId: number | null) => {
-    if (selectedTaskIds.length === 0) return;
-    logClientEvent({ event: 'bulk_assign_started', outcome: 'started', data: { count: selectedTaskIds.length, userId } });
-    for (const taskId of selectedTaskIds) {
-      updateTaskMutation.mutate({ id: taskId, assigned_to_user_id: userId });
-    }
-    clearSelectedBatchTasks();
-  }, [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]);
+  const handleBulkAssignee = useCallback(
+    (userId: number | null) => {
+      if (selectedTaskIds.length === 0) return;
+      logClientEvent({
+        event: 'bulk_assign_started',
+        outcome: 'started',
+        data: { count: selectedTaskIds.length, userId },
+      });
+      for (const taskId of selectedTaskIds) {
+        updateTaskMutation.mutate({ id: taskId, assigned_to_user_id: userId });
+      }
+      clearSelectedBatchTasks();
+    },
+    [selectedTaskIds, updateTaskMutation, clearSelectedBatchTasks]
+  );
 
   const handleBulkDelete = useCallback(() => {
     if (selectedTaskIds.length === 0) return;
@@ -1076,7 +1280,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       type: 'danger',
       confirmLabel: 'Delete Tasks',
       onConfirm: () => {
-        logClientEvent({ event: 'bulk_delete_started', outcome: 'started', data: { count: selectedTaskIds.length } });
+        logClientEvent({
+          event: 'bulk_delete_started',
+          outcome: 'started',
+          data: { count: selectedTaskIds.length },
+        });
         for (const taskId of selectedTaskIds) {
           deleteTaskMutation.mutate(taskId);
         }
@@ -1090,7 +1298,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
     let targetTasks: Task[] = [];
     if (shareScope === 'pending') {
-      targetTasks = tasks.filter((t) => !t.is_completed);
+      targetTasks = tasks.filter(t => !t.is_completed);
     } else if (shareScope === 'all') {
       targetTasks = tasks;
     } else {
@@ -1110,12 +1318,15 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       (activeList.default_whatsapp_contact_id === -1
         ? WHATSAPP_GROUP_USER
         : activeList.default_whatsapp_contact_id === 1
-        ? SELF_USER
-        : activeList.default_whatsapp_contact_id
-        ? users.find((u) => u.id === activeList.default_whatsapp_contact_id)
-        : null) ||
+          ? SELF_USER
+          : activeList.default_whatsapp_contact_id
+            ? users.find(u => u.id === activeList.default_whatsapp_contact_id)
+            : null) ||
       (activeList.default_whatsapp_contact_phone
-        ? { name: activeList.default_whatsapp_contact_name || 'Contact', phone: activeList.default_whatsapp_contact_phone }
+        ? {
+            name: activeList.default_whatsapp_contact_name || 'Contact',
+            phone: activeList.default_whatsapp_contact_phone,
+          }
         : null);
 
     if (recipient) {
@@ -1124,378 +1335,481 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       setIsSharingFromPicker(true);
       setShowContactPicker(true);
     }
-  }, [activeList, shareScope, tasks, filteredTasks, longPressRecipient, users, openWhatsAppWithMessage, showAlertDialog]);
+  }, [
+    activeList,
+    shareScope,
+    tasks,
+    filteredTasks,
+    longPressRecipient,
+    users,
+    openWhatsAppWithMessage,
+    showAlertDialog,
+  ]);
 
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0
+  );
 
-  const renderItem = useCallback(({ item }: { item: Task }) => {
-    const isCheckedForBatch = selectedTaskIds.includes(item.id);
-    return (
-      <TaskItem
-        task={item}
-        isDarkMode={isDarkMode}
-        isMultiSelectMode={isMultiSelectMode}
-        isCheckedForBatch={isCheckedForBatch}
-        themePrimary={themePrimary}
-        onPress={handleTaskPress}
-        onLongPress={handleTaskLongPress}
-        onToggleComplete={handleToggleComplete}
-        onToggleImportant={handleToggleImportant}
-      />
-    );
-  }, [selectedTaskIds, isDarkMode, isMultiSelectMode, themePrimary, handleTaskPress, handleTaskLongPress, handleToggleComplete, handleToggleImportant]);
+  const renderItem = useCallback(
+    ({ item }: { item: Task }) => {
+      const isCheckedForBatch = selectedTaskIds.includes(item.id);
+      return (
+        <TaskItem
+          task={item}
+          isDarkMode={isDarkMode}
+          isMultiSelectMode={isMultiSelectMode}
+          isCheckedForBatch={isCheckedForBatch}
+          themePrimary={themePrimary}
+          onPress={handleTaskPress}
+          onLongPress={handleTaskLongPress}
+          onToggleComplete={handleToggleComplete}
+          onToggleImportant={handleToggleImportant}
+        />
+      );
+    },
+    [
+      selectedTaskIds,
+      isDarkMode,
+      isMultiSelectMode,
+      themePrimary,
+      handleTaskPress,
+      handleTaskLongPress,
+      handleToggleComplete,
+      handleToggleImportant,
+    ]
+  );
 
-  const ListHeader = useMemo(() => (
-    <View style={{ paddingTop: 4, paddingBottom: 14 }}>
-      {/* Search & Filters Row OR Contextual Bulk Actions Bar */}
-      {isMultiSelectMode && selectedTaskIds.length > 0 ? (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            height: 52,
-            backgroundColor: isDarkMode ? '#1e293b' : '#0f172a',
-            borderRadius: 16,
-            paddingHorizontal: 12,
-            marginTop: 6,
-            borderWidth: 1,
-            borderColor: isDarkMode ? '#334155' : '#1e293b',
-          }}
-        >
-          {/* Left: Close & Count */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-            <TouchableOpacity
-              onPress={clearSelectedBatchTasks}
-              hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-              style={{
-                width: 32,
-                height: 32,
-                borderRadius: 16,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <X size={16} color="#ffffff" />
-            </TouchableOpacity>
-            <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>
-              {selectedTaskIds.length} Selected
-            </Text>
-          </View>
-
-          {/* Right: 6 Action Icons */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            {/* Share Together */}
-            <TouchableOpacity
-              onPress={handleBulkShare}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: '#25D366',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <WhatsAppIcon size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Mark Complete */}
-            <TouchableOpacity
-              onPress={handleBulkComplete}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <CheckCircle2 size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Mark Important */}
-            <TouchableOpacity
-              onPress={handleBulkImportant}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Star size={18} color="#f59e0b" fill="#f59e0b" />
-            </TouchableOpacity>
-
-            {/* Assign Due Date */}
-            <TouchableOpacity
-              onPress={() => setShowBulkDueModal(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Calendar size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Assign Assignee */}
-            <TouchableOpacity
-              onPress={() => setShowBulkAssigneeModal(true)}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(255,255,255,0.15)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <UserCheck size={18} color="#ffffff" />
-            </TouchableOpacity>
-
-            {/* Delete All */}
-            <TouchableOpacity
-              onPress={handleBulkDelete}
-              hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
-              style={{
-                width: 36,
-                height: 36,
-                borderRadius: 10,
-                backgroundColor: 'rgba(239, 68, 68, 0.25)',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Trash2 size={18} color="#ef4444" />
-            </TouchableOpacity>
-          </View>
-        </View>
-      ) : (
-        <>
-          {/* Search Bar & Filters Button */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
-            <View
-              style={{
-                flex: 1,
-                flexDirection: 'row',
-                alignItems: 'center',
-                height: 52,
-                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-                borderRadius: 16,
-                borderWidth: 1,
-                borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-                paddingHorizontal: 14,
-              }}
-            >
-              <Search size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 10 }} />
-              <TextInput
-                placeholder="Search"
-                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-                value={searchQuery}
-                onChangeText={(text) => {
-                  if (!text && searchQuery.length > 0) {
-                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
-                  }
-                  setSearchQuery(text);
-                }}
-                style={{
-                  flex: 1,
-                  height: '100%',
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDarkMode ? '#ffffff' : '#0f172a',
-                }}
-              />
-              {searchQuery.length > 0 && (
-                <TouchableOpacity
-                  onPress={() => {
-                    logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
-                    setSearchQuery('');
-                  }}
-                  hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-                  style={{ padding: 4 }}
-                >
-                  <X size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <TouchableOpacity
-              onPress={() => setShowFilterModal(true)}
-              activeOpacity={0.7}
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 16,
-                backgroundColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: activeFiltersCount > 0 ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
-              }}
-            >
-              <SlidersHorizontal size={20} color={activeFiltersCount > 0 ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
-              {activeFiltersCount > 0 && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    minWidth: 20,
-                    height: 20,
-                    borderRadius: 10,
-                    backgroundColor: '#f59e0b',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingHorizontal: 4,
-                    borderWidth: 2,
-                    borderColor: isDarkMode ? '#09090b' : '#f8fafc',
-                  }}
-                >
-                  <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff' }}>{activeFiltersCount}</Text>
-                </View>
-              )}
-            </TouchableOpacity>
-
-            {/* Sort Trigger Button - 52x52px Touch Target */}
-            <TouchableOpacity
-              onPress={() => setShowSortModal(true)}
-              activeOpacity={0.7}
-              style={{
-                width: 52,
-                height: 52,
-                borderRadius: 16,
-                backgroundColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#18181b' : '#ffffff'),
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderWidth: 1,
-                borderColor: currentSort.field !== 'smart' ? themePrimary : (isDarkMode ? '#27272a' : '#e2e8f0'),
-              }}
-            >
-              <ArrowUpDown size={20} color={currentSort.field !== 'smart' ? '#ffffff' : (isDarkMode ? '#ffffff' : '#0f172a')} />
-              {currentSort.field !== 'smart' && (
-                <View
-                  style={{
-                    position: 'absolute',
-                    top: -4,
-                    right: -4,
-                    width: 14,
-                    height: 14,
-                    borderRadius: 7,
-                    backgroundColor: '#f59e0b',
-                    borderWidth: 2,
-                    borderColor: isDarkMode ? '#09090b' : '#f8fafc',
-                  }}
-                />
-              )}
-            </TouchableOpacity>
-
-            {/* Universal Clear All Filters, Search & Sort Button */}
-            {(activeFiltersCount > 0 || currentSort.field !== 'smart' || searchQuery.trim().length > 0) && (
+  const ListHeader = useMemo(
+    () => (
+      <View style={{ paddingTop: 4, paddingBottom: 14 }}>
+        {/* Search & Filters Row OR Contextual Bulk Actions Bar */}
+        {isMultiSelectMode && selectedTaskIds.length > 0 ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              height: 52,
+              backgroundColor: isDarkMode ? '#1e293b' : '#0f172a',
+              borderRadius: 16,
+              paddingHorizontal: 12,
+              marginTop: 6,
+              borderWidth: 1,
+              borderColor: isDarkMode ? '#334155' : '#1e293b',
+            }}
+          >
+            {/* Left: Close & Count */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <TouchableOpacity
-                onPress={handleResetFilters}
-                activeOpacity={0.7}
+                onPress={clearSelectedBatchTasks}
+                hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
                 style={{
-                  height: 52,
-                  paddingHorizontal: 12,
+                  width: 32,
+                  height: 32,
                   borderRadius: 16,
-                  backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
-                  borderWidth: 1,
-                  borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fca5a5',
-                  flexDirection: 'row',
+                  backgroundColor: 'rgba(255,255,255,0.15)',
                   alignItems: 'center',
-                  gap: 5,
+                  justifyContent: 'center',
                 }}
               >
-                <RotateCcw size={16} color="#ef4444" />
-                <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>Clear</Text>
+                <X size={16} color="#ffffff" />
               </TouchableOpacity>
-            )}
-          </View>
+              <Text style={{ color: '#ffffff', fontSize: 14, fontWeight: '800' }}>
+                {selectedTaskIds.length} Selected
+              </Text>
+            </View>
 
-          {/* Active Filter & Sort Indicator Chips */}
-          {(activeFiltersCount > 0 || currentSort.field !== 'smart') && (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-              {currentSort.field !== 'smart' && (
+            {/* Right: 6 Action Icons */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              {/* Share Together */}
+              <TouchableOpacity
+                onPress={handleBulkShare}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: '#25D366',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <WhatsAppIcon size={18} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Mark Complete */}
+              <TouchableOpacity
+                onPress={handleBulkComplete}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <CheckCircle2 size={18} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Mark Important */}
+              <TouchableOpacity
+                onPress={handleBulkImportant}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Star size={18} color="#f59e0b" fill="#f59e0b" />
+              </TouchableOpacity>
+
+              {/* Assign Due Date */}
+              <TouchableOpacity
+                onPress={() => setShowBulkDueModal(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Calendar size={18} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Assign Assignee */}
+              <TouchableOpacity
+                onPress={() => setShowBulkAssigneeModal(true)}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(255,255,255,0.15)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <UserCheck size={18} color="#ffffff" />
+              </TouchableOpacity>
+
+              {/* Delete All */}
+              <TouchableOpacity
+                onPress={handleBulkDelete}
+                hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 10,
+                  backgroundColor: 'rgba(239, 68, 68, 0.25)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Trash2 size={18} color="#ef4444" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : (
+          <>
+            {/* Search Bar & Filters Button */}
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 6 }}>
+              <View
+                style={{
+                  flex: 1,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  height: 52,
+                  backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                  borderRadius: 16,
+                  borderWidth: 1,
+                  borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
+                  paddingHorizontal: 14,
+                }}
+              >
+                <Search
+                  size={18}
+                  color={isDarkMode ? '#71717a' : '#94a3b8'}
+                  style={{ marginRight: 10 }}
+                />
+                <TextInput
+                  placeholder="Search"
+                  placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                  value={searchQuery}
+                  onChangeText={text => {
+                    if (!text && searchQuery.length > 0) {
+                      logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                    }
+                    setSearchQuery(text);
+                  }}
+                  style={{
+                    flex: 1,
+                    height: '100%',
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                />
+                {searchQuery.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => {
+                      logClientEvent({ event: 'task_search_cleared', outcome: 'succeeded' });
+                      setSearchQuery('');
+                    }}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    style={{ padding: 4 }}
+                  >
+                    <X size={16} color={isDarkMode ? '#71717a' : '#94a3b8'} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              <TouchableOpacity
+                onPress={() => setShowFilterModal(true)}
+                activeOpacity={0.7}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 16,
+                  backgroundColor:
+                    activeFiltersCount > 0 ? themePrimary : isDarkMode ? '#18181b' : '#ffffff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor:
+                    activeFiltersCount > 0 ? themePrimary : isDarkMode ? '#27272a' : '#e2e8f0',
+                }}
+              >
+                <SlidersHorizontal
+                  size={20}
+                  color={activeFiltersCount > 0 ? '#ffffff' : isDarkMode ? '#ffffff' : '#0f172a'}
+                />
+                {activeFiltersCount > 0 && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      minWidth: 20,
+                      height: 20,
+                      borderRadius: 10,
+                      backgroundColor: '#f59e0b',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      paddingHorizontal: 4,
+                      borderWidth: 2,
+                      borderColor: isDarkMode ? '#09090b' : '#f8fafc',
+                    }}
+                  >
+                    <Text style={{ fontSize: 10, fontWeight: '800', color: '#ffffff' }}>
+                      {activeFiltersCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Sort Trigger Button - 52x52px Touch Target */}
+              <TouchableOpacity
+                onPress={() => setShowSortModal(true)}
+                activeOpacity={0.7}
+                style={{
+                  width: 52,
+                  height: 52,
+                  borderRadius: 16,
+                  backgroundColor:
+                    currentSort.field !== 'smart'
+                      ? themePrimary
+                      : isDarkMode
+                        ? '#18181b'
+                        : '#ffffff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderWidth: 1,
+                  borderColor:
+                    currentSort.field !== 'smart'
+                      ? themePrimary
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#e2e8f0',
+                }}
+              >
+                <ArrowUpDown
+                  size={20}
+                  color={
+                    currentSort.field !== 'smart' ? '#ffffff' : isDarkMode ? '#ffffff' : '#0f172a'
+                  }
+                />
+                {currentSort.field !== 'smart' && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      top: -4,
+                      right: -4,
+                      width: 14,
+                      height: 14,
+                      borderRadius: 7,
+                      backgroundColor: '#f59e0b',
+                      borderWidth: 2,
+                      borderColor: isDarkMode ? '#09090b' : '#f8fafc',
+                    }}
+                  />
+                )}
+              </TouchableOpacity>
+
+              {/* Universal Clear All Filters, Search & Sort Button */}
+              {(activeFiltersCount > 0 ||
+                currentSort.field !== 'smart' ||
+                searchQuery.trim().length > 0) && (
                 <TouchableOpacity
-                  onPress={() => setShowSortModal(true)}
+                  onPress={handleResetFilters}
                   activeOpacity={0.7}
-                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, justifyContent: 'center' }}
+                  style={{
+                    height: 52,
+                    paddingHorizontal: 12,
+                    borderRadius: 16,
+                    backgroundColor: isDarkMode ? 'rgba(239, 68, 68, 0.15)' : '#fee2e2',
+                    borderWidth: 1,
+                    borderColor: isDarkMode ? 'rgba(239, 68, 68, 0.3)' : '#fca5a5',
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 5,
+                  }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
-                    Sort: {getSortDisplayLabel(currentSort)}
-                  </Text>
-                </TouchableOpacity>
-              )}
-              {filterStatus !== 'all' && (
-                <TouchableOpacity
-                  onPress={() => setFilterStatus('all')}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Status: {filterStatus}</Text>
-                  <X size={12} color={themePrimary} />
-                </TouchableOpacity>
-              )}
-              {filterImportance !== 'all' && (
-                <TouchableOpacity
-                  onPress={() => setFilterImportance('all')}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={{ minHeight: 32, backgroundColor: 'rgba(245,158,11,0.12)', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>{filterImportance}</Text>
-                  <X size={12} color="#f59e0b" />
-                </TouchableOpacity>
-              )}
-              {filterDue !== 'all' && (
-                <TouchableOpacity
-                  onPress={() => setFilterDue('all')}
-                  activeOpacity={0.7}
-                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
-                  style={{ minHeight: 32, backgroundColor: hexToRgba(themePrimary, 0.12), paddingHorizontal: 10, paddingVertical: 6, borderRadius: 10, flexDirection: 'row', alignItems: 'center', gap: 5 }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>Due: {filterDue}</Text>
-                  <X size={12} color={themePrimary} />
+                  <RotateCcw size={16} color="#ef4444" />
+                  <Text style={{ fontSize: 13, fontWeight: '800', color: '#ef4444' }}>Clear</Text>
                 </TouchableOpacity>
               )}
             </View>
-          )}
-        </>
-      )}
-    </View>
-  ), [
-    isMultiSelectMode,
-    selectedTaskIds,
-    isDarkMode,
-    themePrimary,
-    clearSelectedBatchTasks,
-    handleBulkShare,
-    handleBulkComplete,
-    handleBulkImportant,
-    handleBulkDelete,
-    searchQuery,
-    activeFiltersCount,
-    currentSort,
-    filterStatus,
-    filterImportance,
-    filterDue,
-    handleResetFilters,
-  ]);
+
+            {/* Active Filter & Sort Indicator Chips */}
+            {(activeFiltersCount > 0 || currentSort.field !== 'smart') && (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 8,
+                  marginTop: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                {currentSort.field !== 'smart' && (
+                  <TouchableOpacity
+                    onPress={() => setShowSortModal(true)}
+                    activeOpacity={0.7}
+                    style={{
+                      minHeight: 32,
+                      backgroundColor: hexToRgba(themePrimary, 0.12),
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                      Sort: {getSortDisplayLabel(currentSort)}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                {filterStatus !== 'all' && (
+                  <TouchableOpacity
+                    onPress={() => setFilterStatus('all')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={{
+                      minHeight: 32,
+                      backgroundColor: hexToRgba(themePrimary, 0.12),
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                      Status: {filterStatus}
+                    </Text>
+                    <X size={12} color={themePrimary} />
+                  </TouchableOpacity>
+                )}
+                {filterImportance !== 'all' && (
+                  <TouchableOpacity
+                    onPress={() => setFilterImportance('all')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={{
+                      minHeight: 32,
+                      backgroundColor: 'rgba(245,158,11,0.12)',
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: '#f59e0b' }}>
+                      {filterImportance}
+                    </Text>
+                    <X size={12} color="#f59e0b" />
+                  </TouchableOpacity>
+                )}
+                {filterDue !== 'all' && (
+                  <TouchableOpacity
+                    onPress={() => setFilterDue('all')}
+                    activeOpacity={0.7}
+                    hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                    style={{
+                      minHeight: 32,
+                      backgroundColor: hexToRgba(themePrimary, 0.12),
+                      paddingHorizontal: 10,
+                      paddingVertical: 6,
+                      borderRadius: 10,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                    }}
+                  >
+                    <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary }}>
+                      Due: {filterDue}
+                    </Text>
+                    <X size={12} color={themePrimary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            )}
+          </>
+        )}
+      </View>
+    ),
+    [
+      isMultiSelectMode,
+      selectedTaskIds,
+      isDarkMode,
+      themePrimary,
+      clearSelectedBatchTasks,
+      handleBulkShare,
+      handleBulkComplete,
+      handleBulkImportant,
+      handleBulkDelete,
+      searchQuery,
+      activeFiltersCount,
+      currentSort,
+      filterStatus,
+      filterImportance,
+      filterDue,
+      handleResetFilters,
+    ]
+  );
 
   const ListEmpty = useMemo(() => {
     if (completedTasks.length > 0) return null;
@@ -1526,11 +1840,22 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         >
           <Sparkles size={28} color={themePrimary} />
         </View>
-        <Text style={{ fontSize: 16, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+        <Text
+          style={{ fontSize: 16, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+        >
           {isFiltered ? 'No matching tasks' : 'No tasks yet in this list'}
         </Text>
-        <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 4, textAlign: 'center' }}>
-          {isFiltered ? 'Try adjusting your search or filters.' : 'Tap the + button below to create your first task in this list.'}
+        <Text
+          style={{
+            fontSize: 13,
+            color: isDarkMode ? '#a1a1aa' : '#64748b',
+            marginTop: 4,
+            textAlign: 'center',
+          }}
+        >
+          {isFiltered
+            ? 'Try adjusting your search or filters.'
+            : 'Tap the + button below to create your first task in this list.'}
         </Text>
       </View>
     );
@@ -1542,7 +1867,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       <View style={{ marginTop: 12, paddingBottom: 30 }}>
         <TouchableOpacity
           onPress={() => {
-            logClientEvent({ event: 'completed_section_toggled', outcome: 'succeeded', data: { showCompleted: !showCompleted } });
+            logClientEvent({
+              event: 'completed_section_toggled',
+              outcome: 'succeeded',
+              data: { showCompleted: !showCompleted },
+            });
             setShowCompleted(!showCompleted);
           }}
           activeOpacity={0.7}
@@ -1575,7 +1904,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
         {showCompleted && (
           <View>
-            {completedTasks.map((task) => (
+            {completedTasks.map(task => (
               <CompletedTaskItem
                 key={task.id}
                 task={task}
@@ -1592,10 +1921,22 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         )}
       </View>
     );
-  }, [completedTasks, isDarkMode, showCompleted, themePrimary, isMultiSelectMode, selectedTaskIds, handleTaskPress, handleTaskLongPress, handleToggleComplete]);
+  }, [
+    completedTasks,
+    isDarkMode,
+    showCompleted,
+    themePrimary,
+    isMultiSelectMode,
+    selectedTaskIds,
+    handleTaskPress,
+    handleTaskLongPress,
+    handleToggleComplete,
+  ]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}>
+    <View
+      style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}
+    >
       {/* Top Header Bar with Navigation and Actions */}
       <View
         style={{
@@ -1650,11 +1991,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             >
               {activeList?.title || 'List Details'}
             </Text>
-            <Pencil size={12} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginLeft: 2, opacity: 0.8 }} />
+            <Pencil
+              size={12}
+              color={isDarkMode ? '#71717a' : '#94a3b8'}
+              style={{ marginLeft: 2, opacity: 0.8 }}
+            />
           </View>
           <View
             style={{
-              backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.18) : hexToRgba(themePrimary, 0.1),
+              backgroundColor: isDarkMode
+                ? hexToRgba(themePrimary, 0.18)
+                : hexToRgba(themePrimary, 0.1),
               paddingHorizontal: 8,
               paddingVertical: 1.5,
               borderRadius: 10,
@@ -1699,7 +2046,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       {/* Main FlatList */}
       <FlatList
         data={pendingTasks}
-        keyExtractor={(task) => String(task.id)}
+        keyExtractor={task => String(task.id)}
         renderItem={renderItem}
         ListHeaderComponent={ListHeader}
         ListEmptyComponent={ListEmpty}
@@ -1847,21 +2194,36 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             }}
           >
             {/* Modal Header */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 18,
+              }}
+            >
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                 <View
                   style={{
                     width: 36,
                     height: 36,
                     borderRadius: 12,
-                    backgroundColor: isDarkMode ? hexToRgba(themePrimary, 0.2) : hexToRgba(themePrimary, 0.12),
+                    backgroundColor: isDarkMode
+                      ? hexToRgba(themePrimary, 0.2)
+                      : hexToRgba(themePrimary, 0.12),
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                 >
                   <Pencil size={18} color={themePrimary} />
                 </View>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   Rename List
                 </Text>
               </View>
@@ -1937,7 +2299,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#d4d4d8' : '#475569' }}>
+                <Text
+                  style={{
+                    fontSize: 15,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#d4d4d8' : '#475569',
+                  }}
+                >
                   Cancel
                 </Text>
               </TouchableOpacity>
@@ -1949,15 +2317,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   flex: 1,
                   paddingVertical: 13,
                   borderRadius: 14,
-                  backgroundColor: editListTitle.trim() ? themePrimary : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                  backgroundColor: editListTitle.trim()
+                    ? themePrimary
+                    : isDarkMode
+                      ? '#3f3f46'
+                      : '#cbd5e1',
                   alignItems: 'center',
                   justifyContent: 'center',
                 }}
                 activeOpacity={0.8}
               >
-                <Text style={{ fontSize: 15, fontWeight: '700', color: '#ffffff' }}>
-                  Save
-                </Text>
+                <Text style={{ fontSize: 15, fontWeight: '700', color: '#ffffff' }}>Save</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1972,7 +2342,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         onRequestClose={() => setShowThemePicker(false)}
       >
         <View
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', padding: 20 }}
+          style={{
+            flex: 1,
+            backgroundColor: 'rgba(0,0,0,0.5)',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 20,
+          }}
         >
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
@@ -1996,17 +2372,41 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             }}
           >
             {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 16,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              >
                 List Theme
               </Text>
-              <TouchableOpacity onPress={() => setShowThemePicker(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+              <TouchableOpacity
+                onPress={() => setShowThemePicker(false)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
                 <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
               </TouchableOpacity>
             </View>
 
             {/* Segmented Tab: 10 Modern Presets vs Custom Color */}
-            <View style={{ flexDirection: 'row', backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9', borderRadius: 14, padding: 3, marginBottom: 18 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                borderRadius: 14,
+                padding: 3,
+                marginBottom: 18,
+              }}
+            >
               <TouchableOpacity
                 onPress={() => setActiveThemeTab('palette')}
                 style={{
@@ -2014,14 +2414,32 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   paddingVertical: 8,
                   borderRadius: 11,
                   alignItems: 'center',
-                  backgroundColor: activeThemeTab === 'palette' ? (isDarkMode ? '#3f3f46' : '#ffffff') : 'transparent',
+                  backgroundColor:
+                    activeThemeTab === 'palette'
+                      ? isDarkMode
+                        ? '#3f3f46'
+                        : '#ffffff'
+                      : 'transparent',
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: activeThemeTab === 'palette' ? 0.1 : 0,
                   shadowRadius: 2,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: activeThemeTab === 'palette' ? (isDarkMode ? '#ffffff' : '#0f172a') : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color:
+                      activeThemeTab === 'palette'
+                        ? isDarkMode
+                          ? '#ffffff'
+                          : '#0f172a'
+                        : isDarkMode
+                          ? '#a1a1aa'
+                          : '#64748b',
+                  }}
+                >
                   Curated (10)
                 </Text>
               </TouchableOpacity>
@@ -2037,14 +2455,32 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   paddingVertical: 8,
                   borderRadius: 11,
                   alignItems: 'center',
-                  backgroundColor: activeThemeTab === 'custom' ? (isDarkMode ? '#3f3f46' : '#ffffff') : 'transparent',
+                  backgroundColor:
+                    activeThemeTab === 'custom'
+                      ? isDarkMode
+                        ? '#3f3f46'
+                        : '#ffffff'
+                      : 'transparent',
                   shadowColor: '#000',
                   shadowOffset: { width: 0, height: 1 },
                   shadowOpacity: activeThemeTab === 'custom' ? 0.1 : 0,
                   shadowRadius: 2,
                 }}
               >
-                <Text style={{ fontSize: 13, fontWeight: '700', color: activeThemeTab === 'custom' ? (isDarkMode ? '#ffffff' : '#0f172a') : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontWeight: '700',
+                    color:
+                      activeThemeTab === 'custom'
+                        ? isDarkMode
+                          ? '#ffffff'
+                          : '#0f172a'
+                        : isDarkMode
+                          ? '#a1a1aa'
+                          : '#64748b',
+                  }}
+                >
                   Custom Color
                 </Text>
               </TouchableOpacity>
@@ -2052,11 +2488,27 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
 
             {activeThemeTab === 'palette' ? (
               <View>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 12, letterSpacing: 0.5 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#a1a1aa' : '#64748b',
+                    textTransform: 'uppercase',
+                    marginBottom: 12,
+                    letterSpacing: 0.5,
+                  }}
+                >
                   Select Palette
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-                  {THEME_COLORS.map((c) => {
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                    justifyContent: 'center',
+                  }}
+                >
+                  {THEME_COLORS.map(c => {
                     const paletteDef = THEME_PALETTES[c];
                     const isSelected = activeList?.color_theme?.toLowerCase() === c.toLowerCase();
                     const colorHex = isDarkMode ? paletteDef?.darkPrimary : paletteDef?.primary;
@@ -2090,11 +2542,28 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
               </View>
             ) : (
               <View>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 10, letterSpacing: 0.5 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#a1a1aa' : '#64748b',
+                    textTransform: 'uppercase',
+                    marginBottom: 10,
+                    letterSpacing: 0.5,
+                  }}
+                >
                   Quick Accents
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center', marginBottom: 16 }}>
-                  {PRESET_CUSTOM_COLORS.map((hex) => {
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    flexWrap: 'wrap',
+                    gap: 10,
+                    justifyContent: 'center',
+                    marginBottom: 16,
+                  }}
+                >
+                  {PRESET_CUSTOM_COLORS.map(hex => {
                     const isSelected = activeList?.color_theme?.toLowerCase() === hex.toLowerCase();
                     return (
                       <TouchableOpacity
@@ -2126,7 +2595,16 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   })}
                 </View>
 
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', marginBottom: 8, letterSpacing: 0.5 }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#a1a1aa' : '#64748b',
+                    textTransform: 'uppercase',
+                    marginBottom: 8,
+                    letterSpacing: 0.5,
+                  }}
+                >
                   Hex Color Code
                 </Text>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -2135,7 +2613,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       width: 44,
                       height: 44,
                       borderRadius: 14,
-                      backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(customColorHex) ? customColorHex : (isDarkMode ? '#27272a' : '#e2e8f0'),
+                      backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(customColorHex)
+                        ? customColorHex
+                        : isDarkMode
+                          ? '#27272a'
+                          : '#e2e8f0',
                       borderWidth: 1,
                       borderColor: isDarkMode ? '#3f3f46' : '#cbd5e1',
                     }}
@@ -2157,7 +2639,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       placeholder="#3B82F6"
                       placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
                       value={customColorHex}
-                      onChangeText={(t) => {
+                      onChangeText={t => {
                         let val = t.trim();
                         if (!val.startsWith('#') && val.length > 0) val = '#' + val;
                         setCustomColorHex(val);
@@ -2177,12 +2659,19 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       if (/^#[0-9A-Fa-f]{6}$/.test(customColorHex)) {
                         handleUpdateTheme(customColorHex);
                       } else {
-                        showAlertDialog('Invalid Color', 'Please enter a valid 6-digit hex code (e.g. #8B5CF6)');
+                        showAlertDialog(
+                          'Invalid Color',
+                          'Please enter a valid 6-digit hex code (e.g. #8B5CF6)'
+                        );
                       }
                     }}
                     disabled={!/^#[0-9A-Fa-f]{6}$/.test(customColorHex)}
                     style={{
-                      backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(customColorHex) ? customColorHex : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                      backgroundColor: /^#[0-9A-Fa-f]{6}$/.test(customColorHex)
+                        ? customColorHex
+                        : isDarkMode
+                          ? '#3f3f46'
+                          : '#cbd5e1',
                       paddingHorizontal: 14,
                       height: 46,
                       borderRadius: 14,
@@ -2236,7 +2725,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         }
         selectedContactId={activeList?.default_whatsapp_contact_id}
         users={users}
-        onSelectContact={(user) => {
+        onSelectContact={user => {
           handleSelectDefaultContact(user);
         }}
         onClearContact={() => {
@@ -2252,9 +2741,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         animationType="none"
         onRequestClose={() => setShowScopePickerModal(false)}
       >
-        <View
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -2272,12 +2759,27 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             }}
           >
             {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   Tasks to Send
                 </Text>
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                <Text
+                  style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}
+                >
                   Choose which tasks to include when sharing this list on WhatsApp
                 </Text>
               </View>
@@ -2301,11 +2803,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'pending'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'pending'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: shareScope === 'pending' ? 2 : 1,
-                  borderColor: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'pending' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2324,26 +2832,69 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   </View>
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '700',
+                          color: isDarkMode ? '#ffffff' : '#0f172a',
+                        }}
+                      >
                         Pending Tasks
                       </Text>
-                      <View style={{ backgroundColor: 'rgba(0, 120, 212, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>DEFAULT</Text>
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>
+                          DEFAULT
+                        </Text>
                       </View>
                     </View>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       Only incomplete tasks in this list
                     </Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '800',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       {pendingTasks.length}
                     </Text>
                   </View>
                   {shareScope === 'pending' && (
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: '#0078d4',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <Check size={14} color="#ffffff" strokeWidth={3} />
                     </View>
                   )}
@@ -2359,11 +2910,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'all'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'all'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: shareScope === 'all' ? 2 : 1,
-                  borderColor: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'all' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2381,22 +2938,56 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     <CheckSquare size={20} color="#25D366" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       All Tasks
                     </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       Both pending and completed tasks
                     </Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '800',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       {tasks.length}
                     </Text>
                   </View>
                   {shareScope === 'all' && (
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: '#0078d4',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <Check size={14} color="#ffffff" strokeWidth={3} />
                     </View>
                   )}
@@ -2412,11 +3003,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'current_view'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'current_view'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: shareScope === 'current_view' ? 2 : 1,
-                  borderColor: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'current_view' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2434,22 +3031,56 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     <SlidersHorizontal size={20} color="#f59e0b" />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       Current View Tasks
                     </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       Tasks matching current search & filters
                     </Text>
                   </View>
                 </View>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                  <View style={{ backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10 }}>
-                    <Text style={{ fontSize: 13, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                  <View
+                    style={{
+                      backgroundColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 10,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontWeight: '800',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       {filteredTasks.length}
                     </Text>
                   </View>
                   {shareScope === 'current_view' && (
-                    <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    <View
+                      style={{
+                        width: 22,
+                        height: 22,
+                        borderRadius: 11,
+                        backgroundColor: '#0078d4',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
                       <Check size={14} color="#ffffff" strokeWidth={3} />
                     </View>
                   )}
@@ -2464,13 +3095,41 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
       <WhatsAppFormatBottomSheet
         visible={showFormatPickerModal}
         onClose={handleCloseFormatPicker}
-        currentStyle={((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'executive'}
-        includeNotes={(activeList as any)?.whatsapp_include_notes != null ? (activeList as any)?.whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes}
-        includeAssignee={(activeList as any)?.whatsapp_include_assignee != null ? (activeList as any)?.whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee}
-        includeImportant={(activeList as any)?.whatsapp_include_important != null ? (activeList as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
-        includeSteps={(activeList as any)?.whatsapp_include_steps != null ? (activeList as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
-        includeDueDate={(activeList as any)?.whatsapp_include_due_date != null ? (activeList as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
-        includeListName={(activeList as any)?.whatsapp_include_list_name != null ? (activeList as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
+        currentStyle={
+          ((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) ||
+          defaultWhatsAppStyle ||
+          'executive'
+        }
+        includeNotes={
+          (activeList as any)?.whatsapp_include_notes != null
+            ? (activeList as any)?.whatsapp_include_notes !== 0
+            : defaultWhatsAppIncludeNotes
+        }
+        includeAssignee={
+          (activeList as any)?.whatsapp_include_assignee != null
+            ? (activeList as any)?.whatsapp_include_assignee !== 0
+            : defaultWhatsAppIncludeAssignee
+        }
+        includeImportant={
+          (activeList as any)?.whatsapp_include_important != null
+            ? (activeList as any)?.whatsapp_include_important !== 0
+            : defaultWhatsAppIncludeImportant
+        }
+        includeSteps={
+          (activeList as any)?.whatsapp_include_steps != null
+            ? (activeList as any)?.whatsapp_include_steps !== 0
+            : defaultWhatsAppIncludeSteps
+        }
+        includeDueDate={
+          (activeList as any)?.whatsapp_include_due_date != null
+            ? (activeList as any)?.whatsapp_include_due_date !== 0
+            : defaultWhatsAppIncludeDueDate
+        }
+        includeListName={
+          (activeList as any)?.whatsapp_include_list_name != null
+            ? (activeList as any)?.whatsapp_include_list_name !== 0
+            : defaultWhatsAppIncludeListName
+        }
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${activeList?.title || 'List'}`}
         isDarkMode={isDarkMode}
@@ -2484,9 +3143,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
         animationType="none"
         onRequestClose={() => setShowLongPressShareModal(false)}
       >
-        <View
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}
-        >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' }}>
           <TouchableOpacity
             style={StyleSheet.absoluteFill}
             activeOpacity={1}
@@ -2504,12 +3161,27 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             }}
           >
             {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
               <View>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   Share on WhatsApp
                 </Text>
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                <Text
+                  style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}
+                >
                   Customize recipient and tasks to send
                 </Text>
               </View>
@@ -2523,7 +3195,16 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             </View>
 
             {/* Section 1: Recipient Contact */}
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '800',
+                color: isDarkMode ? '#a1a1aa' : '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                marginBottom: 8,
+              }}
+            >
               Recipient Contact
             </Text>
             <TouchableOpacity
@@ -2562,10 +3243,23 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     </Text>
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }} numberOfLines={1}>
+                    <Text
+                      style={{
+                        fontSize: 14,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                      numberOfLines={1}
+                    >
                       {longPressRecipient.name}
                     </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 1 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 1,
+                      }}
+                    >
                       {longPressRecipient.phone}
                     </Text>
                   </View>
@@ -2584,7 +3278,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   >
                     <Phone size={18} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
                   </View>
-                  <Text style={{ fontSize: 14, fontWeight: '600', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
+                  <Text
+                    style={{
+                      fontSize: 14,
+                      fontWeight: '600',
+                      color: isDarkMode ? '#a1a1aa' : '#64748b',
+                    }}
+                  >
                     Tap to choose recipient contact
                   </Text>
                 </View>
@@ -2598,14 +3298,29 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   borderRadius: 10,
                 }}
               >
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                <Text
+                  style={{
+                    fontSize: 12,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   {longPressRecipient ? 'Change' : 'Select'}
                 </Text>
               </View>
             </TouchableOpacity>
 
             {/* Section 2: Task Status Filter */}
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '800',
+                color: isDarkMode ? '#a1a1aa' : '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+                marginBottom: 8,
+              }}
+            >
               Tasks to Send
             </Text>
             <View style={{ gap: 8, marginBottom: 20 }}>
@@ -2618,11 +3333,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'pending'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'pending'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: 1.5,
-                  borderColor: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'pending' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2634,19 +3355,47 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   )}
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                      <Text
+                        style={{
+                          fontSize: 15,
+                          fontWeight: '700',
+                          color: isDarkMode ? '#ffffff' : '#0f172a',
+                        }}
+                      >
                         Pending Tasks
                       </Text>
-                      <View style={{ backgroundColor: 'rgba(0, 120, 212, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>DEFAULT</Text>
+                      <View
+                        style={{
+                          backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                          paddingHorizontal: 6,
+                          paddingVertical: 2,
+                          borderRadius: 6,
+                        }}
+                      >
+                        <Text style={{ fontSize: 10, fontWeight: '800', color: '#0078d4' }}>
+                          DEFAULT
+                        </Text>
                       </View>
                     </View>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       Only incomplete tasks in this list
                     </Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'pending' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '800',
+                    color:
+                      shareScope === 'pending' ? '#0078d4' : isDarkMode ? '#a1a1aa' : '#64748b',
+                  }}
+                >
                   {pendingTasks.length}
                 </Text>
               </TouchableOpacity>
@@ -2660,11 +3409,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'all'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'all'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: 1.5,
-                  borderColor: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'all' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2675,15 +3430,33 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     <Circle size={20} color={isDarkMode ? '#71717a' : '#94a3b8'} />
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       All Tasks
                     </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       Both pending and completed tasks
                     </Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'all' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '800',
+                    color: shareScope === 'all' ? '#0078d4' : isDarkMode ? '#a1a1aa' : '#64748b',
+                  }}
+                >
                   {tasks.length}
                 </Text>
               </TouchableOpacity>
@@ -2697,11 +3470,17 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                   justifyContent: 'space-between',
                   padding: 14,
                   borderRadius: 16,
-                  backgroundColor: shareScope === 'current_view'
-                    ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                    : (isDarkMode ? '#27272a' : '#f8fafc'),
+                  backgroundColor:
+                    shareScope === 'current_view'
+                      ? isDarkMode
+                        ? 'rgba(0, 120, 212, 0.15)'
+                        : '#eff6ff'
+                      : isDarkMode
+                        ? '#27272a'
+                        : '#f8fafc',
                   borderWidth: 1.5,
-                  borderColor: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                  borderColor:
+                    shareScope === 'current_view' ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                 }}
                 activeOpacity={0.7}
               >
@@ -2712,23 +3491,61 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                     <Circle size={20} color={isDarkMode ? '#71717a' : '#94a3b8'} />
                   )}
                   <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                      }}
+                    >
                       Current View Tasks
                     </Text>
-                    <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        marginTop: 2,
+                      }}
+                    >
                       All tasks matching current search & filters
                     </Text>
                   </View>
                 </View>
-                <Text style={{ fontSize: 14, fontWeight: '800', color: shareScope === 'current_view' ? '#0078d4' : (isDarkMode ? '#a1a1aa' : '#64748b') }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '800',
+                    color:
+                      shareScope === 'current_view'
+                        ? '#0078d4'
+                        : isDarkMode
+                          ? '#a1a1aa'
+                          : '#64748b',
+                  }}
+                >
                   {filteredTasks.length}
                 </Text>
               </TouchableOpacity>
             </View>
 
             {/* Section 3: Message Format */}
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-              <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 8,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 12,
+                  fontWeight: '800',
+                  color: isDarkMode ? '#a1a1aa' : '#64748b',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.8,
+                }}
+              >
                 Message Format
               </Text>
               <TouchableOpacity
@@ -2745,8 +3562,11 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             </View>
 
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 20 }}>
-              {(['modern', 'executive', 'crisp'] as const).map((st) => {
-                const currentSt = ((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'modern';
+              {(['modern', 'executive', 'crisp'] as const).map(st => {
+                const currentSt =
+                  ((activeList as any)?.whatsapp_message_style as WhatsAppMessageStyle) ||
+                  defaultWhatsAppStyle ||
+                  'modern';
                 const isSelected = currentSt === st;
                 return (
                   <TouchableOpacity
@@ -2765,10 +3585,14 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       paddingHorizontal: 6,
                       borderRadius: 14,
                       backgroundColor: isSelected
-                        ? (isDarkMode ? 'rgba(139, 92, 246, 0.2)' : '#f5f3ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                        ? isDarkMode
+                          ? 'rgba(139, 92, 246, 0.2)'
+                          : '#f5f3ff'
+                        : isDarkMode
+                          ? '#27272a'
+                          : '#f8fafc',
                       borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? '#8b5cf6' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      borderColor: isSelected ? '#8b5cf6' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                       alignItems: 'center',
                     }}
                     activeOpacity={0.7}
@@ -2777,7 +3601,7 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
                       style={{
                         fontSize: 12,
                         fontWeight: '800',
-                        color: isSelected ? '#8b5cf6' : (isDarkMode ? '#e4e4e7' : '#334155'),
+                        color: isSelected ? '#8b5cf6' : isDarkMode ? '#e4e4e7' : '#334155',
                         textTransform: 'capitalize',
                       }}
                     >
@@ -2809,7 +3633,13 @@ export function SingleListView({ listId, onBack }: SingleListViewProps) {
             >
               <WhatsAppIcon size={20} color="#ffffff" />
               <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '800' }}>
-                Share to WhatsApp ({shareScope === 'pending' ? pendingTasks.length : shareScope === 'all' ? tasks.length : filteredTasks.length})
+                Share to WhatsApp (
+                {shareScope === 'pending'
+                  ? pendingTasks.length
+                  : shareScope === 'all'
+                    ? tasks.length
+                    : filteredTasks.length}
+                )
               </Text>
             </TouchableOpacity>
           </View>

@@ -4,7 +4,9 @@ import { logClientEvent, logError } from './clientLogger';
 
 function formatPhoneLabel(rawLabel?: string, index: number = 0): string {
   if (!rawLabel) return `Phone ${index + 1}`;
-  const clean = String(rawLabel).replace(/[_\$!<>]/g, '').trim();
+  const clean = String(rawLabel)
+    .replace(/[_\$!<>]/g, '')
+    .trim();
   if (!clean) return `Phone ${index + 1}`;
   return clean.charAt(0).toUpperCase() + clean.slice(1).toLowerCase();
 }
@@ -49,9 +51,11 @@ export async function getDeviceContacts(shouldRequest: boolean = true): Promise<
     const formatted: BatchImportContact[] = [];
 
     for (const item of data) {
-      const baseName = item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unnamed Contact';
+      const baseName =
+        item.name || `${item.firstName || ''} ${item.lastName || ''}`.trim() || 'Unnamed Contact';
       const baseEmail = item.emails && item.emails.length > 0 ? item.emails[0].email || '' : '';
-      const avatar = (item.imageAvailable && item.image && item.image.uri) ? item.image.uri : undefined;
+      const avatar =
+        item.imageAvailable && item.image && item.image.uri ? item.image.uri : undefined;
 
       const phones = item.phoneNumbers || [];
 
@@ -129,7 +133,11 @@ export async function syncDeviceContacts(
 
     const res = await batchImportFn(result.contacts);
     const count = (res?.importedCount || 0) + (res?.updatedCount || 0);
-    logClientEvent({ event: 'contact_auto_sync_completed', outcome: 'success', data: { count: count || result.contacts.length } });
+    logClientEvent({
+      event: 'contact_auto_sync_completed',
+      outcome: 'success',
+      data: { count: count || result.contacts.length },
+    });
     return { success: true, count: count || result.contacts.length };
   } catch (err: any) {
     logError({ event: 'device_contacts_sync_failed', outcome: 'failure' }, err);

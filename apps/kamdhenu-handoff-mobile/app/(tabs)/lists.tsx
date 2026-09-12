@@ -69,7 +69,10 @@ import { SingleListView } from '../../src/components/SingleListView';
 import { TasksView } from '../../src/components/TasksView';
 import { ListOrViewDropdownModal } from '../../src/components/ListOrViewDropdownModal';
 import { ContactPickerModal } from '../../src/components/ContactPickerModal';
-import { WhatsAppFormatBottomSheet, WhatsAppFormatOptions } from '../../src/components/WhatsAppFormatBottomSheet';
+import {
+  WhatsAppFormatBottomSheet,
+  WhatsAppFormatOptions,
+} from '../../src/components/WhatsAppFormatBottomSheet';
 import { logClientEvent, logError } from '../../src/services/clientLogger';
 
 interface ListsDirectoryViewProps {
@@ -77,9 +80,7 @@ interface ListsDirectoryViewProps {
   onSelectCustomView: (id: number) => void;
 }
 
-type DropdownTarget =
-  | { type: 'view'; data: CustomView }
-  | { type: 'list'; data: List };
+type DropdownTarget = { type: 'view'; data: CustomView } | { type: 'list'; data: List };
 
 type RenameTarget = {
   type: 'view' | 'list';
@@ -121,11 +122,14 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 
   const [searchQuery, setSearchQuery] = useState('');
 
-  const isDarkMode = useUiStore((s) => s.isDarkMode);
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
-  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
+  const isDarkMode = useUiStore(s => s.isDarkMode);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
+  const showAlertDialog = useUiStore(s => s.showAlertDialog);
   const insets = useSafeAreaInsets();
-  const topInset = Math.max(insets.top, Platform.OS === 'android' ? (StatusBar.currentHeight || 24) : 0);
+  const topInset = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? StatusBar.currentHeight || 24 : 0
+  );
 
   const listsQuery = useListsQuery(1);
   const taskCountsQuery = useTaskCountsQuery(1);
@@ -167,13 +171,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const addUserMutation = useAddUserMutation();
   const updateUserMutation = useUpdateUserMutation();
 
-  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
-  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
-  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
-  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
-  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
-  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
-  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
+  const defaultWhatsAppStyle = useUiStore(s => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore(s => s.defaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore(s => s.defaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore(s => s.defaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore(s => s.defaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore(s => s.defaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore(s => s.defaultWhatsAppIncludeListName);
 
   // WhatsApp Contact, Scope & Format Picker Modal States for Lists and Views
   const [dropdownY, setDropdownY] = useState(150);
@@ -200,10 +204,10 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const liveConfigItem = useMemo(() => {
     if (!selectedItemForConfig) return null;
     if (selectedItemForConfig.type === 'view') {
-      const found = customViews.find((v) => v.id === selectedItemForConfig.id);
+      const found = customViews.find(v => v.id === selectedItemForConfig.id);
       return found ? { ...found, type: 'view' as const } : selectedItemForConfig;
     }
-    const found = lists.find((l) => l.id === selectedItemForConfig.id);
+    const found = lists.find(l => l.id === selectedItemForConfig.id);
     return found ? { ...found, type: 'list' as const } : selectedItemForConfig;
   }, [selectedItemForConfig, lists, customViews]);
 
@@ -247,7 +251,10 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     }
   };
 
-  const handleSaveWhatsAppFormat = async (style: WhatsAppMessageStyle, options: WhatsAppFormatOptions) => {
+  const handleSaveWhatsAppFormat = async (
+    style: WhatsAppMessageStyle,
+    options: WhatsAppFormatOptions
+  ) => {
     if (!selectedItemForConfig) return;
     try {
       const payload = {
@@ -316,7 +323,8 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 
   const handleStartNewView = useCallback(() => {
     setShowAddList(false);
-    const chosen = CUSTOM_LIST_THEMES[(customViews.length + 3) % CUSTOM_LIST_THEMES.length] || 'purple';
+    const chosen =
+      CUSTOM_LIST_THEMES[(customViews.length + 3) % CUSTOM_LIST_THEMES.length] || 'purple';
     setNewViewTheme(chosen);
     setShowAddView(true);
     logClientEvent({ event: 'custom_view_create_opened', outcome: 'started' });
@@ -344,7 +352,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
       setNewViewTitle('');
       setShowAddView(false);
       if (created?.id) {
-        logClientEvent({ event: 'view_opened', outcome: 'success', data: { customViewId: created.id } });
+        logClientEvent({
+          event: 'view_opened',
+          outcome: 'success',
+          data: { customViewId: created.id },
+        });
         onSelectCustomView(created.id);
       }
     } catch (err: any) {
@@ -370,10 +382,18 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   const handleSaveRename = () => {
     if (!renameTarget) return;
     if (!renameInput.trim()) {
-      logClientEvent({ event: 'rename_validation_failed', outcome: 'failure', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
+      logClientEvent({
+        event: 'rename_validation_failed',
+        outcome: 'failure',
+        data: { itemType: renameTarget.type, itemId: renameTarget.id },
+      });
       return;
     }
-    logClientEvent({ event: 'rename_started', outcome: 'started', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
+    logClientEvent({
+      event: 'rename_started',
+      outcome: 'started',
+      data: { itemType: renameTarget.type, itemId: renameTarget.id },
+    });
     if (renameTarget.type === 'view') {
       updateCustomViewMutation.mutate({
         id: renameTarget.id,
@@ -385,13 +405,21 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         title: renameInput.trim(),
       });
     }
-    logClientEvent({ event: 'rename_succeeded', outcome: 'success', data: { itemType: renameTarget.type, itemId: renameTarget.id } });
+    logClientEvent({
+      event: 'rename_succeeded',
+      outcome: 'success',
+      data: { itemType: renameTarget.type, itemId: renameTarget.id },
+    });
     setRenameTarget(null);
   };
 
   const handleSaveTheme = (theme: string) => {
     if (!themeTarget) return;
-    logClientEvent({ event: 'theme_changed', outcome: 'success', data: { itemType: themeTarget.type, itemId: themeTarget.id, theme } });
+    logClientEvent({
+      event: 'theme_changed',
+      outcome: 'success',
+      data: { itemType: themeTarget.type, itemId: themeTarget.id, theme },
+    });
     if (themeTarget.type === 'view') {
       updateCustomViewMutation.mutate({
         id: themeTarget.id,
@@ -406,17 +434,38 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     setThemeTarget(null);
   };
 
-  const builtInViews = useMemo(() => [
-    { id: 'all-tasks', label: 'All tasks', icon: CheckSquare, color: '#0078d4', count: taskCounts['all-tasks'] || 0 },
-    { id: 'important', label: 'Important', icon: Star, color: '#f97316', count: taskCounts['important'] || 0 },
-    { id: 'assigned-to-me', label: 'Assigned to me', icon: UserCheck, color: '#a855f7', count: taskCounts['assigned-to-me'] || 0 },
-  ], [taskCounts]);
+  const builtInViews = useMemo(
+    () => [
+      {
+        id: 'all-tasks',
+        label: 'All tasks',
+        icon: CheckSquare,
+        color: '#0078d4',
+        count: taskCounts['all-tasks'] || 0,
+      },
+      {
+        id: 'important',
+        label: 'Important',
+        icon: Star,
+        color: '#f97316',
+        count: taskCounts['important'] || 0,
+      },
+      {
+        id: 'assigned-to-me',
+        label: 'Assigned to me',
+        icon: UserCheck,
+        color: '#a855f7',
+        count: taskCounts['assigned-to-me'] || 0,
+      },
+    ],
+    [taskCounts]
+  );
 
   const filteredBuiltInViews = useMemo(() => {
     const q = searchQuery.trim();
     if (!q) return builtInViews;
     return builtInViews
-      .filter((v) => fuzzyMatch(v.label, q))
+      .filter(v => fuzzyMatch(v.label, q))
       .sort((a, b) => {
         const scoreA = getSearchMatchScore(a.label, q);
         const scoreB = getSearchMatchScore(b.label, q);
@@ -431,7 +480,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     const q = searchQuery.trim();
     if (!q) return customViews;
     return customViews
-      .filter((v) => fuzzyMatch(v.title, q))
+      .filter(v => fuzzyMatch(v.title, q))
       .sort((a, b) => {
         const scoreA = getSearchMatchScore(a.title, q);
         const scoreB = getSearchMatchScore(b.title, q);
@@ -446,7 +495,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
     const q = searchQuery.trim();
     if (!q) return lists;
     return lists
-      .filter((l) => fuzzyMatch(l.title, q))
+      .filter(l => fuzzyMatch(l.title, q))
       .sort((a, b) => {
         const scoreA = getSearchMatchScore(a.title, q);
         const scoreB = getSearchMatchScore(b.title, q);
@@ -463,9 +512,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
   }, [activeDropdown, isDarkMode]);
 
   return (
-    <View style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}>
+    <View
+      style={{ flex: 1, backgroundColor: isDarkMode ? '#09090b' : '#f8fafc', paddingTop: topInset }}
+    >
       <View style={{ paddingHorizontal: 20, paddingTop: 12, paddingBottom: 8 }}>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+        <Text
+          style={{ fontSize: 24, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}
+        >
           Lists & Views
         </Text>
         <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
@@ -486,7 +539,11 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
             marginTop: 12,
           }}
         >
-          <Search size={18} color={isDarkMode ? '#71717a' : '#94a3b8'} style={{ marginRight: 10 }} />
+          <Search
+            size={18}
+            color={isDarkMode ? '#71717a' : '#94a3b8'}
+            style={{ marginRight: 10 }}
+          />
           <TextInput
             placeholder="Search lists & views..."
             placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
@@ -531,9 +588,25 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         {/* ========================================================================= */}
         {/* SECTION 1: VIEWS (Dynamic Live Filters) */}
         {/* ========================================================================= */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 8,
+            paddingHorizontal: 4,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '800',
+                color: isDarkMode ? '#a1a1aa' : '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+              }}
+            >
               Views ({filteredCustomViews.length})
             </Text>
             <TouchableOpacity
@@ -566,92 +639,93 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         </View>
 
         {/* Inline New View Form */}
-        {showAddView && (() => {
-          const activeNewViewThemePrimary = getThemePrimary(newViewTheme, isDarkMode);
-          return (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 14,
-                minHeight: 56,
-                borderRadius: 18,
-                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-                borderWidth: 1.5,
-                borderColor: activeNewViewThemePrimary,
-                marginBottom: 10,
-                gap: 10,
-              }}
-            >
+        {showAddView &&
+          (() => {
+            const activeNewViewThemePrimary = getThemePrimary(newViewTheme, isDarkMode);
+            return (
               <View
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: activeNewViewThemePrimary,
-                  marginLeft: 2,
-                }}
-              />
-              <TextInput
-                placeholder="View name (e.g. Overdue Invoices)..."
-                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-                value={newViewTitle}
-                onChangeText={setNewViewTitle}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateCustomView}
-                style={{
-                  flex: 1,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDarkMode ? '#ffffff' : '#0f172a',
-                  paddingVertical: 10,
-                }}
-              />
-              {/* Cancel (Cross) Button */}
-              <TouchableOpacity
-                onPress={() => {
-                  setShowAddView(false);
-                  setNewViewTitle('');
-                }}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  paddingHorizontal: 14,
+                  minHeight: 56,
+                  borderRadius: 18,
+                  backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                  borderWidth: 1.5,
+                  borderColor: activeNewViewThemePrimary,
+                  marginBottom: 10,
+                  gap: 10,
                 }}
               >
-                <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-              </TouchableOpacity>
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: activeNewViewThemePrimary,
+                    marginLeft: 2,
+                  }}
+                />
+                <TextInput
+                  placeholder="View name (e.g. Overdue Invoices)..."
+                  placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                  value={newViewTitle}
+                  onChangeText={setNewViewTitle}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleCreateCustomView}
+                  style={{
+                    flex: 1,
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                    paddingVertical: 10,
+                  }}
+                />
+                {/* Cancel (Cross) Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowAddView(false);
+                    setNewViewTitle('');
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                </TouchableOpacity>
 
-              {/* Submit (Check) Button */}
-              <TouchableOpacity
-                onPress={handleCreateCustomView}
-                activeOpacity={0.8}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: activeNewViewThemePrimary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Check size={18} color="#ffffff" strokeWidth={2.8} />
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
+                {/* Submit (Check) Button */}
+                <TouchableOpacity
+                  onPress={handleCreateCustomView}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: activeNewViewThemePrimary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Check size={18} color="#ffffff" strokeWidth={2.8} />
+                </TouchableOpacity>
+              </View>
+            );
+          })()}
 
         {/* Views List (Built-In + Custom) */}
         <View style={{ gap: 8, marginBottom: 28 }}>
           {/* Built-in Views */}
-          {filteredBuiltInViews.map((item) => {
+          {filteredBuiltInViews.map(item => {
             const Icon = item.icon;
             const isPinnable = item.id === 'important' || item.id === 'assigned-to-me';
             const viewPinKey = item.id === 'important' ? 'important' : 'assigned-to-me';
@@ -696,7 +770,15 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   >
                     <Icon size={20} color={item.color} />
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a', flex: 1 }} numberOfLines={1}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
                     {item.label}
                   </Text>
                 </View>
@@ -711,7 +793,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
                       }}
                     >
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '800',
+                          color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        }}
+                      >
                         {item.count}
                       </Text>
                     </View>
@@ -720,7 +808,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   {/* Pin / Unpin Button for Important & Assigned to me */}
                   {isPinnable && (
                     <TouchableOpacity
-                      onPress={(e) => {
+                      onPress={e => {
                         e.stopPropagation?.();
                         togglePinViewMutation.mutate(viewPinKey);
                       }}
@@ -732,8 +820,12 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         alignItems: 'center',
                         justifyContent: 'center',
                         backgroundColor: isPinned
-                          ? (isDarkMode ? `${item.color}25` : `${item.color}18`)
-                          : (isDarkMode ? '#27272a' : '#f1f5f9'),
+                          ? isDarkMode
+                            ? `${item.color}25`
+                            : `${item.color}18`
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f1f5f9',
                       }}
                     >
                       {isPinned ? (
@@ -749,7 +841,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
           })}
 
           {/* User Custom Saved Views */}
-          {filteredCustomViews.map((cView) => {
+          {filteredCustomViews.map(cView => {
             const themeHex = getThemePrimary(cView.color_theme, isDarkMode);
             const isCustomPinned = pinnedViews.includes(`custom_view:${cView.id}`);
 
@@ -784,15 +876,36 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   >
                     <Layers size={18} color={themeHex} />
                   </View>
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a', flex: 1 }} numberOfLines={1}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#ffffff' : '#0f172a',
+                      flex: 1,
+                    }}
+                    numberOfLines={1}
+                  >
                     {cView.title}
                   </Text>
                 </View>
 
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   {(cView.matched_count ?? 0) > 0 && (
-                    <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }}>
-                      <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
+                    <View
+                      style={{
+                        paddingHorizontal: 9,
+                        paddingVertical: 4,
+                        borderRadius: 10,
+                        backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 12,
+                          fontWeight: '800',
+                          color: isDarkMode ? '#a1a1aa' : '#64748b',
+                        }}
+                      >
                         {cView.matched_count}
                       </Text>
                     </View>
@@ -801,7 +914,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   {/* Pin / Unpin Button */}
                   {isCustomPinned && (
                     <TouchableOpacity
-                      onPress={(e) => {
+                      onPress={e => {
                         e.stopPropagation?.();
                         togglePinViewMutation.mutate(`custom_view:${cView.id}`);
                       }}
@@ -822,7 +935,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 
                   {/* 3-Dot Dropdown Menu Trigger */}
                   <TouchableOpacity
-                    onPress={(e) => {
+                    onPress={e => {
                       const pageY = (e.nativeEvent as any)?.pageY || 180;
                       setDropdownY(pageY);
                       setActiveDropdown({ type: 'view', data: cView });
@@ -848,9 +961,25 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         {/* ========================================================================= */}
         {/* SECTION 2: LISTS (Manual Task Folders) */}
         {/* ========================================================================= */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, paddingHorizontal: 4 }}>
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 8,
+            paddingHorizontal: 4,
+          }}
+        >
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b', textTransform: 'uppercase', letterSpacing: 0.8 }}>
+            <Text
+              style={{
+                fontSize: 12,
+                fontWeight: '800',
+                color: isDarkMode ? '#a1a1aa' : '#64748b',
+                textTransform: 'uppercase',
+                letterSpacing: 0.8,
+              }}
+            >
               Lists ({filteredCustomLists.length})
             </Text>
             <TouchableOpacity
@@ -883,87 +1012,88 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         </View>
 
         {/* Inline New List Form */}
-        {showAddList && (() => {
-          const activeNewThemePrimary = getThemePrimary(newListTheme, isDarkMode);
-          return (
-            <View
-              style={{
-                flexDirection: 'row',
-                alignItems: 'center',
-                paddingHorizontal: 14,
-                minHeight: 56,
-                borderRadius: 18,
-                backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
-                borderWidth: 1.5,
-                borderColor: activeNewThemePrimary,
-                marginBottom: 10,
-                gap: 10,
-              }}
-            >
+        {showAddList &&
+          (() => {
+            const activeNewThemePrimary = getThemePrimary(newListTheme, isDarkMode);
+            return (
               <View
                 style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: 5,
-                  backgroundColor: activeNewThemePrimary,
-                  marginLeft: 2,
-                }}
-              />
-              <TextInput
-                placeholder="List name..."
-                placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
-                value={newListTitle}
-                onChangeText={setNewListTitle}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={handleCreateList}
-                style={{
-                  flex: 1,
-                  fontSize: 15,
-                  fontWeight: '600',
-                  color: isDarkMode ? '#ffffff' : '#0f172a',
-                  paddingVertical: 10,
-                }}
-              />
-              {/* Cancel (Cross) Button */}
-              <TouchableOpacity
-                onPress={() => {
-                  setShowAddList(false);
-                  setNewListTitle('');
-                }}
-                activeOpacity={0.7}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                  flexDirection: 'row',
                   alignItems: 'center',
-                  justifyContent: 'center',
+                  paddingHorizontal: 14,
+                  minHeight: 56,
+                  borderRadius: 18,
+                  backgroundColor: isDarkMode ? '#18181b' : '#ffffff',
+                  borderWidth: 1.5,
+                  borderColor: activeNewThemePrimary,
+                  marginBottom: 10,
+                  gap: 10,
                 }}
               >
-                <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
-              </TouchableOpacity>
+                <View
+                  style={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: 5,
+                    backgroundColor: activeNewThemePrimary,
+                    marginLeft: 2,
+                  }}
+                />
+                <TextInput
+                  placeholder="List name..."
+                  placeholderTextColor={isDarkMode ? '#71717a' : '#94a3b8'}
+                  value={newListTitle}
+                  onChangeText={setNewListTitle}
+                  autoFocus
+                  returnKeyType="done"
+                  onSubmitEditing={handleCreateList}
+                  style={{
+                    flex: 1,
+                    fontSize: 15,
+                    fontWeight: '600',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                    paddingVertical: 10,
+                  }}
+                />
+                {/* Cancel (Cross) Button */}
+                <TouchableOpacity
+                  onPress={() => {
+                    setShowAddList(false);
+                    setNewListTitle('');
+                  }}
+                  activeOpacity={0.7}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <X size={16} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
+                </TouchableOpacity>
 
-              {/* Submit (Check) Button */}
-              <TouchableOpacity
-                onPress={handleCreateList}
-                activeOpacity={0.8}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: 16,
-                  backgroundColor: activeNewThemePrimary,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                <Check size={18} color="#ffffff" strokeWidth={2.8} />
-              </TouchableOpacity>
-            </View>
-          );
-        })()}
+                {/* Submit (Check) Button */}
+                <TouchableOpacity
+                  onPress={handleCreateList}
+                  activeOpacity={0.8}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 16,
+                    backgroundColor: activeNewThemePrimary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Check size={18} color="#ffffff" strokeWidth={2.8} />
+                </TouchableOpacity>
+              </View>
+            );
+          })()}
 
         {/* Custom Lists List */}
         <View style={{ gap: 8 }}>
@@ -974,7 +1104,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
               </Text>
             </View>
           ) : (
-            filteredCustomLists.map((list) => {
+            filteredCustomLists.map(list => {
               const themeHex = getThemePrimary(list.color_theme, isDarkMode);
 
               return (
@@ -1010,15 +1140,36 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     >
                       <ListTodo size={18} color={themeHex} />
                     </View>
-                    <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a', flex: 1 }} numberOfLines={1}>
+                    <Text
+                      style={{
+                        fontSize: 15,
+                        fontWeight: '700',
+                        color: isDarkMode ? '#ffffff' : '#0f172a',
+                        flex: 1,
+                      }}
+                      numberOfLines={1}
+                    >
                       {list.title}
                     </Text>
                   </View>
 
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                     {(list.pending_task_count ?? 0) > 0 && (
-                      <View style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 10, backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9' }}>
-                        <Text style={{ fontSize: 12, fontWeight: '800', color: isDarkMode ? '#a1a1aa' : '#64748b' }}>
+                      <View
+                        style={{
+                          paddingHorizontal: 9,
+                          paddingVertical: 4,
+                          borderRadius: 10,
+                          backgroundColor: isDarkMode ? '#27272a' : '#f1f5f9',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            fontWeight: '800',
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                          }}
+                        >
                           {list.pending_task_count}
                         </Text>
                       </View>
@@ -1027,7 +1178,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     {/* Pin / Unpin Button */}
                     {pinnedViews.includes(`list:${list.id}`) && (
                       <TouchableOpacity
-                        onPress={(e) => {
+                        onPress={e => {
                           e.stopPropagation?.();
                           togglePinViewMutation.mutate(`list:${list.id}`);
                         }}
@@ -1048,7 +1199,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 
                     {/* 3-Dot Dropdown Menu Trigger */}
                     <TouchableOpacity
-                      onPress={(e) => {
+                      onPress={e => {
                         const pageY = (e.nativeEvent as any)?.pageY || 240;
                         setDropdownY(pageY);
                         setActiveDropdown({ type: 'list', data: list });
@@ -1125,14 +1276,19 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         }}
         onTogglePin={() => {
           if (!activeDropdown) return;
-          const pinKey = activeDropdown.type === 'view'
-            ? `custom_view:${activeDropdown.data.id}`
-            : `list:${activeDropdown.data.id}`;
+          const pinKey =
+            activeDropdown.type === 'view'
+              ? `custom_view:${activeDropdown.data.id}`
+              : `list:${activeDropdown.data.id}`;
           const isCurrentlyPinned = pinnedViews.includes(pinKey);
           logClientEvent({
             event: 'pin_toggled',
             outcome: 'success',
-            data: { itemType: activeDropdown.type, itemId: activeDropdown.data.id, pinned: !isCurrentlyPinned },
+            data: {
+              itemType: activeDropdown.type,
+              itemId: activeDropdown.data.id,
+              pinned: !isCurrentlyPinned,
+            },
           });
           togglePinViewMutation.mutate(pinKey);
         }}
@@ -1161,29 +1317,53 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
           const targetType = activeDropdown.type;
           const targetId = activeDropdown.data.id;
           if (targetType === 'view') {
-            logClientEvent({ event: 'custom_view_delete_prompted', outcome: 'started', data: { itemId: targetId } });
+            logClientEvent({
+              event: 'custom_view_delete_prompted',
+              outcome: 'started',
+              data: { itemId: targetId },
+            });
             showConfirmDialog({
               title: 'Delete View',
               message: `Are you sure you want to delete "${activeDropdown.data.title}"? (Tasks will not be deleted)`,
               type: 'danger',
               confirmLabel: 'Delete View',
               onConfirm: () => {
-                logClientEvent({ event: 'custom_view_delete_started', outcome: 'started', data: { itemId: targetId } });
+                logClientEvent({
+                  event: 'custom_view_delete_started',
+                  outcome: 'started',
+                  data: { itemId: targetId },
+                });
                 deleteCustomViewMutation.mutate(targetId);
-                logClientEvent({ event: 'custom_view_delete_succeeded', outcome: 'success', data: { itemId: targetId } });
+                logClientEvent({
+                  event: 'custom_view_delete_succeeded',
+                  outcome: 'success',
+                  data: { itemId: targetId },
+                });
               },
             });
           } else {
-            logClientEvent({ event: 'list_delete_prompted', outcome: 'started', data: { itemId: targetId } });
+            logClientEvent({
+              event: 'list_delete_prompted',
+              outcome: 'started',
+              data: { itemId: targetId },
+            });
             showConfirmDialog({
               title: 'Delete List',
               message: `Are you sure you want to delete "${activeDropdown.data.title}"?`,
               type: 'danger',
               confirmLabel: 'Delete List',
               onConfirm: () => {
-                logClientEvent({ event: 'list_delete_started', outcome: 'started', data: { itemId: targetId } });
+                logClientEvent({
+                  event: 'list_delete_started',
+                  outcome: 'started',
+                  data: { itemId: targetId },
+                });
                 deleteListMutation.mutate(targetId);
-                logClientEvent({ event: 'list_delete_succeeded', outcome: 'success', data: { itemId: targetId } });
+                logClientEvent({
+                  event: 'list_delete_succeeded',
+                  outcome: 'success',
+                  data: { itemId: targetId },
+                });
               },
             });
           }
@@ -1198,7 +1378,7 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
         subtitle={`Choose who receives updates for "${liveConfigItem?.title || 'this item'}"`}
         selectedContactId={liveConfigItem?.default_whatsapp_contact_id}
         users={users}
-        onSelectContact={(user) => {
+        onSelectContact={user => {
           handleSelectDefaultContact(user ? user.id : null);
         }}
         onClearContact={() => {
@@ -1232,12 +1412,27 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
             }}
           >
             {/* Header */}
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: 14,
+              }}
+            >
               <View style={{ flex: 1, paddingRight: 10 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   Tasks to Send
                 </Text>
-                <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                <Text
+                  style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}
+                >
                   Choose which tasks to include when sharing "{liveConfigItem?.title}" on WhatsApp
                 </Text>
               </View>
@@ -1263,11 +1458,27 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
-                      borderWidth: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? 2 : 1,
-                      borderColor: (liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      backgroundColor:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'current_view') ===
+                        'current_view'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
+                      borderWidth:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'current_view') ===
+                        'current_view'
+                          ? 2
+                          : 1,
+                      borderColor:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'current_view') ===
+                        'current_view'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1285,16 +1496,38 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <Layers size={20} color="#a855f7" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           Current View
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Tasks matching active search and filters
                         </Text>
                       </View>
                     </View>
-                    {(liveConfigItem?.default_whatsapp_share_scope || 'current_view') === 'current_view' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                    {(liveConfigItem?.default_whatsapp_share_scope || 'current_view') ===
+                      'current_view' && (
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1309,11 +1542,22 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'pending'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
-                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
-                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      backgroundColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'pending'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
+                      borderWidth:
+                        liveConfigItem?.default_whatsapp_share_scope === 'pending' ? 2 : 1,
+                      borderColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'pending'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1331,16 +1575,37 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <ListTodo size={20} color="#0078d4" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           Pending Tasks
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Only incomplete tasks in this view
                         </Text>
                       </View>
                     </View>
                     {liveConfigItem?.default_whatsapp_share_scope === 'pending' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1355,11 +1620,21 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      backgroundColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'all'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
                       borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
-                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      borderColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'all'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1377,16 +1652,37 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <CheckSquare size={20} color="#22c55e" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           All Tasks
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Both pending and completed tasks
                         </Text>
                       </View>
                     </View>
                     {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1403,11 +1699,24 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
-                      borderWidth: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' ? 2 : 1,
-                      borderColor: (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      backgroundColor:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
+                      borderWidth:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending'
+                          ? 2
+                          : 1,
+                      borderColor:
+                        (liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1425,16 +1734,37 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <ListTodo size={20} color="#0078d4" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           Pending Tasks
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Only incomplete tasks in this list
                         </Text>
                       </View>
                     </View>
                     {(liveConfigItem?.default_whatsapp_share_scope || 'pending') === 'pending' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1449,11 +1779,22 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
-                      borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
-                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      backgroundColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'current_view'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
+                      borderWidth:
+                        liveConfigItem?.default_whatsapp_share_scope === 'current_view' ? 2 : 1,
+                      borderColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'current_view'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1471,16 +1812,37 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <Layers size={20} color="#a855f7" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           Current View
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Tasks matching active search and filters
                         </Text>
                       </View>
                     </View>
                     {liveConfigItem?.default_whatsapp_share_scope === 'current_view' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1495,11 +1857,21 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                       justifyContent: 'space-between',
                       padding: 14,
                       borderRadius: 16,
-                      backgroundColor: liveConfigItem?.default_whatsapp_share_scope === 'all'
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                      backgroundColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'all'
+                          ? isDarkMode
+                            ? 'rgba(0, 120, 212, 0.15)'
+                            : '#eff6ff'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
                       borderWidth: liveConfigItem?.default_whatsapp_share_scope === 'all' ? 2 : 1,
-                      borderColor: liveConfigItem?.default_whatsapp_share_scope === 'all' ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      borderColor:
+                        liveConfigItem?.default_whatsapp_share_scope === 'all'
+                          ? '#0078d4'
+                          : isDarkMode
+                            ? '#3f3f46'
+                            : '#e2e8f0',
                     }}
                     activeOpacity={0.7}
                   >
@@ -1517,16 +1889,37 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                         <CheckSquare size={20} color="#22c55e" />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 15,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           All Tasks
                         </Text>
-                        <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 12,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           Both pending and completed tasks
                         </Text>
                       </View>
                     </View>
                     {liveConfigItem?.default_whatsapp_share_scope === 'all' && (
-                      <View style={{ width: 22, height: 22, borderRadius: 11, backgroundColor: '#0078d4', alignItems: 'center', justifyContent: 'center' }}>
+                      <View
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: 11,
+                          backgroundColor: '#0078d4',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
                         <Check size={14} color="#ffffff" strokeWidth={3} />
                       </View>
                     )}
@@ -1542,13 +1935,41 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
       <WhatsAppFormatBottomSheet
         visible={showFormatPickerModal}
         onClose={() => setShowFormatPickerModal(false)}
-        currentStyle={((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) || defaultWhatsAppStyle || 'executive'}
-        includeNotes={(liveConfigItem as any)?.whatsapp_include_notes != null ? (liveConfigItem as any)?.whatsapp_include_notes !== 0 : defaultWhatsAppIncludeNotes}
-        includeAssignee={(liveConfigItem as any)?.whatsapp_include_assignee != null ? (liveConfigItem as any)?.whatsapp_include_assignee !== 0 : defaultWhatsAppIncludeAssignee}
-        includeImportant={(liveConfigItem as any)?.whatsapp_include_important != null ? (liveConfigItem as any)?.whatsapp_include_important !== 0 : defaultWhatsAppIncludeImportant}
-        includeSteps={(liveConfigItem as any)?.whatsapp_include_steps != null ? (liveConfigItem as any)?.whatsapp_include_steps !== 0 : defaultWhatsAppIncludeSteps}
-        includeDueDate={(liveConfigItem as any)?.whatsapp_include_due_date != null ? (liveConfigItem as any)?.whatsapp_include_due_date !== 0 : defaultWhatsAppIncludeDueDate}
-        includeListName={(liveConfigItem as any)?.whatsapp_include_list_name != null ? (liveConfigItem as any)?.whatsapp_include_list_name !== 0 : defaultWhatsAppIncludeListName}
+        currentStyle={
+          ((liveConfigItem as any)?.whatsapp_message_style as WhatsAppMessageStyle) ||
+          defaultWhatsAppStyle ||
+          'executive'
+        }
+        includeNotes={
+          (liveConfigItem as any)?.whatsapp_include_notes != null
+            ? (liveConfigItem as any)?.whatsapp_include_notes !== 0
+            : defaultWhatsAppIncludeNotes
+        }
+        includeAssignee={
+          (liveConfigItem as any)?.whatsapp_include_assignee != null
+            ? (liveConfigItem as any)?.whatsapp_include_assignee !== 0
+            : defaultWhatsAppIncludeAssignee
+        }
+        includeImportant={
+          (liveConfigItem as any)?.whatsapp_include_important != null
+            ? (liveConfigItem as any)?.whatsapp_include_important !== 0
+            : defaultWhatsAppIncludeImportant
+        }
+        includeSteps={
+          (liveConfigItem as any)?.whatsapp_include_steps != null
+            ? (liveConfigItem as any)?.whatsapp_include_steps !== 0
+            : defaultWhatsAppIncludeSteps
+        }
+        includeDueDate={
+          (liveConfigItem as any)?.whatsapp_include_due_date != null
+            ? (liveConfigItem as any)?.whatsapp_include_due_date !== 0
+            : defaultWhatsAppIncludeDueDate
+        }
+        includeListName={
+          (liveConfigItem as any)?.whatsapp_include_list_name != null
+            ? (liveConfigItem as any)?.whatsapp_include_list_name !== 0
+            : defaultWhatsAppIncludeListName
+        }
         listNameLabel={liveConfigItem?.type === 'view' ? 'View Name' : 'List Name'}
         onSave={handleSaveWhatsAppFormat}
         title={`Message Format: ${liveConfigItem?.title || ''}`}
@@ -1594,11 +2015,27 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                 elevation: 12,
               }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 18,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   {renameTarget?.type === 'view' ? 'Rename View' : 'Rename List'}
                 </Text>
-                <TouchableOpacity onPress={() => setRenameTarget(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setRenameTarget(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
                 </TouchableOpacity>
               </View>
@@ -1658,7 +2095,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                   }}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: isDarkMode ? '#d4d4d8' : '#475569' }}>
+                  <Text
+                    style={{
+                      fontSize: 15,
+                      fontWeight: '700',
+                      color: isDarkMode ? '#d4d4d8' : '#475569',
+                    }}
+                  >
                     Cancel
                   </Text>
                 </TouchableOpacity>
@@ -1671,16 +2114,18 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                     paddingVertical: 13,
                     borderRadius: 14,
                     backgroundColor: renameInput.trim()
-                      ? (renameTarget ? getThemePrimary(renameTarget.color_theme, isDarkMode) : '#0078d4')
-                      : (isDarkMode ? '#3f3f46' : '#cbd5e1'),
+                      ? renameTarget
+                        ? getThemePrimary(renameTarget.color_theme, isDarkMode)
+                        : '#0078d4'
+                      : isDarkMode
+                        ? '#3f3f46'
+                        : '#cbd5e1',
                     alignItems: 'center',
                     justifyContent: 'center',
                   }}
                   activeOpacity={0.8}
                 >
-                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#ffffff' }}>
-                    Save
-                  </Text>
+                  <Text style={{ fontSize: 15, fontWeight: '700', color: '#ffffff' }}>Save</Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -1726,21 +2171,51 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                 elevation: 12,
               }}
             >
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <View
+                style={{
+                  flexDirection: 'row',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: 16,
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 18,
+                    fontWeight: '800',
+                    color: isDarkMode ? '#ffffff' : '#0f172a',
+                  }}
+                >
                   {themeTarget?.type === 'view' ? 'View Theme' : 'List Theme'}
                 </Text>
-                <TouchableOpacity onPress={() => setThemeTarget(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <TouchableOpacity
+                  onPress={() => setThemeTarget(null)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
                   <X size={20} color={isDarkMode ? '#a1a1aa' : '#64748b'} />
                 </TouchableOpacity>
               </View>
 
-              <Text style={{ fontSize: 13, color: isDarkMode ? '#a1a1aa' : '#64748b', marginBottom: 16 }}>
+              <Text
+                style={{
+                  fontSize: 13,
+                  color: isDarkMode ? '#a1a1aa' : '#64748b',
+                  marginBottom: 16,
+                }}
+              >
                 Choose an accent color for "{themeTarget?.title}":
               </Text>
 
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', marginBottom: 20 }}>
-                {CUSTOM_LIST_THEMES.map((theme) => {
+              <View
+                style={{
+                  flexDirection: 'row',
+                  flexWrap: 'wrap',
+                  gap: 12,
+                  justifyContent: 'center',
+                  marginBottom: 20,
+                }}
+              >
+                {CUSTOM_LIST_THEMES.map(theme => {
                   const themeHex = getThemePrimary(theme, isDarkMode);
                   const isSelected = selectedThemeColor === theme;
                   return (
@@ -1779,7 +2254,13 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
                 }}
                 activeOpacity={0.7}
               >
-                <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#d4d4d8' : '#475569' }}>
+                <Text
+                  style={{
+                    fontSize: 14,
+                    fontWeight: '700',
+                    color: isDarkMode ? '#d4d4d8' : '#475569',
+                  }}
+                >
                   Close
                 </Text>
               </TouchableOpacity>
@@ -1792,10 +2273,10 @@ function ListsDirectoryView({ onSelectList, onSelectCustomView }: ListsDirectory
 }
 
 export default function ListsScreen() {
-  const activeListId = useUiStore((s) => s.activeListId);
-  const setActiveListId = useUiStore((s) => s.setActiveListId);
-  const activeCustomViewId = useUiStore((s) => s.activeCustomViewId);
-  const setActiveCustomViewId = useUiStore((s) => s.setActiveCustomViewId);
+  const activeListId = useUiStore(s => s.activeListId);
+  const setActiveListId = useUiStore(s => s.setActiveListId);
+  const activeCustomViewId = useUiStore(s => s.activeCustomViewId);
+  const setActiveCustomViewId = useUiStore(s => s.setActiveCustomViewId);
 
   const handleSelectList = (id: number) => {
     setActiveListId(id);

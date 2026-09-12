@@ -65,30 +65,40 @@ export default function WhatsAppShareModal({
   config,
   users,
   onGeneratePayload,
-  isDarkMode
+  isDarkMode,
 }: WhatsAppShareModalProps) {
-  const defaultWhatsAppStyle = useUiStore((s) => s.defaultWhatsAppStyle);
-  const defaultWhatsAppIncludeNotes = useUiStore((s) => s.defaultWhatsAppIncludeNotes);
-  const defaultWhatsAppIncludeAssignee = useUiStore((s) => s.defaultWhatsAppIncludeAssignee);
-  const defaultWhatsAppIncludeImportant = useUiStore((s) => s.defaultWhatsAppIncludeImportant);
-  const defaultWhatsAppIncludeSteps = useUiStore((s) => s.defaultWhatsAppIncludeSteps);
-  const defaultWhatsAppIncludeDueDate = useUiStore((s) => s.defaultWhatsAppIncludeDueDate);
-  const defaultWhatsAppIncludeListName = useUiStore((s) => s.defaultWhatsAppIncludeListName);
+  const defaultWhatsAppStyle = useUiStore(s => s.defaultWhatsAppStyle);
+  const defaultWhatsAppIncludeNotes = useUiStore(s => s.defaultWhatsAppIncludeNotes);
+  const defaultWhatsAppIncludeAssignee = useUiStore(s => s.defaultWhatsAppIncludeAssignee);
+  const defaultWhatsAppIncludeImportant = useUiStore(s => s.defaultWhatsAppIncludeImportant);
+  const defaultWhatsAppIncludeSteps = useUiStore(s => s.defaultWhatsAppIncludeSteps);
+  const defaultWhatsAppIncludeDueDate = useUiStore(s => s.defaultWhatsAppIncludeDueDate);
+  const defaultWhatsAppIncludeListName = useUiStore(s => s.defaultWhatsAppIncludeListName);
 
   const [message, setMessage] = useState('');
   const [recipientPhone, setRecipientPhone] = useState('');
   const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(defaultWhatsAppStyle || 'executive');
+  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(
+    defaultWhatsAppStyle || 'executive'
+  );
   const [includeNotes, setIncludeNotes] = useState<boolean>(defaultWhatsAppIncludeNotes !== false);
-  const [includeAssignee, setIncludeAssignee] = useState<boolean>(defaultWhatsAppIncludeAssignee !== false);
-  const [includeImportant, setIncludeImportant] = useState<boolean>(defaultWhatsAppIncludeImportant === true);
+  const [includeAssignee, setIncludeAssignee] = useState<boolean>(
+    defaultWhatsAppIncludeAssignee !== false
+  );
+  const [includeImportant, setIncludeImportant] = useState<boolean>(
+    defaultWhatsAppIncludeImportant === true
+  );
   const [includeSteps, setIncludeSteps] = useState<boolean>(defaultWhatsAppIncludeSteps !== false);
-  const [includeDueDate, setIncludeDueDate] = useState<boolean>(defaultWhatsAppIncludeDueDate !== false);
-  const [includeListName, setIncludeListName] = useState<boolean>(defaultWhatsAppIncludeListName !== false);
+  const [includeDueDate, setIncludeDueDate] = useState<boolean>(
+    defaultWhatsAppIncludeDueDate !== false
+  );
+  const [includeListName, setIncludeListName] = useState<boolean>(
+    defaultWhatsAppIncludeListName !== false
+  );
 
-  const selectedUser = users.find((u) => u.id === selectedUserId);
+  const selectedUser = users.find(u => u.id === selectedUserId);
 
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
@@ -123,7 +133,17 @@ export default function WhatsAppShareModal({
         includeListName: initialListName,
       });
     }
-  }, [isOpen, config, defaultWhatsAppStyle, defaultWhatsAppIncludeNotes, defaultWhatsAppIncludeAssignee, defaultWhatsAppIncludeImportant, defaultWhatsAppIncludeSteps, defaultWhatsAppIncludeDueDate, defaultWhatsAppIncludeListName]);
+  }, [
+    isOpen,
+    config,
+    defaultWhatsAppStyle,
+    defaultWhatsAppIncludeNotes,
+    defaultWhatsAppIncludeAssignee,
+    defaultWhatsAppIncludeImportant,
+    defaultWhatsAppIncludeSteps,
+    defaultWhatsAppIncludeDueDate,
+    defaultWhatsAppIncludeListName,
+  ]);
 
   const fetchPayload = async (
     userId: number | null,
@@ -152,7 +172,7 @@ export default function WhatsAppShareModal({
         const data = await onGeneratePayload({
           ...config,
           recipientUserId: userId,
-          customPhone: customPhone
+          customPhone: customPhone,
         });
         setMessage(data.message || '');
         setRecipientPhone(data.recipientPhone || '');
@@ -163,7 +183,7 @@ export default function WhatsAppShareModal({
         let targetName = 'Recipient';
 
         if (userId) {
-          const user = users.find((u) => u.id === userId);
+          const user = users.find(u => u.id === userId);
           if (user) {
             targetPhone = targetPhone || user.phone;
             targetName = user.name;
@@ -203,7 +223,7 @@ export default function WhatsAppShareModal({
           }
         } else if (config.type === 'batch' && config.taskIds && config.taskIds.length > 0) {
           const allTasks = localTodoDb.getTasks();
-          const selectedTasks = allTasks.filter((t) => config.taskIds?.includes(t.id));
+          const selectedTasks = allTasks.filter(t => config.taskIds?.includes(t.id));
           generatedMessage = formatBatchTasksMessage(selectedTasks, formatConfig);
           localTodoDb.logWhatsAppMessage({
             taskId: null,
@@ -213,11 +233,13 @@ export default function WhatsAppShareModal({
           });
         } else if (config.type === 'list' && config.listId) {
           const lists = localTodoDb.getLists();
-          const list = lists.find((l) => l.id === config.listId);
+          const list = lists.find(l => l.id === config.listId);
           if (list) {
             const tasks = localTodoDb.getTasks({ listId: list.id });
-            const scope = (list.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') || 'pending';
-            const targetTasks = scope === 'pending' ? tasks.filter((t) => !t.is_completed) : tasks;
+            const scope =
+              (list.default_whatsapp_share_scope as 'pending' | 'all' | 'current_view') ||
+              'pending';
+            const targetTasks = scope === 'pending' ? tasks.filter(t => !t.is_completed) : tasks;
             generatedMessage = formatWholeListMessage(list, targetTasks, {
               scope,
               ...formatConfig,
@@ -331,7 +353,7 @@ export default function WhatsAppShareModal({
       data: { recipientUserId: userId },
     });
     setSelectedUserId(userId);
-    const u = users.find((item) => item.id === userId);
+    const u = users.find(item => item.id === userId);
     if (u && u.phone) {
       setRecipientPhone(u.phone);
     }
@@ -400,17 +422,12 @@ export default function WhatsAppShareModal({
   if (!config) return null;
 
   return (
-    <Modal
-      visible={isOpen}
-      transparent
-      animationType="none"
-      onRequestClose={onClose}
-    >
+    <Modal visible={isOpen} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.backdrop}>
         <View
           style={[
             styles.sheetContainer,
-            { backgroundColor: colors.card, borderColor: colors.border }
+            { backgroundColor: colors.card, borderColor: colors.border },
           ]}
         >
           {/* Header */}
@@ -449,13 +466,14 @@ export default function WhatsAppShareModal({
                   style={[
                     styles.contactPill,
                     {
-                      backgroundColor: selectedUserId === -1
-                        ? 'rgba(37, 211, 102, 0.2)'
-                        : isDarkMode
-                        ? '#27272a'
-                        : '#f8fafc',
+                      backgroundColor:
+                        selectedUserId === -1
+                          ? 'rgba(37, 211, 102, 0.2)'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
                       borderColor: selectedUserId === -1 ? '#25D366' : colors.border,
-                    }
+                    },
                   ]}
                   activeOpacity={0.7}
                 >
@@ -474,7 +492,7 @@ export default function WhatsAppShareModal({
                   <Text
                     style={[
                       styles.contactPillName,
-                      { color: selectedUserId === -1 ? '#25D366' : colors.text }
+                      { color: selectedUserId === -1 ? '#25D366' : colors.text },
                     ]}
                   >
                     WhatsApp Group
@@ -487,88 +505,88 @@ export default function WhatsAppShareModal({
                   style={[
                     styles.contactPill,
                     {
-                      backgroundColor: selectedUserId === 1
-                        ? 'rgba(37, 211, 102, 0.15)'
-                        : isDarkMode
-                        ? '#27272a'
-                        : '#f8fafc',
+                      backgroundColor:
+                        selectedUserId === 1
+                          ? 'rgba(37, 211, 102, 0.15)'
+                          : isDarkMode
+                            ? '#27272a'
+                            : '#f8fafc',
                       borderColor: selectedUserId === 1 ? '#25D366' : colors.border,
-                    }
+                    },
                   ]}
                   activeOpacity={0.7}
                 >
                   <Text
                     style={[
                       styles.contactPillName,
-                      { color: selectedUserId === 1 ? '#25D366' : colors.text }
+                      { color: selectedUserId === 1 ? '#25D366' : colors.text },
                     ]}
                   >
                     Self (You)
                   </Text>
                 </TouchableOpacity>
 
-                {users.filter((u) => u.id !== 1 && !u.is_group).map((u) => {
-                  const isSelected = selectedUserId === u.id;
-                  return (
-                    <TouchableOpacity
-                      key={u.id}
-                      onPress={() => handleUserSelect(isSelected ? null : u.id)}
-                      style={[
-                        styles.contactPill,
-                        {
-                          backgroundColor: isSelected
-                            ? 'rgba(37, 211, 102, 0.15)'
-                            : isDarkMode
-                            ? '#27272a'
-                            : '#f8fafc',
-                          borderColor: isSelected ? '#25D366' : colors.border
-                        }
-                      ]}
-                      activeOpacity={0.7}
-                    >
-                      {u.is_group ? (
-                        <View
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: 14,
-                            backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                          }}
-                        >
-                          <Users size={14} color="#25D366" />
-                        </View>
-                      ) : (
-                        <Image
-                          source={{
-                            uri:
-                              u.avatar ||
-                              `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`
-                          }}
-                          style={styles.contactPillAvatar}
-                        />
-                      )}
-                      <Text
+                {users
+                  .filter(u => u.id !== 1 && !u.is_group)
+                  .map(u => {
+                    const isSelected = selectedUserId === u.id;
+                    return (
+                      <TouchableOpacity
+                        key={u.id}
+                        onPress={() => handleUserSelect(isSelected ? null : u.id)}
                         style={[
-                          styles.contactPillName,
-                          { color: isSelected ? '#25D366' : colors.text }
+                          styles.contactPill,
+                          {
+                            backgroundColor: isSelected
+                              ? 'rgba(37, 211, 102, 0.15)'
+                              : isDarkMode
+                                ? '#27272a'
+                                : '#f8fafc',
+                            borderColor: isSelected ? '#25D366' : colors.border,
+                          },
                         ]}
+                        activeOpacity={0.7}
                       >
-                        {u.name.split(' ')[0]}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
+                        {u.is_group ? (
+                          <View
+                            style={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: 14,
+                              backgroundColor: isDarkMode ? 'rgba(37, 211, 102, 0.25)' : '#dcfce7',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                            }}
+                          >
+                            <Users size={14} color="#25D366" />
+                          </View>
+                        ) : (
+                          <Image
+                            source={{
+                              uri:
+                                u.avatar ||
+                                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(u.name)}`,
+                            }}
+                            style={styles.contactPillAvatar}
+                          />
+                        )}
+                        <Text
+                          style={[
+                            styles.contactPillName,
+                            { color: isSelected ? '#25D366' : colors.text },
+                          ]}
+                        >
+                          {u.name.split(' ')[0]}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
               </View>
             </ScrollView>
 
             {/* Custom Phone Number Input */}
             <View
-              style={[
-                styles.inputWrap,
-                { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }
-              ]}
+              style={[styles.inputWrap, { backgroundColor: isDarkMode ? '#27272a' : '#f8fafc' }]}
             >
               <Phone size={16} color="#25D366" />
               <TextInput
@@ -584,7 +602,7 @@ export default function WhatsAppShareModal({
             {/* Message Style System */}
             <Text style={[styles.sectionHeader, { marginTop: 14 }]}>MESSAGE STYLE</Text>
             <View style={{ flexDirection: 'row', gap: 8, marginBottom: 12 }}>
-              {(['modern', 'executive', 'crisp'] as const).map((st) => {
+              {(['modern', 'executive', 'crisp'] as const).map(st => {
                 const isSelected = selectedStyle === st;
                 return (
                   <TouchableOpacity
@@ -596,10 +614,14 @@ export default function WhatsAppShareModal({
                       paddingHorizontal: 8,
                       borderRadius: 12,
                       backgroundColor: isSelected
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.2)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                        ? isDarkMode
+                          ? 'rgba(0, 120, 212, 0.2)'
+                          : '#eff6ff'
+                        : isDarkMode
+                          ? '#27272a'
+                          : '#f8fafc',
                       borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? '#0078d4' : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      borderColor: isSelected ? '#0078d4' : isDarkMode ? '#3f3f46' : '#e2e8f0',
                       alignItems: 'center',
                     }}
                     activeOpacity={0.7}
@@ -608,7 +630,7 @@ export default function WhatsAppShareModal({
                       style={{
                         fontSize: 12,
                         fontWeight: '800',
-                        color: isSelected ? '#0078d4' : (isDarkMode ? '#e4e4e7' : '#334155'),
+                        color: isSelected ? '#0078d4' : isDarkMode ? '#e4e4e7' : '#334155',
                         textTransform: 'capitalize',
                       }}
                     >
@@ -620,7 +642,9 @@ export default function WhatsAppShareModal({
             </View>
 
             {/* Task Fields */}
-            <Text style={[styles.sectionHeader, { marginTop: 10, marginBottom: 8 }]}>TASK FIELDS</Text>
+            <Text style={[styles.sectionHeader, { marginTop: 10, marginBottom: 8 }]}>
+              TASK FIELDS
+            </Text>
             <View style={{ gap: 6, marginBottom: 16 }}>
               {[
                 {
@@ -671,7 +695,7 @@ export default function WhatsAppShareModal({
                   color: '#25D366',
                   onToggle: handleNotesToggle,
                 },
-              ].map((field) => {
+              ].map(field => {
                 const IconComp = field.icon;
                 return (
                   <View
@@ -712,22 +736,22 @@ export default function WhatsAppShareModal({
                 <Text style={styles.sectionHeader}>FORMATTED MESSAGE PREVIEW</Text>
               </View>
 
-              <TouchableOpacity
-                onPress={handleCopy}
-                style={styles.copyBtn}
-                activeOpacity={0.7}
-              >
+              <TouchableOpacity onPress={handleCopy} style={styles.copyBtn} activeOpacity={0.7}>
                 {copied ? (
                   <>
                     <Check size={14} color="#10b981" />
-                    <Text style={{ color: '#10b981', fontSize: fontSizes.caption, fontWeight: '700' }}>
+                    <Text
+                      style={{ color: '#10b981', fontSize: fontSizes.caption, fontWeight: '700' }}
+                    >
                       Copied!
                     </Text>
                   </>
                 ) : (
                   <>
                     <Copy size={14} color="#0078d4" />
-                    <Text style={{ color: '#0078d4', fontSize: fontSizes.caption, fontWeight: '700' }}>
+                    <Text
+                      style={{ color: '#0078d4', fontSize: fontSizes.caption, fontWeight: '700' }}
+                    >
                       Copy Text
                     </Text>
                   </>
@@ -740,8 +764,8 @@ export default function WhatsAppShareModal({
                 styles.messageBubble,
                 {
                   backgroundColor: isDarkMode ? '#111b21' : '#e5ddd5',
-                  borderColor: isDarkMode ? '#27272a' : '#d1c7bd'
-                }
+                  borderColor: isDarkMode ? '#27272a' : '#d1c7bd',
+                },
               ]}
             >
               {loading ? (
@@ -753,10 +777,7 @@ export default function WhatsAppShareModal({
                 </View>
               ) : (
                 <Text
-                  style={[
-                    styles.messageText,
-                    { color: isDarkMode ? '#f4f4f5' : '#111b21' }
-                  ]}
+                  style={[styles.messageText, { color: isDarkMode ? '#f4f4f5' : '#111b21' }]}
                   selectable
                 >
                   {message || 'No task details to format.'}
@@ -771,31 +792,22 @@ export default function WhatsAppShareModal({
               styles.bottomBar,
               {
                 borderTopColor: colors.border,
-                paddingBottom: Math.max(insets.bottom, 16)
-              }
+                paddingBottom: Math.max(insets.bottom, 16),
+              },
             ]}
           >
             <TouchableOpacity
               onPress={handleOpenWhatsApp}
               disabled={!message || loading}
-              style={[
-                styles.openWhatsAppBtn,
-                (!message || loading) && { opacity: 0.5 }
-              ]}
+              style={[styles.openWhatsAppBtn, (!message || loading) && { opacity: 0.5 }]}
               activeOpacity={0.8}
             >
               <ExternalLink size={18} color="#ffffff" />
               <Text style={styles.openWhatsAppText}>Open in WhatsApp</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={onClose}
-              style={styles.cancelBtn}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>
-                Cancel
-              </Text>
+            <TouchableOpacity onPress={onClose} style={styles.cancelBtn} activeOpacity={0.8}>
+              <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Cancel</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -822,7 +834,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: -4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 10
+    elevation: 10,
   },
   header: {
     flexDirection: 'row',
@@ -830,44 +842,44 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 14,
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   headerTitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    flex: 1
+    flex: 1,
   },
   title: {
     fontSize: fontSizes.heading,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   subtitle: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    marginTop: 1
+    marginTop: 1,
   },
   closeBtn: {
-    padding: 6
+    padding: 6,
   },
   scrollArea: {
     paddingHorizontal: 16,
-    paddingTop: 12
+    paddingTop: 12,
   },
   scrollContent: {
     gap: 10,
-    paddingBottom: 24
+    paddingBottom: 24,
   },
   sectionHeader: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#64748b',
-    letterSpacing: 0.8
+    letterSpacing: 0.8,
   },
   pillRow: {
     flexDirection: 'row',
     gap: 8,
-    paddingVertical: 2
+    paddingVertical: 2,
   },
   contactPill: {
     flexDirection: 'row',
@@ -876,16 +888,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
-    borderWidth: 1
+    borderWidth: 1,
   },
   contactPillAvatar: {
     width: 22,
     height: 22,
-    borderRadius: 11
+    borderRadius: 11,
   },
   contactPillName: {
     fontSize: fontSizes.caption,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   inputWrap: {
     flexDirection: 'row',
@@ -893,53 +905,53 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     borderRadius: 14,
-    height: 44
+    height: 44,
   },
   phoneInput: {
     flex: 1,
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   previewHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 4
+    marginTop: 4,
   },
   previewHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   copyBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    padding: 4
+    padding: 4,
   },
   messageBubble: {
     borderRadius: 18,
     borderWidth: 1,
     padding: 14,
     minHeight: 120,
-    maxHeight: 220
+    maxHeight: 220,
   },
   messageText: {
     fontSize: fontSizes.caption,
     lineHeight: 18,
-    fontFamily: 'Courier'
+    fontFamily: 'Courier',
   },
   loadingWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    paddingVertical: 30
+    paddingVertical: 30,
   },
   bottomBar: {
     padding: 16,
     borderTopWidth: 1,
-    gap: 8
+    gap: 8,
   },
   openWhatsAppBtn: {
     backgroundColor: '#25D366',
@@ -953,21 +965,21 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
-    elevation: 3
+    elevation: 3,
   },
   openWhatsAppText: {
     color: '#ffffff',
     fontSize: fontSizes.small,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   cancelBtn: {
     height: 40,
     borderRadius: 14,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   cancelBtnText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
-  }
+    fontWeight: '700',
+  },
 });

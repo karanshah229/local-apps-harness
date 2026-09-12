@@ -10,18 +10,18 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
-  Modal
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ListTodo, Plus, Trash2, Search, Share2, X } from 'lucide-react-native';
 import {
-  ListTodo,
-  Plus,
-  Trash2,
-  Search,
-  Share2,
-  X
-} from 'lucide-react-native';
-import { List, THEME_PALETTES, ThemeColor, SMART_VIEWS, fuzzyMatch, getSearchMatchScore } from '@shared/todo';
+  List,
+  THEME_PALETTES,
+  ThemeColor,
+  SMART_VIEWS,
+  fuzzyMatch,
+  getSearchMatchScore,
+} from '@shared/todo';
 import { lightColors, darkColors } from '../theme/colors';
 import { fontSizes } from '../theme/typography';
 import { useUiStore } from '../store/useUiStore';
@@ -49,15 +49,15 @@ export default function ListsPage({
   onDeleteList,
   onOpenShareModal,
   taskCounts,
-  isDarkMode
+  isDarkMode,
 }: ListsPageProps) {
   const [newListTitle, setNewListTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const colors = isDarkMode ? darkColors : lightColors;
   const insets = useSafeAreaInsets();
-  const showConfirmDialog = useUiStore((s) => s.showConfirmDialog);
-  const showAlertDialog = useUiStore((s) => s.showAlertDialog);
+  const showConfirmDialog = useUiStore(s => s.showConfirmDialog);
+  const showAlertDialog = useUiStore(s => s.showAlertDialog);
 
   const handleCreate = async () => {
     if (!newListTitle.trim()) return;
@@ -89,7 +89,7 @@ export default function ListsPage({
 
   const q = (searchQuery || '').trim();
   const filteredLists = (lists || [])
-    .filter((l) => {
+    .filter(l => {
       if (!l) return false;
       const title = l.title || (l as any).name || '';
       return fuzzyMatch(title, q);
@@ -105,23 +105,18 @@ export default function ListsPage({
     });
 
   return (
-    <View
-      style={[
-        styles.container,
-        { backgroundColor: colors.background }
-      ]}
-    >
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Search Bar Row */}
       <View
         style={[
           styles.searchBarContainer,
-          { borderBottomColor: colors.border, backgroundColor: colors.card }
+          { borderBottomColor: colors.border, backgroundColor: colors.card },
         ]}
       >
         <View
           style={[
             styles.searchInputInner,
-            { backgroundColor: isDarkMode ? '#18181b' : '#f8fafc', borderColor: colors.border }
+            { backgroundColor: isDarkMode ? '#18181b' : '#f8fafc', borderColor: colors.border },
           ]}
         >
           <Search size={16} color={colors.textMuted} />
@@ -144,21 +139,16 @@ export default function ListsPage({
       </View>
 
       {/* Scrollable Content */}
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior="padding"
-      >
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={[
             styles.scrollContent,
-            { paddingBottom: Math.max(insets.bottom, 24) + 90 }
+            { paddingBottom: Math.max(insets.bottom, 24) + 90 },
           ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-
-
           {/* Lists Section */}
           <View style={styles.customSectionHeaderRow}>
             <Text style={styles.sectionHeader}>LISTS ({filteredLists.length})</Text>
@@ -168,15 +158,17 @@ export default function ListsPage({
             <View
               style={[
                 styles.emptyBox,
-                { backgroundColor: colors.card, borderColor: colors.border }
+                { backgroundColor: colors.card, borderColor: colors.border },
               ]}
             >
               <Text style={[styles.emptyText, { color: colors.textMuted }]}>
-                {searchQuery ? `No lists match "${searchQuery}".` : 'No lists yet. Tap the + button below to create one.'}
+                {searchQuery
+                  ? `No lists match "${searchQuery}".`
+                  : 'No lists yet. Tap the + button below to create one.'}
               </Text>
             </View>
           ) : (
-            filteredLists.map((l) => {
+            filteredLists.map(l => {
               const isActive = activeListId === l.id;
               const countKey = `list-${l.id}`;
               const count = taskCounts[countKey] || 0;
@@ -190,7 +182,7 @@ export default function ListsPage({
                   style={[
                     styles.customListItem,
                     { backgroundColor: colors.card, borderColor: colors.border },
-                    isActive && [styles.customListItemActive, { borderColor: themeColor }]
+                    isActive && [styles.customListItemActive, { borderColor: themeColor }],
                   ]}
                 >
                   <TouchableOpacity
@@ -216,7 +208,7 @@ export default function ListsPage({
                             source={{
                               uri:
                                 m.avatar ||
-                                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(m.name)}`
+                                `https://api.dicebear.com/7.x/avataaars/png?seed=${encodeURIComponent(m.name)}`,
                             }}
                             style={styles.memberMiniAvatar}
                           />
@@ -265,10 +257,7 @@ export default function ListsPage({
       {/* Floating Action Button (FAB) for Creating New List */}
       <TouchableOpacity
         onPress={() => setIsCreateModalOpen(true)}
-        style={[
-          styles.fabBtn,
-          { bottom: 16 }
-        ]}
+        style={[styles.fabBtn, { bottom: 16 }]}
         activeOpacity={0.85}
         accessibilityLabel="Create new list"
       >
@@ -295,15 +284,10 @@ export default function ListsPage({
         >
           <TouchableOpacity
             activeOpacity={1}
-            style={[
-              styles.modalCard,
-              { backgroundColor: colors.card, borderColor: colors.border }
-            ]}
+            style={[styles.modalCard, { backgroundColor: colors.card, borderColor: colors.border }]}
           >
             <View style={styles.modalHeaderRow}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>
-                Create New List
-              </Text>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>Create New List</Text>
               <TouchableOpacity
                 onPress={() => {
                   setIsCreateModalOpen(false);
@@ -325,7 +309,11 @@ export default function ListsPage({
               returnKeyType="done"
               style={[
                 styles.modalInput,
-                { color: colors.text, borderColor: colors.border, backgroundColor: isDarkMode ? '#18181b' : '#f8fafc' }
+                {
+                  color: colors.text,
+                  borderColor: colors.border,
+                  backgroundColor: isDarkMode ? '#18181b' : '#f8fafc',
+                },
               ]}
             />
 
@@ -345,7 +333,13 @@ export default function ListsPage({
                 disabled={!newListTitle.trim()}
                 style={[
                   styles.modalCreateBtn,
-                  { backgroundColor: newListTitle.trim() ? '#0078d4' : isDarkMode ? '#3f3f46' : '#cbd5e1' }
+                  {
+                    backgroundColor: newListTitle.trim()
+                      ? '#0078d4'
+                      : isDarkMode
+                        ? '#3f3f46'
+                        : '#cbd5e1',
+                  },
                 ]}
               >
                 <Text style={{ color: '#ffffff', fontWeight: '700' }}>Create List</Text>
@@ -360,12 +354,12 @@ export default function ListsPage({
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
   searchBarContainer: {
     paddingHorizontal: 16,
     paddingVertical: 10,
-    borderBottomWidth: 1
+    borderBottomWidth: 1,
   },
   searchInputInner: {
     flexDirection: 'row',
@@ -374,19 +368,19 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     paddingHorizontal: 12,
     borderWidth: 1,
-    gap: 8
+    gap: 8,
   },
   searchInput: {
     flex: 1,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   scrollView: {
-    flex: 1
+    flex: 1,
   },
   scrollContent: {
     padding: 16,
-    gap: 12
+    gap: 12,
   },
   listItem: {
     flexDirection: 'row',
@@ -395,60 +389,60 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 12,
     borderRadius: 16,
-    borderWidth: 1
+    borderWidth: 1,
   },
   listItemActive: {
     borderColor: '#0078d4',
-    borderWidth: 1.5
+    borderWidth: 1.5,
   },
   listItemLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    flex: 1
+    flex: 1,
   },
   iconWrap: {
     width: 32,
     height: 32,
     borderRadius: 10,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   listItemText: {
     fontSize: fontSizes.small,
-    fontWeight: '700'
+    fontWeight: '700',
   },
   countBadge: {
     backgroundColor: '#0078d4',
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderRadius: 10
+    borderRadius: 10,
   },
   countText: {
     color: '#ffffff',
     fontSize: fontSizes.caption,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   customSectionHeaderRow: {
     marginTop: 6,
-    marginBottom: 2
+    marginBottom: 2,
   },
   sectionHeader: {
     fontSize: fontSizes.caption,
     fontWeight: '800',
     color: '#94a3b8',
-    letterSpacing: 0.8
+    letterSpacing: 0.8,
   },
   emptyBox: {
     padding: 20,
     borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   emptyText: {
     fontSize: fontSizes.small,
-    textAlign: 'center'
+    textAlign: 'center',
   },
   customListItem: {
     flexDirection: 'row',
@@ -457,46 +451,46 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderRadius: 16,
-    borderWidth: 1
+    borderWidth: 1,
   },
   customListItemActive: {
-    borderWidth: 1.5
+    borderWidth: 1.5,
   },
   customListClickArea: {
     flex: 1,
-    paddingRight: 8
+    paddingRight: 8,
   },
   colorDot: {
     width: 12,
     height: 12,
-    borderRadius: 6
+    borderRadius: 6,
   },
   membersRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginTop: 2
+    marginTop: 2,
   },
   memberMiniAvatar: {
     width: 16,
     height: 16,
-    borderRadius: 8
+    borderRadius: 8,
   },
   membersText: {
     fontSize: fontSizes.caption,
     fontWeight: '500',
-    marginLeft: 2
+    marginLeft: 2,
   },
   customListActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6
+    gap: 6,
   },
   actionIconButton: {
     width: 34,
     height: 34,
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
   },
   fabBtn: {
     position: 'absolute',
@@ -512,14 +506,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 8,
     elevation: 6,
-    zIndex: 50
+    zIndex: 50,
   },
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20
+    padding: 20,
   },
   modalCard: {
     width: '100%',
@@ -532,16 +526,16 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.15,
     shadowRadius: 10,
-    elevation: 5
+    elevation: 5,
   },
   modalHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
   },
   modalTitle: {
     fontSize: fontSizes.medium,
-    fontWeight: '800'
+    fontWeight: '800',
   },
   modalInput: {
     height: 48,
@@ -549,29 +543,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingHorizontal: 14,
     fontSize: fontSizes.small,
-    fontWeight: '500'
+    fontWeight: '500',
   },
   modalActionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 10
+    gap: 10,
   },
   modalCancelBtn: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 12,
-    borderWidth: 1
+    borderWidth: 1,
   },
   modalCancelText: {
     fontSize: fontSizes.small,
-    fontWeight: '600'
+    fontWeight: '600',
   },
   modalCreateBtn: {
     paddingHorizontal: 18,
     paddingVertical: 10,
     borderRadius: 12,
     alignItems: 'center',
-    justifyContent: 'center'
-  }
+    justifyContent: 'center',
+  },
 });

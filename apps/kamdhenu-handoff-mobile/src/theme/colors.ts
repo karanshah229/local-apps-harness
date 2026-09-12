@@ -30,6 +30,9 @@ export const darkColors = {
   inputBg: '#27272a',
 };
 
-export function getThemeGradientColors(theme: string = 'blue', isDarkMode: boolean = false): [string, string] {
+export function getThemeGradientColors(
+  theme: string = 'blue',
+  isDarkMode: boolean = false
+): [string, string] {
   return getThemeGradient(theme, isDarkMode);
 }

@@ -88,12 +88,19 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
   const activePreviewIndexRef = useRef(0);
   const previewDragStartXRef = useRef(0);
   const previewScrollRef = useRef<any>(null);
-  const [previewScrollbars, setPreviewScrollbars] = useState<Record<string, {
-    contentHeight: number;
-    viewportHeight: number;
-    scrollY: number;
-  }>>({});
-  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(currentStyle || 'executive');
+  const [previewScrollbars, setPreviewScrollbars] = useState<
+    Record<
+      string,
+      {
+        contentHeight: number;
+        viewportHeight: number;
+        scrollY: number;
+      }
+    >
+  >({});
+  const [selectedStyle, setSelectedStyle] = useState<WhatsAppMessageStyle>(
+    currentStyle || 'executive'
+  );
   const [notesEnabled, setNotesEnabled] = useState<boolean>(includeNotes !== false);
   const [assigneeEnabled, setAssigneeEnabled] = useState<boolean>(includeAssignee !== false);
   const [importantEnabled, setImportantEnabled] = useState<boolean>(includeImportant === true);
@@ -113,7 +120,16 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       setDueDateEnabled(includeDueDate !== false);
       setListNameEnabled(includeListName !== false);
     }
-  }, [visible, currentStyle, includeNotes, includeAssignee, includeImportant, includeSteps, includeDueDate, includeListName]);
+  }, [
+    visible,
+    currentStyle,
+    includeNotes,
+    includeAssignee,
+    includeImportant,
+    includeSteps,
+    includeDueDate,
+    includeListName,
+  ]);
 
   const defaultSample: Task = useMemo(() => {
     if (sampleTask) return sampleTask;
@@ -132,28 +148,34 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
     };
   }, [sampleTask]);
 
-  const sampleSubtasks = useMemo(() => [
-    { id: 1, task_id: defaultSample.id, title: 'Verify gate pass', is_completed: 1, active: 1 },
-    { id: 2, task_id: defaultSample.id, title: 'Inspect 20 crates', is_completed: 0, active: 1 },
-  ], [defaultSample.id]);
+  const sampleSubtasks = useMemo(
+    () => [
+      { id: 1, task_id: defaultSample.id, title: 'Verify gate pass', is_completed: 1, active: 1 },
+      { id: 2, task_id: defaultSample.id, title: 'Inspect 20 crates', is_completed: 0, active: 1 },
+    ],
+    [defaultSample.id]
+  );
 
-  const previewConfig = useMemo(() => ({
-    style: selectedStyle,
-    includeNotes: notesEnabled,
-    includeAssignee: assigneeEnabled,
-    includeImportant: importantEnabled,
-    includeSteps: stepsEnabled,
-    includeDueDate: dueDateEnabled,
-    includeListName: listNameEnabled,
-  }), [
-    selectedStyle,
-    notesEnabled,
-    assigneeEnabled,
-    importantEnabled,
-    stepsEnabled,
-    dueDateEnabled,
-    listNameEnabled,
-  ]);
+  const previewConfig = useMemo(
+    () => ({
+      style: selectedStyle,
+      includeNotes: notesEnabled,
+      includeAssignee: assigneeEnabled,
+      includeImportant: importantEnabled,
+      includeSteps: stepsEnabled,
+      includeDueDate: dueDateEnabled,
+      includeListName: listNameEnabled,
+    }),
+    [
+      selectedStyle,
+      notesEnabled,
+      assigneeEnabled,
+      importantEnabled,
+      stepsEnabled,
+      dueDateEnabled,
+      listNameEnabled,
+    ]
+  );
 
   const previewCards = useMemo(() => {
     const secondSample: Task = {
@@ -188,11 +210,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
         ),
       },
     ];
-  }, [
-    defaultSample,
-    sampleSubtasks,
-    previewConfig,
-  ]);
+  }, [defaultSample, sampleSubtasks, previewConfig]);
 
   const triggerSave = (
     style: WhatsAppMessageStyle,
@@ -264,7 +282,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#3b82f6',
       onToggle: (val: boolean) => {
         setAssigneeEnabled(val);
-        triggerSave(selectedStyle, notesEnabled, val, importantEnabled, stepsEnabled, dueDateEnabled);
+        triggerSave(
+          selectedStyle,
+          notesEnabled,
+          val,
+          importantEnabled,
+          stepsEnabled,
+          dueDateEnabled
+        );
       },
     },
     {
@@ -276,7 +301,15 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#14b8a6',
       onToggle: (val: boolean) => {
         setListNameEnabled(val);
-        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, stepsEnabled, dueDateEnabled, val);
+        triggerSave(
+          selectedStyle,
+          notesEnabled,
+          assigneeEnabled,
+          importantEnabled,
+          stepsEnabled,
+          dueDateEnabled,
+          val
+        );
       },
     },
     {
@@ -288,7 +321,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#eab308',
       onToggle: (val: boolean) => {
         setImportantEnabled(val);
-        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, val, stepsEnabled, dueDateEnabled);
+        triggerSave(
+          selectedStyle,
+          notesEnabled,
+          assigneeEnabled,
+          val,
+          stepsEnabled,
+          dueDateEnabled
+        );
       },
     },
     {
@@ -300,7 +340,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#10b981',
       onToggle: (val: boolean) => {
         setStepsEnabled(val);
-        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, val, dueDateEnabled);
+        triggerSave(
+          selectedStyle,
+          notesEnabled,
+          assigneeEnabled,
+          importantEnabled,
+          val,
+          dueDateEnabled
+        );
       },
     },
     {
@@ -312,7 +359,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#f97316',
       onToggle: (val: boolean) => {
         setDueDateEnabled(val);
-        triggerSave(selectedStyle, notesEnabled, assigneeEnabled, importantEnabled, stepsEnabled, val);
+        triggerSave(
+          selectedStyle,
+          notesEnabled,
+          assigneeEnabled,
+          importantEnabled,
+          stepsEnabled,
+          val
+        );
       },
     },
     {
@@ -324,7 +378,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
       color: '#25D366',
       onToggle: (val: boolean) => {
         setNotesEnabled(val);
-        triggerSave(selectedStyle, val, assigneeEnabled, importantEnabled, stepsEnabled, dueDateEnabled);
+        triggerSave(
+          selectedStyle,
+          val,
+          assigneeEnabled,
+          importantEnabled,
+          stepsEnabled,
+          dueDateEnabled
+        );
       },
     },
   ];
@@ -358,10 +419,18 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             }}
           >
             <View style={{ flex: 1, paddingRight: 10 }}>
-              <Text style={{ fontSize: 18, fontWeight: '800', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+              <Text
+                style={{
+                  fontSize: 18,
+                  fontWeight: '800',
+                  color: isDarkMode ? '#ffffff' : '#0f172a',
+                }}
+              >
                 {title}
               </Text>
-              <Text style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+              <Text
+                style={{ fontSize: 12, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}
+              >
                 {subtitle}
               </Text>
             </View>
@@ -374,7 +443,10 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ paddingHorizontal: 20, paddingTop: 14 }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={{ paddingHorizontal: 20, paddingTop: 14 }}
+            showsVerticalScrollIndicator={false}
+          >
             {/* Section 1: Style Selection */}
             <Text
               style={{
@@ -390,7 +462,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             </Text>
 
             <View style={{ gap: 8, marginBottom: 16 }}>
-              {stylesList.map((item) => {
+              {stylesList.map(item => {
                 const isSelected = selectedStyle === item.id;
                 const IconComponent = item.icon;
                 return (
@@ -415,10 +487,14 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                       padding: 14,
                       borderRadius: 16,
                       backgroundColor: isSelected
-                        ? (isDarkMode ? 'rgba(0, 120, 212, 0.15)' : '#eff6ff')
-                        : (isDarkMode ? '#27272a' : '#f8fafc'),
+                        ? isDarkMode
+                          ? 'rgba(0, 120, 212, 0.15)'
+                          : '#eff6ff'
+                        : isDarkMode
+                          ? '#27272a'
+                          : '#f8fafc',
                       borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? themePrimary : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                      borderColor: isSelected ? themePrimary : isDarkMode ? '#3f3f46' : '#e2e8f0',
                     }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 }}>
@@ -427,12 +503,19 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                           width: 36,
                           height: 36,
                           borderRadius: 18,
-                          backgroundColor: isSelected ? themePrimary : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                          backgroundColor: isSelected
+                            ? themePrimary
+                            : isDarkMode
+                              ? '#3f3f46'
+                              : '#e2e8f0',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
-                        <IconComponent size={18} color={isSelected ? '#ffffff' : (isDarkMode ? '#a1a1aa' : '#64748b')} />
+                        <IconComponent
+                          size={18}
+                          color={isSelected ? '#ffffff' : isDarkMode ? '#a1a1aa' : '#64748b'}
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -440,18 +523,39 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                             style={{
                               fontSize: 15,
                               fontWeight: '700',
-                              color: isSelected ? (isDarkMode ? '#ffffff' : '#0f172a') : (isDarkMode ? '#e4e4e7' : '#334155'),
+                              color: isSelected
+                                ? isDarkMode
+                                  ? '#ffffff'
+                                  : '#0f172a'
+                                : isDarkMode
+                                  ? '#e4e4e7'
+                                  : '#334155',
                             }}
                           >
                             {item.label}
                           </Text>
                           {item.badge && (
-                            <View style={{ backgroundColor: 'rgba(0, 120, 212, 0.12)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6 }}>
-                              <Text style={{ fontSize: 9, fontWeight: '800', color: themePrimary }}>{item.badge}</Text>
+                            <View
+                              style={{
+                                backgroundColor: 'rgba(0, 120, 212, 0.12)',
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 6,
+                              }}
+                            >
+                              <Text style={{ fontSize: 9, fontWeight: '800', color: themePrimary }}>
+                                {item.badge}
+                              </Text>
                             </View>
                           )}
                         </View>
-                        <Text style={{ fontSize: 11, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           {item.description}
                         </Text>
                       </View>
@@ -493,7 +597,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             </View>
 
             <View
-              onLayout={(event) => {
+              onLayout={event => {
                 const carouselWidth = event.nativeEvent.layout.width;
                 if (carouselWidth > 0 && carouselWidth !== previewCarouselWidth) {
                   setPreviewCarouselWidth(carouselWidth);
@@ -505,151 +609,179 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                 overflow: 'hidden',
               }}
             >
-            <ScrollView
-              ref={previewScrollRef}
-              horizontal
-              pagingEnabled
-              snapToInterval={previewSnapInterval}
-              snapToAlignment="start"
-              disableIntervalMomentum
-              decelerationRate="normal"
-              onScrollBeginDrag={(event) => {
-                previewDragStartXRef.current = event.nativeEvent.contentOffset?.x ?? 0;
-              }}
-              onScrollEndDrag={(event) => {
-                const endX = event.nativeEvent.contentOffset?.x ?? previewDragStartXRef.current;
-                const delta = endX - previewDragStartXRef.current;
-                const direction = delta > 4 ? 1 : delta < -4 ? -1 : 0;
-                const targetIndex = Math.min(
-                  previewCards.length - 1,
-                  Math.max(0, activePreviewIndexRef.current + direction)
-                );
-                activePreviewIndexRef.current = targetIndex;
-                setActivePreviewIndex(targetIndex);
-                previewScrollRef.current?.scrollTo({
-                  x: targetIndex * previewSnapInterval,
-                  animated: true,
-                });
-              }}
-              onMomentumScrollEnd={(event) => {
-                const targetIndex = activePreviewIndexRef.current;
-                if (Math.abs(event.nativeEvent.contentOffset.x - targetIndex * previewSnapInterval) > 1) {
+              <ScrollView
+                ref={previewScrollRef}
+                horizontal
+                pagingEnabled
+                snapToInterval={previewSnapInterval}
+                snapToAlignment="start"
+                disableIntervalMomentum
+                decelerationRate="normal"
+                onScrollBeginDrag={event => {
+                  previewDragStartXRef.current = event.nativeEvent.contentOffset?.x ?? 0;
+                }}
+                onScrollEndDrag={event => {
+                  const endX = event.nativeEvent.contentOffset?.x ?? previewDragStartXRef.current;
+                  const delta = endX - previewDragStartXRef.current;
+                  const direction = delta > 4 ? 1 : delta < -4 ? -1 : 0;
+                  const targetIndex = Math.min(
+                    previewCards.length - 1,
+                    Math.max(0, activePreviewIndexRef.current + direction)
+                  );
+                  activePreviewIndexRef.current = targetIndex;
+                  setActivePreviewIndex(targetIndex);
                   previewScrollRef.current?.scrollTo({
                     x: targetIndex * previewSnapInterval,
-                    animated: false,
+                    animated: true,
                   });
-                }
-              }}
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={{ gap: 0 }}
-              style={{
-                height: 228,
-              }}
-            >
-              {previewCards.map((card) => (
-                <View
-                  key={card.label}
-                  style={{
-                    width: previewCardWidth,
-                    height: 228,
-                    marginRight: previewGap,
-                    backgroundColor: isDarkMode ? '#09090b' : '#f1f5f9',
-                    padding: 14,
-                    borderRadius: 16,
-                    overflow: 'hidden',
-                    borderWidth: 1,
-                    borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
-                  }}
-                >
-                  <Text style={{ fontSize: 11, fontWeight: '800', color: themePrimary, textTransform: 'uppercase', marginBottom: 8 }}>
-                    {card.label}
-                  </Text>
-                  <ScrollView
-                    nestedScrollEnabled
-                    showsVerticalScrollIndicator
-                    persistentScrollbar
-                    scrollEventThrottle={16}
-                    onLayout={(event) => {
-                      const viewportHeight = event.nativeEvent.layout.height;
-                      setPreviewScrollbars((current) => ({
-                        ...current,
-                        [card.label]: {
-                          ...(current[card.label] || { contentHeight: 0, scrollY: 0 }),
-                          viewportHeight,
-                        },
-                      }));
-                    }}
-                    onContentSizeChange={(_, contentHeight) => {
-                      setPreviewScrollbars((current) => ({
-                        ...current,
-                        [card.label]: {
-                          ...(current[card.label] || { viewportHeight: 0, scrollY: 0 }),
-                          contentHeight,
-                        },
-                      }));
-                    }}
-                    onScroll={(event) => {
-                      const scrollY = event.nativeEvent.contentOffset?.y ?? 0;
-                      setPreviewScrollbars((current) => ({
-                        ...current,
-                        [card.label]: {
-                          ...(current[card.label] || { contentHeight: 0, viewportHeight: 0 }),
-                          scrollY,
-                        },
-                      }));
+                }}
+                onMomentumScrollEnd={event => {
+                  const targetIndex = activePreviewIndexRef.current;
+                  if (
+                    Math.abs(
+                      event.nativeEvent.contentOffset.x - targetIndex * previewSnapInterval
+                    ) > 1
+                  ) {
+                    previewScrollRef.current?.scrollTo({
+                      x: targetIndex * previewSnapInterval,
+                      animated: false,
+                    });
+                  }
+                }}
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={{ gap: 0 }}
+                style={{
+                  height: 228,
+                }}
+              >
+                {previewCards.map(card => (
+                  <View
+                    key={card.label}
+                    style={{
+                      width: previewCardWidth,
+                      height: 228,
+                      marginRight: previewGap,
+                      backgroundColor: isDarkMode ? '#09090b' : '#f1f5f9',
+                      padding: 14,
+                      borderRadius: 16,
+                      overflow: 'hidden',
+                      borderWidth: 1,
+                      borderColor: isDarkMode ? '#27272a' : '#e2e8f0',
                     }}
                   >
                     <Text
                       style={{
-                        fontFamily: 'monospace',
-                        fontSize: 12.5,
-                        lineHeight: 19,
-                        color: isDarkMode ? '#22c55e' : '#0f766e',
+                        fontSize: 11,
+                        fontWeight: '800',
+                        color: themePrimary,
+                        textTransform: 'uppercase',
+                        marginBottom: 8,
                       }}
                     >
-                      {card.text}
+                      {card.label}
                     </Text>
-                  </ScrollView>
-                  {(() => {
-                    const metrics = previewScrollbars[card.label];
-                    if (!metrics || metrics.contentHeight <= metrics.viewportHeight) return null;
-                    const trackHeight = 178;
-                    const thumbHeight = Math.max(30, trackHeight * (metrics.viewportHeight / metrics.contentHeight));
-                    const maxThumbTop = trackHeight - thumbHeight;
-                    const maxScrollTop = metrics.contentHeight - metrics.viewportHeight;
-                    const thumbTop = maxScrollTop > 0
-                      ? Math.min(maxThumbTop, Math.max(0, (metrics.scrollY / maxScrollTop) * maxThumbTop))
-                      : 0;
-                    return (
-                    <View
-                      pointerEvents="none"
-                      style={{
-                        position: 'absolute',
-                        top: 40,
-                        right: 12,
-                        bottom: 10,
-                        width: 6,
-                        borderRadius: 2,
-                        backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1',
+                    <ScrollView
+                      nestedScrollEnabled
+                      showsVerticalScrollIndicator
+                      persistentScrollbar
+                      scrollEventThrottle={16}
+                      onLayout={event => {
+                        const viewportHeight = event.nativeEvent.layout.height;
+                        setPreviewScrollbars(current => ({
+                          ...current,
+                          [card.label]: {
+                            ...(current[card.label] || { contentHeight: 0, scrollY: 0 }),
+                            viewportHeight,
+                          },
+                        }));
                       }}
-                      >
-                        <View
-                          style={{
-                            width: 6,
-                          height: thumbHeight,
-                          transform: [{ translateY: thumbTop }],
-                          borderRadius: 2,
-                          backgroundColor: themePrimary,
+                      onContentSizeChange={(_, contentHeight) => {
+                        setPreviewScrollbars(current => ({
+                          ...current,
+                          [card.label]: {
+                            ...(current[card.label] || { viewportHeight: 0, scrollY: 0 }),
+                            contentHeight,
+                          },
+                        }));
+                      }}
+                      onScroll={event => {
+                        const scrollY = event.nativeEvent.contentOffset?.y ?? 0;
+                        setPreviewScrollbars(current => ({
+                          ...current,
+                          [card.label]: {
+                            ...(current[card.label] || { contentHeight: 0, viewportHeight: 0 }),
+                            scrollY,
+                          },
+                        }));
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontFamily: 'monospace',
+                          fontSize: 12.5,
+                          lineHeight: 19,
+                          color: isDarkMode ? '#22c55e' : '#0f766e',
                         }}
-                      />
-                    </View>
-                    );
-                  })()}
-                </View>
-              ))}
-            </ScrollView>
+                      >
+                        {card.text}
+                      </Text>
+                    </ScrollView>
+                    {(() => {
+                      const metrics = previewScrollbars[card.label];
+                      if (!metrics || metrics.contentHeight <= metrics.viewportHeight) return null;
+                      const trackHeight = 178;
+                      const thumbHeight = Math.max(
+                        30,
+                        trackHeight * (metrics.viewportHeight / metrics.contentHeight)
+                      );
+                      const maxThumbTop = trackHeight - thumbHeight;
+                      const maxScrollTop = metrics.contentHeight - metrics.viewportHeight;
+                      const thumbTop =
+                        maxScrollTop > 0
+                          ? Math.min(
+                              maxThumbTop,
+                              Math.max(0, (metrics.scrollY / maxScrollTop) * maxThumbTop)
+                            )
+                          : 0;
+                      return (
+                        <View
+                          pointerEvents="none"
+                          style={{
+                            position: 'absolute',
+                            top: 40,
+                            right: 12,
+                            bottom: 10,
+                            width: 6,
+                            borderRadius: 2,
+                            backgroundColor: isDarkMode ? '#3f3f46' : '#cbd5e1',
+                          }}
+                        >
+                          <View
+                            style={{
+                              width: 6,
+                              height: thumbHeight,
+                              transform: [{ translateY: thumbTop }],
+                              borderRadius: 2,
+                              backgroundColor: themePrimary,
+                            }}
+                          />
+                        </View>
+                      );
+                    })()}
+                  </View>
+                ))}
+              </ScrollView>
             </View>
-            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 6, height: 22, marginBottom: 16 }}>
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: 6,
+                height: 22,
+                marginBottom: 16,
+              }}
+            >
               {previewCards.map((card, index) => (
                 <View
                   key={card.label}
@@ -657,7 +789,12 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                     width: activePreviewIndex === index ? 18 : 6,
                     height: 6,
                     borderRadius: 3,
-                    backgroundColor: activePreviewIndex === index ? themePrimary : (isDarkMode ? '#52525b' : '#cbd5e1'),
+                    backgroundColor:
+                      activePreviewIndex === index
+                        ? themePrimary
+                        : isDarkMode
+                          ? '#52525b'
+                          : '#cbd5e1',
                   }}
                 />
               ))}
@@ -678,7 +815,7 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
             </Text>
 
             <View style={{ gap: 8, marginBottom: 20 }}>
-              {fieldInclusions.map((field) => {
+              {fieldInclusions.map(field => {
                 const IconComp = field.icon;
                 return (
                   <View
@@ -694,26 +831,53 @@ export const WhatsAppFormatBottomSheet: React.FC<WhatsAppFormatBottomSheetProps>
                       borderColor: isDarkMode ? '#3f3f46' : '#e2e8f0',
                     }}
                   >
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1, paddingRight: 10 }}>
+                    <View
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 12,
+                        flex: 1,
+                        paddingRight: 10,
+                      }}
+                    >
                       <View
                         style={{
                           width: 36,
                           height: 36,
                           borderRadius: 18,
                           backgroundColor: field.value
-                            ? (isDarkMode ? 'rgba(255,255,255,0.1)' : '#f1f5f9')
-                            : (isDarkMode ? '#3f3f46' : '#e2e8f0'),
+                            ? isDarkMode
+                              ? 'rgba(255,255,255,0.1)'
+                              : '#f1f5f9'
+                            : isDarkMode
+                              ? '#3f3f46'
+                              : '#e2e8f0',
                           alignItems: 'center',
                           justifyContent: 'center',
                         }}
                       >
-                        <IconComp size={18} color={field.value ? field.color : (isDarkMode ? '#a1a1aa' : '#64748b')} />
+                        <IconComp
+                          size={18}
+                          color={field.value ? field.color : isDarkMode ? '#a1a1aa' : '#64748b'}
+                        />
                       </View>
                       <View style={{ flex: 1 }}>
-                        <Text style={{ fontSize: 14, fontWeight: '700', color: isDarkMode ? '#ffffff' : '#0f172a' }}>
+                        <Text
+                          style={{
+                            fontSize: 14,
+                            fontWeight: '700',
+                            color: isDarkMode ? '#ffffff' : '#0f172a',
+                          }}
+                        >
                           {field.label}
                         </Text>
-                        <Text style={{ fontSize: 11, color: isDarkMode ? '#a1a1aa' : '#64748b', marginTop: 2 }}>
+                        <Text
+                          style={{
+                            fontSize: 11,
+                            color: isDarkMode ? '#a1a1aa' : '#64748b',
+                            marginTop: 2,
+                          }}
+                        >
                           {field.description}
                         </Text>
                       </View>
