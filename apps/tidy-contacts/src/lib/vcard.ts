@@ -203,6 +203,7 @@ export function summarizeContact(card: ContactCard, includePhoto = true): Contac
 export function normalizePhone(value: string) {
   let digits = value.replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.length === 13 && digits.startsWith("910")) digits = digits.slice(3);
   if (digits.length === 12 && digits.startsWith("91")) digits = digits.slice(2);
   if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
   return digits;
@@ -238,7 +239,7 @@ export function hasInternalDuplicates(card: ContactCard): boolean {
   for (const prop of card.properties) {
     if (prop.key === "TEL") {
       const norm = normalizePhone(displayValue(prop));
-      if (norm.length >= 5) {
+      if (norm.length >= 4) {
         if (seenPhones.has(norm)) return true;
         seenPhones.add(norm);
       }
@@ -299,21 +300,71 @@ export function hasEmailDomainTypo(email: string): string | undefined {
 
 export function isInvalidPhoneFormat(phoneStr: string): boolean {
   const digits = phoneStr.replace(/\D/g, "");
-  if (!digits || digits.length < 7) return false;
-  if (digits.length > 15) return true;
+  if (!digits) return true;
 
-  if (digits.length === 12 && digits.startsWith("91")) {
-    const local = digits.slice(2);
-    if (!/^[6-9]\d{9}$/.test(local)) return true;
-  } else if (digits.length === 11 && digits.startsWith("0")) {
-    const local = digits.slice(1);
-    if (local.length === 10 && !/^[1-9]\d{9}$/.test(local)) return true;
+  // Intercom short numbers: 4 or 6 digits
+  if (digits.length === 4 || digits.length === 6) {
+    if (/^(\d)\1+$/.test(digits)) return true;
+    return false;
   }
 
+  // Under 4 digits or 5 digits are handled by short-phone check
+  if (digits.length < 7) return false;
+
+  // ITU-T E.164 maximum is 15 digits
+  if (digits.length > 15) return true;
+
+  // Obvious repetitive dummy numbers (e.g. 0000000, 1111111, 9999999999)
+  if (/^(\d)\1+$/.test(digits)) return true;
+
+  // US/NANP (+1): 11 digits starting with 1
   if (digits.length === 11 && digits.startsWith("1")) {
     const npa = digits.slice(1, 4);
     const nxx = digits.slice(4, 7);
     if (npa[0] === "0" || npa[0] === "1" || nxx[0] === "0" || nxx[0] === "1") return true;
+  }
+
+  // India (+91)
+  if (digits.startsWith("91")) {
+    // 13 digits starting with 910 (e.g. +91 022 40193302)
+    if (digits.length === 13 && digits.startsWith("910")) {
+      const local = digits.slice(3);
+      if (!/^[1-9]\d{9}$/.test(local)) return true;
+      return false;
+    }
+    // 12 digits (standard: +91 followed by 10-digit mobile [6-9] or landline with STD [1-8])
+    if (digits.length === 12) {
+      const local = digits.slice(2);
+      if (!/^[1-9]\d{9}$/.test(local)) return true;
+      return false;
+    }
+    // Local landline without STD code preceded by +91: 8 to 10 digits total (91 + 6-8 digits)
+    if (digits.length >= 8 && digits.length <= 10) {
+      const local = digits.slice(2);
+      if (!/^[1-9]\d+$/.test(local)) return true;
+      return false;
+    }
+    // Any other length starting with 91 (< 8 or > 13 digits)
+    if (digits.length < 8 || digits.length > 13) return true;
+  }
+
+  // Numbers starting with trunk '0':
+  if (digits.startsWith("0")) {
+    const local = digits.slice(1);
+    if (local.startsWith("0")) return true;
+    if (digits.length === 11) {
+      if (!/^[1-9]\d{9}$/.test(local)) return true;
+      return false;
+    }
+    if (digits.length >= 7 && digits.length <= 10) {
+      if (!/^[1-9]\d+$/.test(local)) return true;
+      return false;
+    }
+  }
+
+  // Standalone 10-digit numbers: cannot start with 0
+  if (digits.length === 10 && digits.startsWith("0")) {
+    return true;
   }
 
   return false;
@@ -524,7 +575,7 @@ export function analyzeContacts(cards: ContactCard[]): ContactAnalysis {
   for (const { card, summary } of summaries) {
     for (const phone of summary.phones) {
       const normalized = normalizePhone(phone.value);
-      if (normalized.length >= 7) {
+      if (normalized.length >= 6) {
         const ids = phones.get(normalized) ?? new Set<string>();
         ids.add(card.id);
         phones.set(normalized, ids);
@@ -703,7 +754,7 @@ export function analyzeContacts(cards: ContactCard[]): ContactAnalysis {
 
       if (summary.phones.some((phone) => {
         const length = phone.value.replace(/\D/g, "").length;
-        return length > 0 && length < 7;
+        return length > 0 && (length < 4 || length === 5);
       })) {
         codes.push("short-phone");
       }

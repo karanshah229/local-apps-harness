@@ -354,7 +354,7 @@ test("creates edited contact and applies quality edit decisions", () => {
     "FN:Janam Mobile Bkc",
     "TEL;TYPE=CELL:+918879009565",
     "TEL;TYPE=WORK:02240193302",
-    "TEL;TYPE=HOME:7790",
+    "TEL;TYPE=HOME:779",
     "END:VCARD",
   ].join("\r\n");
 
@@ -366,7 +366,7 @@ test("creates edited contact and applies quality edit decisions", () => {
   // No safe automatic repair exists for short phone (cannot guess missing digits)
   assert.equal(canSafelyRepair(cards[0]), false);
 
-  // User edits each field: cleans name, updates title, organization, corrects 7790 to full phone
+  // User edits each field: cleans name, updates title, organization, corrects 779 to full phone
   const editedCard = createEditedContact(cards[0], {
     name: "Janam Mobile BKC",
     organization: "BKC Diamonds",
@@ -445,7 +445,7 @@ test("determines correct safe fix subcategory labels", () => {
     "BEGIN:VCARD",
     "VERSION:3.0",
     "FN:Valid Name",
-    "TEL:7790",
+    "TEL:779",
     "END:VCARD",
   ].join("\r\n"));
   assert.equal(canSafelyRepair(shortPhoneCards[0]), false);
@@ -719,6 +719,121 @@ test("identifies auto-fixable vs manual quality issues and extracts before/after
   const defaultExported = applyDecisions(cards, [], {}, {});
   const aliceDefaultExported = defaultExported.find((c) => c.id === cards[0].id);
   assert.ok(aliceDefaultExported?.properties.some((p) => p.key === "EMAIL" && p.value === "alice@gmail.com"));
+});
+
+test("allows 4-digit and 6-digit short numbers for intercoms and extensions without quality issues", () => {
+  const vcf = [
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Security Guard",
+    "TEL:1001",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Office Extension",
+    "TEL:7790",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Campus Intercom",
+    "TEL:123456",
+    "END:VCARD",
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Complex PBX",
+    "TEL:234567",
+    "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(vcf);
+  const analysis = analyzeContacts(cards);
+  assert.equal(analysis.qualityIssues.length, 0);
+});
+
+test("flags truly short numbers of 1, 2, 3, or 5 digits as short-phone", () => {
+  const vcf = [
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Too Short 1", "TEL:9", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Too Short 2", "TEL:42", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Too Short 3", "TEL:123", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Incomplete 5", "TEL:12345", "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(vcf);
+  const analysis = analyzeContacts(cards);
+  assert.equal(analysis.qualityIssues.length, 4);
+  for (const issue of analysis.qualityIssues) {
+    assert.deepEqual(issue.codes, ["short-phone"]);
+  }
+});
+
+test("allows landline numbers across all formats with and without codes", () => {
+  const vcf = [
+    // 1. Landline with +91 country code and STD code (12 digits)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Mumbai Landline", "TEL:+91 22 40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Delhi Landline", "TEL:+91 11 23456789", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Ahmedabad Landline", "TEL:+91 79 26561234", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Vadodara Landline", "TEL:+91 265 2345678", "END:VCARD",
+    // 2. Landline with +91 country code and trunk 0 (13 digits)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Trunk With Plus91", "TEL:+91 022 40193302", "END:VCARD",
+    // 3. Landline with trunk 0 and STD code (11 digits)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Trunk Mumbai", "TEL:022 40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Trunk Delhi", "TEL:011 23456789", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Trunk Vadodara", "TEL:0265 2345678", "END:VCARD",
+    // 4. Landline with STD code without 0 or 91 (10 digits)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Raw STD Mumbai", "TEL:2240193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Raw STD Delhi", "TEL:1123456789", "END:VCARD",
+    // 5. Local landlines without STD code (8, 7, 6 digits)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Local 8 Digit", "TEL:40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Local 7 Digit", "TEL:2345678", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Local 6 Digit", "TEL:234567", "END:VCARD",
+    // 6. Formatted landlines with parentheses and hyphens
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Formatted Landline 1", "TEL:+91 (22) 4019-3302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Formatted Landline 2", "TEL:(022) 4019-3302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Formatted Landline 3", "TEL:4019-3302", "END:VCARD",
+    // 7. +91 prefix with local subscriber number (without STD)
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Plus91 Local 8", "TEL:+91 40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Plus91 Local 7", "TEL:+91 2345678", "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(vcf);
+  assert.equal(cards.length, 18);
+  const analysis = analyzeContacts(cards);
+  assert.equal(analysis.qualityIssues.length, 0);
+});
+
+test("normalizes and groups duplicate contacts across different landline notations", () => {
+  const vcf = [
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Janam Office A", "TEL:+91 22 40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Janam Office B", "TEL:022 40193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Janam Office C", "TEL:2240193302", "END:VCARD",
+    "BEGIN:VCARD", "VERSION:3.0", "FN:Janam Office D", "TEL:+91 022 40193302", "END:VCARD",
+  ].join("\r\n");
+
+  const cards = parseVcf(vcf);
+  const analysis = analyzeContacts(cards);
+  // All 4 should be grouped together into a single duplicate group
+  assert.equal(analysis.duplicateGroups.length, 1);
+  assert.equal(analysis.duplicateGroups[0].cardIds.length, 4);
+});
+
+test("detects internal duplicate details for repeated intercom numbers", () => {
+  const vcf = parseVcf([
+    "BEGIN:VCARD",
+    "VERSION:3.0",
+    "FN:Front Desk",
+    "TEL:1001",
+    "TEL:1001",
+    "END:VCARD",
+  ].join("\r\n"))[0];
+
+  const analysis = analyzeContacts([vcf]);
+  assert.equal(analysis.qualityIssues.length, 1);
+  assert.deepEqual(analysis.qualityIssues[0].codes, ["internal-duplicate-details"]);
+
+  const repaired = safelyRepairContact(vcf);
+  const summary = summarizeContact(repaired.card);
+  assert.equal(summary.phones.length, 1);
+  assert.equal(summary.phones[0].value, "1001");
 });
 
 

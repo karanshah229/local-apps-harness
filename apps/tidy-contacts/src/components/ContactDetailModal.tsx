@@ -280,6 +280,8 @@ function ContactDetailModalContent({
                       <option value="Mobile">Mobile</option>
                       <option value="Work">Work</option>
                       <option value="Home">Home</option>
+                      <option value="Landline">Landline</option>
+                      <option value="Intercom">Intercom</option>
                       <option value="Main">Main</option>
                       <option value="Other">Other</option>
                     </select>
